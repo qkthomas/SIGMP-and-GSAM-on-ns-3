@@ -45,11 +45,11 @@ private:
 
   void Initialization (void);
 
-  void Broadcast (Ptr<Packet> packet);
+  void DoSendGeneralQuery (Ptr<Packet> packet);
 
 //  void SendGeneralQuery (void);
 
-  void SendQuery (Ipv4Address group_address,
+  void SendGeneralQuery (Ipv4Address group_address,
 				  std::list<Ipv4Address> &lst_src_addresses,
 		  	  	  bool s_flag = false, //assumed default
 				  uint8_t qqic = 125, //125sec, cisco default
