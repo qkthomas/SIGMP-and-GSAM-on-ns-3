@@ -112,11 +112,11 @@ IGMPApp::Initialization (void)
 	uint8_t qrv = 2;
 	uint8_t max_resp_code = 100;
 
-	this->SendQuery(group_address, lst_src_addresses, s_flag, qqic, qrv, max_resp_code);
+	this->SendGeneralQuery(group_address, lst_src_addresses, s_flag, qqic, qrv, max_resp_code);
 }
 
 void
-IGMPApp::Broadcast (Ptr<Packet> packet)
+IGMPApp::DoSendGeneralQuery (Ptr<Packet> packet)
 {
 	for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
 	{
@@ -155,7 +155,7 @@ IGMPApp::Broadcast (Ptr<Packet> packet)
 //}
 
 void
-IGMPApp::SendQuery (Ipv4Address group_address,
+IGMPApp::SendGeneralQuery (Ipv4Address group_address,
 					std::list<Ipv4Address> &lst_src_addresses,
 					bool s_flag, //= false, assumed default
 					uint8_t qqic, //= 125, 12sec, cisco default
@@ -181,7 +181,7 @@ IGMPApp::SendQuery (Ipv4Address group_address,
 
 	packet->AddHeader(igmpv3);
 
-	this->Broadcast(packet);
+	this->DoSendGeneralQuery(packet);
 
 }
 void
