@@ -103,6 +103,7 @@ IGMPApp::StopApplication (void)
 void
 IGMPApp::Initialization (void)
 {
+	NS_LOG_FUNCTION (this);
 	Ipv4Address group_address ("224.0.2.0");
 	Ipv4Address src_address ("224.0.2.1");
 	std::list<Ipv4Address> lst_src_addresses;
@@ -118,6 +119,8 @@ IGMPApp::Initialization (void)
 void
 IGMPApp::DoSendGeneralQuery (Ptr<Packet> packet)
 {
+	NS_LOG_FUNCTION (this);
+
 	for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
 	{
 		uint32_t device_id = i - 1;
@@ -163,6 +166,8 @@ IGMPApp::SendGeneralQuery (Ipv4Address group_address,
 					uint8_t max_resp_code //= 100, 10sec, cisco default
 					)
 {
+	NS_LOG_FUNCTION (this);
+
 	Ptr<Packet> packet = Create<Packet> ();
 
 	Igmpv3Query query;
@@ -187,6 +192,8 @@ IGMPApp::SendGeneralQuery (Ipv4Address group_address,
 void
 IGMPApp::HandleRead (Ptr<Socket> socket)
 {
+	NS_LOG_FUNCTION (this);
+
 	Address from;
 	Ptr<Packet> packet = socket->RecvFrom(from);
 
