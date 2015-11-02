@@ -47,14 +47,12 @@ private:
 
   void DoSendGeneralQuery (Ptr<Packet> packet);
 
-//  void SendGeneralQuery (void);
+  void SendDefaultGeneralQuery (void);
 
-  void SendGeneralQuery (Ipv4Address group_address,
-				  std::list<Ipv4Address> &lst_src_addresses,
-		  	  	  bool s_flag = false, //assumed default
-				  uint8_t qqic = 125, //125sec, cisco default
-				  uint8_t qrv = 2, //cisco default
-				  uint8_t max_resp_code = 100 //10sec, cisco default
+  void SendGeneralQuery (bool s_flag,
+		  	  	  	  	  uint8_t qqic, //125sec, cisco default
+						  uint8_t qrv, //cisco default
+						  uint8_t max_resp_code //10sec, cisco default
 				  );
 
   void HandleRead (Ptr<Socket> socket);
@@ -63,10 +61,17 @@ private:
   void HandleV2MemReport (Ptr<Packet> packet);
   void HandleV3MemReport (Ptr<Packet> packet);
 
-  Ptr<Socket> m_socket; //!< Socket
+  std::list<Ptr<Socket> > m_lst_sockets; //!< Sockets
   EventId m_sendEvent; //!< Event to send the next packet
   Ipv4Address m_GenQueAddress;	//!< Address to send for general query
   Ipv4Address m_LvGrpAddress;	//!< Address to send for leave group report
+
+  //IGMPv3 Parameters Setting
+  bool m_s_flag;
+  uint8_t m_qqic;
+  uint8_t m_qrv;
+  uint8_t m_max_resp_code;
+
 };
 
 class Igmpv3Header: public Header {

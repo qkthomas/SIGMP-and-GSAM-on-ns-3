@@ -47,14 +47,18 @@ IGMPApp::GetTypeId(void)
 IGMPApp::IGMPApp()
 {
 	NS_LOG_FUNCTION (this);
-	m_socket = 0;
+	//m_socket = 0;
 	m_sendEvent = EventId ();
 }
 
 IGMPApp::~IGMPApp()
 {
 	NS_LOG_FUNCTION (this);
-	m_socket = 0;
+	for (std::list<Ptr<Socket> >::iterator it = this->m_lst_sockets.begin(); it != this->m_lst_sockets.end(); it++)
+	{
+		(*it) = 0;
+	}
+	//m_socket = 0;
 }
 
 void
@@ -68,18 +72,19 @@ void
 IGMPApp::StartApplication(void)
 {
 	//this->m_GenQueAddress = InetSocketAddress(Ipv4Address("224.0.0.1")); // when m_GenQueAddress is only Address, not Ipv4Address
-	this->m_GenQueAddress = Ipv4Address("224.0.0.1");
-
-	if(this->m_socket == 0)
-	{
-		TypeId tid = TypeId::LookupByName ("ns3::Ipv4RawSocketFactory");
-		m_socket = Socket::CreateSocket (GetNode (), tid);
-	}
-
-	if(this->m_socket != 0)
-	{
-		m_socket->SetRecvCallback (MakeCallback (&IGMPApp::HandleRead, this));
-	}
+//	this->m_GenQueAddress = Ipv4Address("224.0.0.1");
+//
+//	if(this->m_socket == 0)
+//	{
+//		TypeId tid = TypeId::LookupByName ("ns3::Ipv4RawSocketFactory");
+//		m_socket = Socket::CreateSocket (GetNode (), tid);
+//	}
+//
+//	if(this->m_socket != 0)
+//	{
+//		m_socket->SetRecvCallback (MakeCallback (&IGMPApp::HandleRead, this));
+//	}
+	this->Initialization();
 
 	Time dt = Seconds(0.);
 
@@ -88,7 +93,7 @@ IGMPApp::StartApplication(void)
 
 	if(0 == run)
 	{
-		this->m_sendEvent = Simulator::Schedule (dt, &IGMPApp::Initialization, this);
+		this->m_sendEvent = Simulator::Schedule (dt, &IGMPApp::SendDefaultGeneralQuery, this);
 		run++;
 	}
 
@@ -104,16 +109,39 @@ void
 IGMPApp::Initialization (void)
 {
 	NS_LOG_FUNCTION (this);
-	Ipv4Address group_address ("224.0.2.0");
-	Ipv4Address src_address ("224.0.2.1");
-	std::list<Ipv4Address> lst_src_addresses;
 
-	bool s_flag = false;
-	uint8_t qqic = 125;
-	uint8_t qrv = 2;
-	uint8_t max_resp_code = 100;
+	this->m_GenQueAddress = Ipv4Address("224.0.0.1");
 
-	this->SendGeneralQuery(group_address, lst_src_addresses, s_flag, qqic, qrv, max_resp_code);
+	if (0 < this->GetNode()->GetNDevices())
+	{
+		if (true == this->m_lst_sockets.empty())
+		{
+			//creating and binding a socket for each device (interface)
+			for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
+			{
+				uint32_t device_id = i - 1;
+
+				Ptr<NetDevice> device = this->GetNode()->GetDevice(device_id);
+				if (device->GetInstanceTypeId() != LoopbackNetDevice::GetTypeId())
+				{
+					TypeId tid = TypeId::LookupByName ("ns3::Ipv4RawSocketFactory");
+					Ptr<Socket> socket = Socket::CreateSocket (this->GetNode (), tid);
+
+					socket->BindToNetDevice(device);
+					socket->Bind();	//receiving from any address
+
+					socket->SetRecvCallback(MakeCallback (&IGMPApp::HandleRead, this));
+					this->m_lst_sockets.push_back(socket);
+				}
+			}
+		}
+	}
+
+	this->m_s_flag = false;			//assumed default
+	this->m_qqic = 125;				//125sec, cisco default
+	this->m_qrv = 2;				//cisco default
+	this->m_max_resp_code = 100; 	//10sec, cisco default
+
 }
 
 void
@@ -121,22 +149,29 @@ IGMPApp::DoSendGeneralQuery (Ptr<Packet> packet)
 {
 	NS_LOG_FUNCTION (this);
 
-	for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
+	for (std::list<Ptr<Socket> >::const_iterator it = this->m_lst_sockets.begin(); it != this->m_lst_sockets.end(); it++)
 	{
-		uint32_t device_id = i - 1;
-
-		Ptr<NetDevice> device = this->GetNode()->GetDevice(device_id);
-		if (device->GetInstanceTypeId() != LoopbackNetDevice::GetTypeId())
-		{
-			this->m_socket->BindToNetDevice(device);
-			this->m_socket->Bind();
-			this->m_socket->Connect(InetSocketAddress(this->m_GenQueAddress, 2));
-
-			std::cout << "Node: " << this->GetNode()->GetId() << " sends a general query" << std::endl;
-
-			this->m_socket->Send(packet);
-		}
+		(*it)->Connect(InetSocketAddress(this->m_GenQueAddress, 2));
+		std::cout << "Node: " << this->GetNode()->GetId() << " sends a general query" << std::endl;
+		(*it)->Send(packet);
 	}
+
+//	for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
+//	{
+//		uint32_t device_id = i - 1;
+//
+//		Ptr<NetDevice> device = this->GetNode()->GetDevice(device_id);
+//		if (device->GetInstanceTypeId() != LoopbackNetDevice::GetTypeId())
+//		{
+//			this->m_socket->BindToNetDevice(device);
+//			this->m_socket->Bind();
+//			this->m_socket->Connect(InetSocketAddress(this->m_GenQueAddress, 2));
+//
+//			std::cout << "Node: " << this->GetNode()->GetId() << " sends a general query" << std::endl;
+//
+//			this->m_socket->Send(packet);
+//		}
+//	}
 }
 
 //old test code for weather packets can be sent to every node in the network.
@@ -158,12 +193,37 @@ IGMPApp::DoSendGeneralQuery (Ptr<Packet> packet)
 //}
 
 void
-IGMPApp::SendGeneralQuery (Ipv4Address group_address,
-					std::list<Ipv4Address> &lst_src_addresses,
-					bool s_flag, //= false, assumed default
-					uint8_t qqic, //= 125, 12sec, cisco default
-					uint8_t qrv, //= 2, cisco default
-					uint8_t max_resp_code //= 100, 10sec, cisco default
+IGMPApp::SendDefaultGeneralQuery (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<Packet> packet = Create<Packet> ();
+
+	Igmpv3Query query;
+	query.SetGroupAddress(0);
+	query.SetSFlag(this->m_s_flag);
+	query.SetQRV(this->m_qrv);
+	query.SetQQIC(this->m_qqic);
+	std::list<Ipv4Address> empty_lst__addresses;
+	query.PushBackSrcAddresses(empty_lst__addresses);
+
+	packet->AddHeader(query);
+
+	Igmpv3Header igmpv3;
+	igmpv3.SetType(Igmpv3Header::MEMBERSHIP_QUERY);
+	igmpv3.SetMaxRespCode(this->m_max_resp_code);
+	igmpv3.EnableChecksum();
+
+	packet->AddHeader(igmpv3);
+
+	this->DoSendGeneralQuery(packet);
+}
+
+void
+IGMPApp::SendGeneralQuery (bool s_flag, //= false, assumed default
+							uint8_t qqic, //= 125, 12sec, cisco default
+							uint8_t qrv, //= 2, cisco default
+							uint8_t max_resp_code //= 100, 10sec, cisco default
 					)
 {
 	NS_LOG_FUNCTION (this);
@@ -171,11 +231,12 @@ IGMPApp::SendGeneralQuery (Ipv4Address group_address,
 	Ptr<Packet> packet = Create<Packet> ();
 
 	Igmpv3Query query;
-	query.SetGroupAddress(group_address.Get());
+	query.SetGroupAddress(0);
 	query.SetSFlag(s_flag);
 	query.SetQRV(qrv);
 	query.SetQQIC(qqic);
-	query.PushBackSrcAddresses(lst_src_addresses);
+	std::list<Ipv4Address> empty_lst__addresses;
+	query.PushBackSrcAddresses(empty_lst__addresses);
 
 	packet->AddHeader(query);
 
@@ -193,6 +254,13 @@ void
 IGMPApp::HandleRead (Ptr<Socket> socket)
 {
 	NS_LOG_FUNCTION (this);
+
+	Ptr<NetDevice> boundnetdevice = socket->GetBoundNetDevice();
+
+	if (0 == boundnetdevice)
+	{
+		std::cout << "Node " << this->GetNode()->GetId() << " , Method: HandleRead (), Receving from socket with no boundnetdevice." << std::endl;
+	}
 
 	Address from;
 	Ptr<Packet> packet = socket->RecvFrom(from);
@@ -239,6 +307,7 @@ IGMPApp::HandleRead (Ptr<Socket> socket)
 void
 IGMPApp::HandleQuery (Ptr<Packet> packet)
 {
+	NS_LOG_FUNCTION (this);
 
 }
 
