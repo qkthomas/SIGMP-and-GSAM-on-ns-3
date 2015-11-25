@@ -22,6 +22,43 @@ namespace ns3 {
 class Socket;
 class Packet;
 
+//defined in this file
+class Igmpv3Header;
+class Igmpv3Query;
+
+enum FILTER_MODE {
+	INCLUDE = 0,
+	EXCLUDE = 1
+};
+
+class IGMPv3SocketState {
+public:
+	Ptr<Socket> m_socket;
+	uint32_t m_multicast_address;
+	FILTER_MODE m_filter_mode;
+	std::list<uint32_t> m_lst_source_list;
+};
+
+class IGMPv3InterfaceState {
+public:
+	Ptr<NetDevice> m_interface;
+	uint32_t m_multicast_address;
+	FILTER_MODE m_filter_mode;
+	std::list<uint32_t> m_lst_source_list;
+};
+
+class PerInterfaceTimer {
+public:
+	Ptr<NetDevice> m_interface;
+	Timer m_softTimer;
+};
+
+class PerGroupInterfaceTimer {
+	Ptr<NetDevice> m_interface;
+	Ipv4Address m_group_address;
+	Timer m_softTimer;
+};
+
 class IGMPApp: public Application {
 
 public:
@@ -45,21 +82,24 @@ private:
 
   void Initialization (void);
 
+
+  //sending
   void DoSendGeneralQuery (Ptr<Packet> packet);
-
   void SendDefaultGeneralQuery (void);
+  void SendGeneralQuery (bool s_flag, uint8_t qqic, uint8_t qrv, uint8_t max_resp_code);
+  void SendCurrentStateReport (Ptr<Socket> socket);
 
-  void SendGeneralQuery (bool s_flag,
-		  	  	  	  	  uint8_t qqic, //125sec, cisco default
-						  uint8_t qrv, //cisco default
-						  uint8_t max_resp_code //10sec, cisco default
-				  );
-
+  //handling
   void HandleRead (Ptr<Socket> socket);
-  void HandleQuery (Ptr<Packet> packet);
-  void HandleV1MemReport (Ptr<Packet> packet);
-  void HandleV2MemReport (Ptr<Packet> packet);
-  void HandleV3MemReport (Ptr<Packet> packet);
+  void HandleQuery (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
+  void HandleGeneralQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query query_header, Ptr<Packet> packet);
+  void HandleGroupSpecificQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query query_header, Ptr<Packet> packet);
+  void HandleV1MemReport (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
+  void HandleV2MemReport (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
+  void HandleV3MemReport (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
+
+  void IPMulticastListen (Ptr<Socket> socket, Ptr<NetDevice> interface, Ipv4Address multicast_address, FILTER_MODE filter_mode);
+
 
   std::list<Ptr<Socket> > m_lst_sockets; //!< Sockets
   EventId m_sendEvent; //!< Event to send the next packet
@@ -71,6 +111,14 @@ private:
   uint8_t m_qqic;
   uint8_t m_qrv;
   uint8_t m_max_resp_code;
+
+  //States
+  std::list<IGMPv3SocketState> m_lst_socket_states;
+  std::list<IGMPv3InterfaceState> m_lst_interface_states;
+
+  //Timers
+  std::list<PerInterfaceTimer> m_lst_per_interface_timers;
+  std::list<PerGroupInterfaceTimer> m_lst_per_group_interface_timers;
 
 };
 
@@ -260,6 +308,7 @@ public:	//set
 	void SetMulticastAddress (uint32_t address);
 	void PushBackSrcAddress (uint32_t address);
 	void PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses);
+	void PushBackSrcAddresses (std::list<uint32_t> &lst_addresses);
 	void PushBackAuxData (uint32_t aux_data);
 	void PushBackAuxdata (std::list<uint32_t> &lst_aux_data);
 
