@@ -61,6 +61,10 @@ class PerGroupInterfaceTimer {
 
 class IGMPApp: public Application {
 
+	enum ROLE {
+		QUERIER = 0, NONQUERIER = 1, HOST = 2
+	};
+
 public:
   /**
    * \brief Get the type ID.
@@ -91,6 +95,7 @@ private:
 
   //handling
   void HandleRead (Ptr<Socket> socket);
+  void HandleReadDummy (Ptr<Socket> socket);	//for binding of sending sockets
   void HandleQuery (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
   void HandleGeneralQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query query_header, Ptr<Packet> packet);
   void HandleGroupSpecificQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query query_header, Ptr<Packet> packet);
@@ -100,11 +105,16 @@ private:
 
   void IPMulticastListen (Ptr<Socket> socket, Ptr<NetDevice> interface, Ipv4Address multicast_address, FILTER_MODE filter_mode);
 
+  //member variables
+  ROLE m_role;
 
-  std::list<Ptr<Socket> > m_lst_sockets; //!< Sockets
+  std::list<Ptr<Socket> > m_lst_sending_sockets; //!< sending Sockets, one for each interface
+  std::list<Ptr<Socket> > m_lst_receiving_sockets;	//!< receiving Sockets, one for eatch interface
   EventId m_sendEvent; //!< Event to send the next packet
   Ipv4Address m_GenQueAddress;	//!< Address to send for general query
-  Ipv4Address m_LvGrpAddress;	//!< Address to send for leave group report
+  Ipv4Address m_LvGrpAddress;	//!< Address to send for leave group report	(non v3 report)
+  Ipv4Address m_RptAddress;		//!< Address to send for group report
+  uint16_t m_portnumber;
 
   //IGMPv3 Parameters Setting
   bool m_s_flag;
@@ -307,7 +317,7 @@ public:	//set
 	void SetNumSrcs (uint16_t num_srcs);
 	void SetMulticastAddress (uint32_t address);
 	void PushBackSrcAddress (uint32_t address);
-	void PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses);
+	//void PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses);
 	void PushBackSrcAddresses (std::list<uint32_t> &lst_addresses);
 	void PushBackAuxData (uint32_t aux_data);
 	void PushBackAuxdata (std::list<uint32_t> &lst_aux_data);

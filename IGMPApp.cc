@@ -45,9 +45,12 @@ IGMPApp::GetTypeId(void)
 }
 
 IGMPApp::IGMPApp()
-  : m_sendEvent (EventId()),
+  : m_role (IGMPApp::QUERIER),
+	m_sendEvent (EventId()),
 	m_GenQueAddress (Ipv4Address ("0.0.0.0")),
 	m_LvGrpAddress (Ipv4Address ("0.0.0.0")),
+	m_RptAddress (Ipv4Address ("0.0.0.0")),
+	m_portnumber (0),
 	m_s_flag (false),
 	m_qqic (0),
 	m_qrv (0),
@@ -60,7 +63,7 @@ IGMPApp::IGMPApp()
 IGMPApp::~IGMPApp()
 {
 	NS_LOG_FUNCTION (this);
-	for (std::list<Ptr<Socket> >::iterator it = this->m_lst_sockets.begin(); it != this->m_lst_sockets.end(); it++)
+	for (std::list<Ptr<Socket> >::iterator it = this->m_lst_sending_sockets.begin(); it != this->m_lst_sending_sockets.end(); it++)
 	{
 		(*it) = 0;
 	}
@@ -117,10 +120,12 @@ IGMPApp::Initialization (void)
 	NS_LOG_FUNCTION (this);
 
 	this->m_GenQueAddress = Ipv4Address("224.0.0.1");
+	this->m_RptAddress = Ipv4Address("224.0.0.22");
+	this->m_portnumber = 2;
 
 	if (0 < this->GetNode()->GetNDevices())
 	{
-		if (true == this->m_lst_sockets.empty())
+		if (true == this->m_lst_sending_sockets.empty())
 		{
 			//creating and binding a socket for each device (interface)
 			for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
@@ -131,13 +136,20 @@ IGMPApp::Initialization (void)
 				if (device->GetInstanceTypeId() != LoopbackNetDevice::GetTypeId())
 				{
 					TypeId tid = TypeId::LookupByName ("ns3::Ipv4RawSocketFactory");
-					Ptr<Socket> socket = Socket::CreateSocket (this->GetNode (), tid);
 
-					socket->BindToNetDevice(device);
-					socket->Bind();	//receiving from any address
+					//plug in a sending socket
+					Ptr<Socket> socket_send = Socket::CreateSocket (this->GetNode (), tid);
+					socket_send->BindToNetDevice(device);
+					socket_send->Bind();	//receiving from any address
+					socket_send->SetRecvCallback(MakeCallback (&IGMPApp::HandleRead, this));
+					this->m_lst_sending_sockets.push_back(socket_send);
 
-					socket->SetRecvCallback(MakeCallback (&IGMPApp::HandleRead, this));
-					this->m_lst_sockets.push_back(socket);
+					//plugin a receiving socket
+//					Ptr<Socket> socket_recv = Socket::CreateSocket (this->GetNode (), tid);
+//					socket_recv->BindToNetDevice(device);
+//					socket_recv->Bind();	//receiving from any address
+//					socket_recv->SetRecvCallback(MakeCallback (&IGMPApp::HandleRead, this));
+//					this->m_lst_receiving_sockets.push_back(socket_recv);
 				}
 			}
 		}
@@ -148,6 +160,17 @@ IGMPApp::Initialization (void)
 	this->m_qrv = 2;				//cisco default
 	this->m_max_resp_code = 100; 	//10sec, cisco default
 
+	static bool flag_querier_set = false;
+
+	if (false == flag_querier_set)
+	{
+		this->m_role = IGMPApp::QUERIER;
+		flag_querier_set = true;
+	}
+	else
+	{
+		this->m_role = IGMPApp::HOST;
+	}
 }
 
 void
@@ -155,11 +178,14 @@ IGMPApp::DoSendGeneralQuery (Ptr<Packet> packet)
 {
 	NS_LOG_FUNCTION (this);
 
-	for (std::list<Ptr<Socket> >::const_iterator it = this->m_lst_sockets.begin(); it != this->m_lst_sockets.end(); it++)
+	for (std::list<Ptr<Socket> >::const_iterator it = this->m_lst_sending_sockets.begin(); it != this->m_lst_sending_sockets.end(); it++)
 	{
-		(*it)->Connect(InetSocketAddress(this->m_GenQueAddress, 2));
+		(*it)->Connect(InetSocketAddress(this->m_GenQueAddress, this->m_portnumber));
 		std::cout << "Node: " << this->GetNode()->GetId() << " sends a general query" << std::endl;
 		(*it)->Send(packet);
+
+		//reset m_dst of socket.
+		(*it)->Connect(InetSocketAddress(Ipv4Address::GetAny (), this->m_portnumber));
 	}
 
 //	for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
@@ -265,14 +291,14 @@ IGMPApp::SendCurrentStateReport(Ptr<Socket> socket)
 
 	std::list<Igmpv3GrpRecord> lst_grp_records;
 
-	for (	std::list<IGMPv3InterfaceState>::const_iterator it = this->m_lst_interface_states.begin();
+	for (	std::list<IGMPv3InterfaceState>::iterator it = this->m_lst_interface_states.begin();
 			it != this->m_lst_interface_states.end();
 			it++)
 	{
 		if (bound_device->GetIfIndex() == (*it).m_interface->GetIfIndex())
 		{
 			Igmpv3GrpRecord record;
-			if ((*it).m_filter_mode == FILTER_MODE::EXCLUDE)
+			if ((*it).m_filter_mode == /*FILTER_MODE::*/EXCLUDE)
 			{
 				record.SetType(Igmpv3GrpRecord::MODE_IS_EXCLUDE);
 			}
@@ -284,8 +310,30 @@ IGMPApp::SendCurrentStateReport(Ptr<Socket> socket)
 			record.SetNumSrcs((*it).m_lst_source_list.size());
 			record.SetMulticastAddress((*it).m_multicast_address);
 			record.PushBackSrcAddresses((*it).m_lst_source_list);
+
+			lst_grp_records.push_back(record);
 		}
 	}
+
+	Igmpv3Report report;
+	report.SetNumGrpRecords(lst_grp_records.size());
+	report.PushBackGrpRecords(lst_grp_records);
+
+	packet->AddHeader(report);
+
+	Igmpv3Header igmpv3;
+	igmpv3.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
+	igmpv3.SetMaxRespCode(this->m_max_resp_code);
+	igmpv3.EnableChecksum();
+
+	packet->AddHeader(igmpv3);
+
+	socket->Connect(InetSocketAddress(this->m_RptAddress, this->m_portnumber));
+	std::cout << "Node: " << this->GetNode()->GetId() << " reporting a general query to the querier" << std::endl;
+	socket->Send(packet);
+
+	//reset m_dst of socket. weird thinking, does not match what happens in really network.
+	socket->Connect(InetSocketAddress(Ipv4Address::GetAny (), this->m_portnumber));
 }
 
 void
@@ -322,20 +370,28 @@ IGMPApp::HandleRead (Ptr<Socket> socket)
 		case Igmpv3Header::MEMBERSHIP_QUERY:
 	      //HandleEcho (p, igmp, header.GetSource (), header.GetDestination ());
 			std::cout << "Node: " << this->GetNode()->GetId() << " received a query" << std::endl;
-			this->HandleQuery(socket, igmpv3_header, packet);
+			if (IGMPApp::HOST == this->m_role) {
+				this->HandleQuery(socket, igmpv3_header, packet);
+			}
 			break;
 	    case Igmpv3Header::V1_MEMBERSHIP_REPORT:
 	      //HandleTimeExceeded (p, igmp, header.GetSource (), header.GetDestination ());
 	    	std::cout << "Node: " << this->GetNode()->GetId() << " received a v1 report" << std::endl;
-	    	this->HandleV1MemReport(socket, igmpv3_header, packet);
+			if (IGMPApp::QUERIER == this->m_role) {
+				this->HandleV1MemReport(socket, igmpv3_header, packet);
+			}
 	    	break;
 	    case Igmpv3Header::V2_MEMBERSHIP_REPORT:
 	    	std::cout << "Node: " << this->GetNode()->GetId() << " received a v2 report" << std::endl;
-	    	this->HandleV2MemReport(socket, igmpv3_header, packet);
+			if (IGMPApp::QUERIER == this->m_role) {
+				this->HandleV2MemReport(socket, igmpv3_header, packet);
+			}
 	    	break;
 	    case Igmpv3Header::V3_MEMBERSHIP_REPORT:
 	    	std::cout << "Node: " << this->GetNode()->GetId() << " received a v3 report" << std::endl;
-	    	this->HandleV3MemReport(socket, igmpv3_header, packet);
+			if (IGMPApp::QUERIER == this->m_role) {
+				this->HandleV3MemReport(socket, igmpv3_header, packet);
+			}
 	    	break;
 	    default:
 	      NS_LOG_DEBUG (igmpv3_header << " " << *packet);
@@ -343,6 +399,12 @@ IGMPApp::HandleRead (Ptr<Socket> socket)
 	      break;
 	}
 	//
+}
+
+void
+IGMPApp::HandleReadDummy (Ptr<Socket> socket)
+{
+	std::cout << "Node: " << this->GetNode()->GetId() << " trigger the HandleReadDummy()" << std::endl;
 }
 
 void
@@ -393,13 +455,14 @@ IGMPApp::HandleGeneralQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query
 		{
 			//there is timer for that interface in the maintained list of per interface timers
 			//which means there is a pending query?
-			this->SendCurrentStateReport(socket);
 		}
 		else
 		{
 
 		}
 	}
+
+	this->SendCurrentStateReport(socket);
 
 
 }
@@ -1138,15 +1201,15 @@ Igmpv3GrpRecord::PushBackSrcAddress (uint32_t address)
 	this->m_lst_src_addresses.push_back(Ipv4Address(address));
 }
 
-void
-Igmpv3GrpRecord::PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses)
-{
-	NS_LOG_FUNCTION (this << &lst_addresses);
-	for (std::list<Ipv4Address>::const_iterator it = lst_addresses.begin(); it != lst_addresses.end(); ++it)
-	{
-		this->m_lst_src_addresses.push_back((*it));
-	}
-}
+//void
+//Igmpv3GrpRecord::PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses)
+//{
+//	NS_LOG_FUNCTION (this << &lst_addresses);
+//	for (std::list<Ipv4Address>::const_iterator it = lst_addresses.begin(); it != lst_addresses.end(); ++it)
+//	{
+//		this->m_lst_src_addresses.push_back((*it));
+//	}
+//}
 
 void
 Igmpv3GrpRecord::PushBackSrcAddresses (std::list<uint32_t> &lst_addresses)
