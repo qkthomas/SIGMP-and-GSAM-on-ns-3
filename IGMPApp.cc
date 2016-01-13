@@ -856,10 +856,10 @@ int main()
 	csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (2)));
 
 
-	InternetStackHelper stack;
+	InternetStackHelperMulticast stack;
 	stack.Install (nodes);
 
-	Ipv4AddressHelper address;
+	Ipv4AddressHelperMulticast address;
 	address.SetBase ("10.1.1.0", "255.255.255.0");
 
 	NetDeviceContainer devices;
@@ -875,7 +875,7 @@ int main()
 
 	devices.Add(csma.Install(nodes));
 
-	Ipv4InterfaceContainer interfaces = address.Assign (devices);
+	Ipv4InterfaceContainerMulticast interfaces = address.Assign (devices);
 
 	if (nodes.GetN() > 0)
 	{
@@ -901,7 +901,7 @@ int main()
 		*/
 	}
 
-	Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+	Ipv4GlobalRoutingHelperMulticast::PopulateRoutingTables ();
 
 	Simulator::Run ();
 	Simulator::Destroy ();
