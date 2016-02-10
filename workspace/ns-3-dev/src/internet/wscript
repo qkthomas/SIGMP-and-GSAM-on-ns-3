@@ -233,6 +233,7 @@ def build(bld):
 		'model/candidate-queue-multicast.cc',
         'helper/ipv4-address-helper-multicast.cc',
         'model/icmpv4-l4-protocol-multicast.cc',
+        'model/igmpv3-l4-protocol.cc',
         ]
 
     internet_test = bld.create_ns3_module_test_library('internet')
@@ -401,6 +402,7 @@ def build(bld):
 		'model/candidate-queue-multicast.h',
         'helper/ipv4-address-helper-multicast.h',
         'model/icmpv4-l4-protocol-multicast.h',
+        'model/igmpv3-l4-protocol.h',
        ]
 
     if bld.env['NSC_ENABLED']:
