@@ -731,36 +731,36 @@ Igmpv3GrpRecord::SetNumSrcs (uint16_t num_srcs)
 }
 
 void
-Igmpv3GrpRecord::SetMulticastAddress (uint32_t address)
+Igmpv3GrpRecord::SetMulticastAddress (Ipv4Address address)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_mul_address.Set(address);
+	this->m_mul_address.Set(address.Get());
 }
 
 void
-Igmpv3GrpRecord::PushBackSrcAddress (uint32_t address)
+Igmpv3GrpRecord::PushBackSrcAddress (Ipv4Address address)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_lst_src_addresses.push_back(Ipv4Address(address));
+	this->m_lst_src_addresses.push_back(address);
 }
 
 //void
-//Igmpv3GrpRecord::PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses)
+//Igmpv3GrpRecord::PushBackSrcAddresses (std::list<uint32> &lst_addresses)
 //{
 //	NS_LOG_FUNCTION (this << &lst_addresses);
-//	for (std::list<Ipv4Address>::const_iterator it = lst_addresses.begin(); it != lst_addresses.end(); ++it)
+//	for (std::list<uint32>::const_iterator it = lst_addresses.begin(); it != lst_addresses.end(); ++it)
 //	{
-//		this->m_lst_src_addresses.push_back((*it));
+//		this->m_lst_src_addresses.push_back(Ipv4Address(*it));
 //	}
 //}
 
 void
-Igmpv3GrpRecord::PushBackSrcAddresses (std::list<uint32_t> &lst_addresses)
+Igmpv3GrpRecord::PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses)
 {
 	NS_LOG_FUNCTION (this << &lst_addresses);
-	for (std::list<uint32_t>::const_iterator it = lst_addresses.begin(); it != lst_addresses.end(); ++it)
+	for (std::list<Ipv4Address>::const_iterator it = lst_addresses.begin(); it != lst_addresses.end(); ++it)
 	{
-		this->m_lst_src_addresses.push_back(Ipv4Address(*it));
+		this->m_lst_src_addresses.push_back((*it));
 	}
 }
 

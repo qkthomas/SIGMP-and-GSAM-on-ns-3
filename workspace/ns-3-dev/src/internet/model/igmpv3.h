@@ -22,12 +22,54 @@
 #define IGMPV3_H
 
 #include "ns3/ipv4-address.h"
-#include "ns3/internet-module.h"
+#include "ns3/network-module.h"
+//#include "ns3/internet-module.h"
+//#include "ns3/ipv4-interface-multicast.h"
+#include "ns3/socket.h"
 #include "ns3/header.h"
+#include "ns3/nstime.h"
+#include "ns3/timer.h"
+#include "ns3/object.h"
 #include <stdint.h>
 #include <list>
 
 namespace ns3 {
+
+class Ipv4InterfaceMulticast;
+
+enum FILTER_MODE {
+	INCLUDE = 0,
+	EXCLUDE = 1
+};
+
+class IGMPv3SocketState : public Object {
+public:
+	Ptr<Socket> m_socket;
+	Ptr<Ipv4InterfaceMulticast> m_interface;
+	Ipv4Address m_multicast_address;
+	ns3::FILTER_MODE m_filter_mode;
+	std::list<Ipv4Address> m_lst_source_list;
+};
+
+class IGMPv3InterfaceState : public Object {
+public:
+	Ptr<Ipv4InterfaceMulticast> m_interface;
+	Ipv4Address m_multicast_address;
+	ns3::FILTER_MODE m_filter_mode;
+	std::list<Ipv4Address> m_lst_source_list;
+};
+
+class PerInterfaceTimer : public Object {
+public:
+	Ptr<Ipv4InterfaceMulticast> m_interface;
+	Timer m_softTimer;
+};
+
+class PerGroupInterfaceTimer : public Object {
+	Ptr<Ipv4InterfaceMulticast> m_interface;
+	Ipv4Address m_group_address;
+	Timer m_softTimer;
+};
 
 class Igmpv3Header: public Header {
 
@@ -212,10 +254,10 @@ public:	//set
 	void SetType (uint8_t type);
 	void SetAuxDataLen (uint8_t aux_data_len);
 	void SetNumSrcs (uint16_t num_srcs);
-	void SetMulticastAddress (uint32_t address);
-	void PushBackSrcAddress (uint32_t address);
-	//void PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses);
-	void PushBackSrcAddresses (std::list<uint32_t> &lst_addresses);
+	void SetMulticastAddress (Ipv4Address address);
+	void PushBackSrcAddress (Ipv4Address address);
+	//void PushBackSrcAddresses (std::list<uint32> &lst_addresses);
+	void PushBackSrcAddresses (std::list<Ipv4Address> &lst_addresses);
 	void PushBackAuxData (uint32_t aux_data);
 	void PushBackAuxdata (std::list<uint32_t> &lst_aux_data);
 
