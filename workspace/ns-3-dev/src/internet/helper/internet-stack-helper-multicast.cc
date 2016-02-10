@@ -431,6 +431,8 @@ InternetStackHelperMulticast::Install (Ptr<Node> node) const
       CreateAndAggregateObjectFromTypeId (node, "ns3::ArpL3ProtocolMulticast");
       CreateAndAggregateObjectFromTypeId (node, "ns3::Ipv4L3ProtocolMulticast");
       CreateAndAggregateObjectFromTypeId (node, "ns3::Icmpv4L4ProtocolMulticast");
+      //added by Lin Chen
+      CreateAndAggregateObjectFromTypeId (node, "ns3::Igmpv3L4Protocol");
       if (m_ipv4ArpJitterEnabled == false)
         {
           Ptr<ArpL3ProtocolMulticast> arp = node->GetObject<ArpL3ProtocolMulticast> ();
