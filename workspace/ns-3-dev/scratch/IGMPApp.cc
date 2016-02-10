@@ -63,7 +63,7 @@ IGMPApp::IGMPApp()
 IGMPApp::~IGMPApp()
 {
 	NS_LOG_FUNCTION (this);
-	for (std::list<Ptr<Socket> >::iterator it = this->m_lst_sending_sockets.begin(); it != this->m_lst_sending_sockets.end(); it++)
+	for (std::list<Ptr<Socket> >::iterator it = this->m_lst_sockets.begin(); it != this->m_lst_sockets.end(); it++)
 	{
 		(*it) = 0;
 	}
@@ -98,12 +98,12 @@ IGMPApp::StartApplication(void)
 	Time dt = Seconds(0.);
 
 	//static int run = 0 is to make sure codes in if block will only run once.
-	static int run = 0;
+	static bool firstnode = true;
 
-	if(0 == run)
+	if(true == firstnode)
 	{
 		this->m_sendEvent = Simulator::Schedule (dt, &IGMPApp::SendDefaultGeneralQuery, this);
-		run++;
+		firstnode = false;
 	}
 
 }
@@ -125,7 +125,7 @@ IGMPApp::Initialization (void)
 
 	if (0 < this->GetNode()->GetNDevices())
 	{
-		if (true == this->m_lst_sending_sockets.empty())
+		if (true == this->m_lst_sockets.empty())
 		{
 			//creating and binding a socket for each device (interface)
 			for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
@@ -137,14 +137,20 @@ IGMPApp::Initialization (void)
 				{
 					TypeId tid = TypeId::LookupByName ("ns3::Ipv4RawSocketFactory");
 
-					//plug in a sending socket
-					Ptr<Socket> socket_send = Socket::CreateSocket (this->GetNode (), tid);
-					socket_send->BindToNetDevice(device);
-					socket_send->Bind();	//receiving from any address
-					socket_send->SetRecvCallback(MakeCallback (&IGMPApp::HandleRead, this));
-					this->m_lst_sending_sockets.push_back(socket_send);
+					//plug in a socket
+					Ptr<Socket> socket = Socket::CreateSocket (this->GetNode (), tid);
+					socket->BindToNetDevice(device);
+					socket->Bind();	//receiving from any address
+					socket->SetRecvCallback(MakeCallback (&IGMPApp::HandleRead, this));
 
-					//plugin a receiving socket
+					//set igmg protocol number
+					Ptr<Ipv4RawSocketImplMulticast> rawsocket = DynamicCast<Ipv4RawSocketImplMulticast>(socket);
+					rawsocket->SetProtocol(2);
+
+					//push the socket back to the list;
+					this->m_lst_sockets.push_back(socket);
+
+//waiting to delete	//plugin a receiving socket
 //					Ptr<Socket> socket_recv = Socket::CreateSocket (this->GetNode (), tid);
 //					socket_recv->BindToNetDevice(device);
 //					socket_recv->Bind();	//receiving from any address
@@ -178,14 +184,15 @@ IGMPApp::DoSendGeneralQuery (Ptr<Packet> packet)
 {
 	NS_LOG_FUNCTION (this);
 
-	for (std::list<Ptr<Socket> >::const_iterator it = this->m_lst_sending_sockets.begin(); it != this->m_lst_sending_sockets.end(); it++)
+	for (std::list<Ptr<Socket> >::const_iterator it = this->m_lst_sockets.begin(); it != this->m_lst_sockets.end(); it++)
 	{
 		(*it)->Connect(InetSocketAddress(this->m_GenQueAddress, this->m_portnumber));
 		std::cout << "Node: " << this->GetNode()->GetId() << " sends a general query" << std::endl;
 		(*it)->Send(packet);
 
+//waiting to delete, no need for sockets for receiving, no need to reset
 		//reset m_dst of socket.
-		(*it)->Connect(InetSocketAddress(Ipv4Address::GetAny (), this->m_portnumber));
+//		(*it)->Connect(InetSocketAddress(Ipv4Address::GetAny (), this->m_portnumber));
 	}
 
 //	for (uint32_t i = this->GetNode()->GetNDevices(); i > 0; i--)
@@ -248,7 +255,16 @@ IGMPApp::SendDefaultGeneralQuery (void)
 
 	packet->AddHeader(igmpv3);
 
-	this->DoSendGeneralQuery(packet);
+	EventId eventid1 = Simulator::ScheduleNow (&IGMPApp::DoSendGeneralQuery, this, packet);
+
+	static int i = 3;
+
+	if (i > 0)
+	{
+		Time delay = Seconds(5.0);
+		EventId eventid2 = Simulator::Schedule (delay, &IGMPApp::SendDefaultGeneralQuery, this);
+		i--;
+	}
 }
 
 void
@@ -279,7 +295,9 @@ IGMPApp::SendGeneralQuery (bool s_flag, //= false, assumed default
 
 	packet->AddHeader(igmpv3);
 
-	this->DoSendGeneralQuery(packet);
+	EventId eventid = Simulator::ScheduleNow (&IGMPApp::DoSendGeneralQuery, this, packet);
+
+	//this->DoSendGeneralQuery(packet);
 }
 
 void
@@ -295,7 +313,7 @@ IGMPApp::SendCurrentStateReport(Ptr<Socket> socket)
 			it != this->m_lst_interface_states.end();
 			it++)
 	{
-		if (bound_device->GetIfIndex() == (*it).m_interface->GetIfIndex())
+		if (bound_device == (*it).m_interface->GetDevice())
 		{
 			Igmpv3GrpRecord record;
 			if ((*it).m_filter_mode == /*FILTER_MODE::*/EXCLUDE)
@@ -332,8 +350,9 @@ IGMPApp::SendCurrentStateReport(Ptr<Socket> socket)
 	std::cout << "Node: " << this->GetNode()->GetId() << " reporting a general query to the querier" << std::endl;
 	socket->Send(packet);
 
+//waiting to delete, no need for sockets for receving, no need for reset
 	//reset m_dst of socket. weird thinking, does not match what happens in really network.
-	socket->Connect(InetSocketAddress(Ipv4Address::GetAny (), this->m_portnumber));
+//	socket->Connect(InetSocketAddress(Ipv4Address::GetAny (), this->m_portnumber));
 }
 
 void
@@ -416,53 +435,89 @@ IGMPApp::HandleQuery (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet
 
 	uint8_t max_resp_code = igmpv3_header.GetMaxRespCode();
 	Ptr<UniformRandomVariable> rand = CreateObject<UniformRandomVariable> ();
-	Time max_resp_time = Seconds(0.0);
+	Time resp_time = Seconds(0.0);
 
 	if (128 > max_resp_code) {
-		uint8_t rand_max_resp_time = rand->GetInteger(0, max_resp_code);
-		max_resp_time = Seconds((double)rand_max_resp_time / (double)10);
+		uint8_t rand_resp_time = rand->GetInteger(0, max_resp_code);
+		resp_time = Seconds((double)rand_resp_time / (double)10);
 	}
 	else
 	{
 		uint8_t exp = (max_resp_code >> 4) & 0x07;
 		uint8_t mant = max_resp_code & 0x0f;
-		uint8_t rand_max_resp_time = rand->GetInteger(0, ((mant | 0x10) << (exp + 3)));
-		max_resp_time = Seconds((double)rand_max_resp_time / (double)10);
+		uint8_t rand_resp_time = rand->GetInteger(0, ((mant | 0x10) << (exp + 3)));
+		resp_time = Seconds((double)rand_resp_time / (double)10);
 	}
 
 	if (0 == query_header.GetGroupAddress())
 	{
-		this->HandleGeneralQuery (socket, max_resp_time, query_header, packet);
+		this->HandleGeneralQuery (socket, resp_time);
 	}
 	else
 	{
-		this->HandleGroupSpecificQuery(socket, max_resp_time, query_header, packet);
+		this->HandleGroupSpecificQuery(socket, resp_time, query_header, packet);
 	}
 }
 
 void
-IGMPApp::HandleGeneralQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query query_header, Ptr<Packet> packet)
+IGMPApp::HandleGeneralQuery (Ptr<Socket> socket, Time resp_time)
 {
 	NS_LOG_FUNCTION (this);
 
 	Ptr<NetDevice> bound_device = socket->GetBoundNetDevice();
 
-	for (	std::list<PerInterfaceTimer>::const_iterator it = this->m_lst_per_interface_timers.begin();
-			it != this->m_lst_per_interface_timers.end();
-			it++)
+	if (this->m_lst_per_interface_timers.empty())
 	{
-		if (bound_device->GetIfIndex() == (*it).m_interface->GetIfIndex())
-		{
-			//there is timer for that interface in the maintained list of per interface timers
-			//which means there is a pending query?
-		}
-		else
-		{
+		std::cout << "Node id: " << this->GetNode()->GetId() << "'s has no per-interface-timer" << std::endl;
+		std::cout << "Node id: " << this->GetNode()->GetId() << " creating a new timer for handling incoming General Query" << std::endl;
+		Ptr<PerInterfaceTimer> pintimer = Create<PerInterfaceTimer>();
+		Ptr<Ipv4Multicast> ipv4 = this->GetNode()->GetObject<Ipv4Multicast>();
+		Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+		pintimer->m_interface = ipv4l3->GetInterface(socket->GetBoundNetDevice()->GetIfIndex());
+		std::cout << "Node id: " << this->GetNode()->GetId() << " biding time interface " << &(*(pintimer->m_interface)) << std::endl;
+		pintimer->m_softTimer.SetFunction(&IGMPApp::SendCurrentStateReport, this);
+		pintimer->m_softTimer.SetArguments(socket);
+		std::cout << "Node id: " << this->GetNode()->GetId() << " scheduling report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+		pintimer->m_softTimer.Schedule(resp_time);
+		this->m_lst_per_interface_timers.push_back(pintimer);
+	}
 
+	else
+	{
+		for (	std::list<Ptr<PerInterfaceTimer> >::const_iterator it = this->m_lst_per_interface_timers.begin();
+				it != this->m_lst_per_interface_timers.end();
+				it++)
+		{
+			if (bound_device == (*it)->m_interface->GetDevice())
+			{
+				//there is timer for that interface in the maintained list of per interface timers
+				//which means there is a pending query?
+				std::cout << "Node id: " << this->GetNode()->GetId() << " has per-interface-timer of the same incoming interface" << std::endl;
+				Ptr<PerInterfaceTimer> pintimer = (*it);
+				if (resp_time > pintimer->m_softTimer.GetDelayLeft())
+				{
+					std::cout << "Node id: " << this->GetNode()->GetId() << " delay for next response is smaller than resp_time, need to schedule a new response" << std::endl;
+					std::cout << "Node id: " << this->GetNode()->GetId() << " creating a new timer for handling incoming General Query" << std::endl;
+					Ptr<PerInterfaceTimer> pintimer = Create<PerInterfaceTimer>();
+					Ptr<Ipv4Multicast> ipv4 = this->GetNode()->GetObject<Ipv4Multicast>();
+					Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+					pintimer->m_interface = ipv4l3->GetInterface(socket->GetBoundNetDevice()->GetIfIndex());
+					std::cout << "Node id: " << this->GetNode()->GetId() << " biding time interface " << &(*(pintimer->m_interface)) << std::endl;
+					pintimer->m_softTimer.SetFunction(&IGMPApp::SendCurrentStateReport, this);
+					pintimer->m_softTimer.SetArguments(socket);
+					std::cout << "Node id: " << this->GetNode()->GetId() << " scheduling report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+					pintimer->m_softTimer.Schedule(resp_time);
+					this->m_lst_per_interface_timers.push_back(pintimer);
+				}
+			}
+			else
+			{
+
+			}
 		}
 	}
 
-	this->SendCurrentStateReport(socket);
+	//this->SendCurrentStateReport(socket);
 
 
 }
@@ -493,9 +548,12 @@ IGMPApp::HandleV3MemReport (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<
 }
 
 void
-IGMPApp::IPMulticastListen (Ptr<Socket> socket, Ptr<NetDevice> interface, Ipv4Address multicast_address, FILTER_MODE filter_mode)
+IGMPApp::IPMulticastListen (Ptr<Socket> socket, Ptr<Ipv4InterfaceMulticast> interface,
+							Ipv4Address multicast_address, FILTER_MODE filter_mode,
+							std::list<Ipv4Address> &src_list)
 {
-
+	Ptr<Ipv4RawSocketImplMulticast> rawsocket = DynamicCast<Ipv4RawSocketImplMulticast>(socket);
+	rawsocket->IPMulticastListen(interface, multicast_address, filter_mode, src_list);
 }
 
 //

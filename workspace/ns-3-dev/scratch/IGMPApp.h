@@ -26,39 +26,6 @@ class Packet;
 class Igmpv3Header;
 class Igmpv3Query;
 
-enum FILTER_MODE {
-	INCLUDE = 0,
-	EXCLUDE = 1
-};
-
-class IGMPv3SocketState {
-public:
-	Ptr<Socket> m_socket;
-	uint32_t m_multicast_address;
-	FILTER_MODE m_filter_mode;
-	std::list<uint32_t> m_lst_source_list;
-};
-
-class IGMPv3InterfaceState {
-public:
-	Ptr<NetDevice> m_interface;
-	uint32_t m_multicast_address;
-	FILTER_MODE m_filter_mode;
-	std::list<uint32_t> m_lst_source_list;
-};
-
-class PerInterfaceTimer {
-public:
-	Ptr<NetDevice> m_interface;
-	Timer m_softTimer;
-};
-
-class PerGroupInterfaceTimer {
-	Ptr<NetDevice> m_interface;
-	Ipv4Address m_group_address;
-	Timer m_softTimer;
-};
-
 class IGMPApp: public Application {
 
 	enum ROLE {
@@ -97,19 +64,21 @@ private:
   void HandleRead (Ptr<Socket> socket);
   void HandleReadDummy (Ptr<Socket> socket);	//for binding of sending sockets
   void HandleQuery (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
-  void HandleGeneralQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query query_header, Ptr<Packet> packet);
+  void HandleGeneralQuery (Ptr<Socket> socket, Time resp_time);
   void HandleGroupSpecificQuery (Ptr<Socket> socket, Time max_resp_time, Igmpv3Query query_header, Ptr<Packet> packet);
   void HandleV1MemReport (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
   void HandleV2MemReport (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
   void HandleV3MemReport (Ptr<Socket> socket, Igmpv3Header igmpv3_header, Ptr<Packet> packet);
 
-  void IPMulticastListen (Ptr<Socket> socket, Ptr<NetDevice> interface, Ipv4Address multicast_address, FILTER_MODE filter_mode);
+  void IPMulticastListen (Ptr<Socket> socket, Ptr<Ipv4InterfaceMulticast> interface,
+		  	  	  	  	  Ipv4Address multicast_address, FILTER_MODE filter_mode,
+						  std::list<Ipv4Address> &src_list);
 
   //member variables
   ROLE m_role;
 
-  std::list<Ptr<Socket> > m_lst_sending_sockets; //!< sending Sockets, one for each interface
-  std::list<Ptr<Socket> > m_lst_receiving_sockets;	//!< receiving Sockets, one for eatch interface
+  std::list<Ptr<Socket> > m_lst_sockets; //!< sending Sockets, one for each interface
+//waiting to delete //std::list<Ptr<Socket> > m_lst_receiving_sockets;	//!< receiving Sockets, one for eatch interface
   EventId m_sendEvent; //!< Event to send the next packet
   Ipv4Address m_GenQueAddress;	//!< Address to send for general query
   Ipv4Address m_LvGrpAddress;	//!< Address to send for leave group report	(non v3 report)
@@ -127,8 +96,8 @@ private:
   std::list<IGMPv3InterfaceState> m_lst_interface_states;
 
   //Timers
-  std::list<PerInterfaceTimer> m_lst_per_interface_timers;
-  std::list<PerGroupInterfaceTimer> m_lst_per_group_interface_timers;
+  std::list<Ptr<PerInterfaceTimer> > m_lst_per_interface_timers;
+  std::list<Ptr<PerGroupInterfaceTimer> > m_lst_per_group_interface_timers;
 
 };
 
