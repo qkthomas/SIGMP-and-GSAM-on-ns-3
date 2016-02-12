@@ -28,12 +28,18 @@
 #include "ns3/ptr.h"
 #include "ns3/object.h"
 
+//added by Lin Chen
+//#include "ns3/igmpv3.h"
+
 namespace ns3 {
 
 class NetDevice;
 class Packet;
 class Node;
 class ArpCacheMulticast;
+
+//added by Lin Chen
+class IGMPv3InterfaceState;
 
 /**
  * \brief The IPv4 representation of a network interface
@@ -211,6 +217,9 @@ private:
   Ptr<Node> m_node; //!< The associated node
   Ptr<NetDevice> m_device; //!< The associated NetDevice
   Ptr<ArpCacheMulticast> m_cache; //!< ARP cache
+
+  //added by Lin Chen
+  std::list<IGMPv3InterfaceState> m_multicast_interface_state;
 };
 
 } // namespace ns3

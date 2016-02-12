@@ -30,6 +30,9 @@
 #include "ns3/node.h"
 #include "ns3/pointer.h"
 
+//addby Lin Chen, solving cyclic inclusion
+#include "ns3/igmpv3.h"
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("Ipv4InterfaceMulticast");
