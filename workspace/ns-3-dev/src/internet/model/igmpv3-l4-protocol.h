@@ -18,6 +18,11 @@ class Ipv4InterfaceMulticast;
 class Ipv4Route;
 
 class Igmpv3L4Protocol: public IpL4ProtocolMulticast {
+
+	enum ROLE {
+		QUERIER = 0, NONQUERIER = 1, HOST = 2
+	};
+
 public:
 	/**
 	 * \brief Get the type ID.
@@ -75,6 +80,18 @@ public:
 	// From IpL4ProtocolMulticast
 	virtual IpL4ProtocolMulticast::DownTargetCallback GetDownTarget (void) const;
 	virtual IpL4ProtocolMulticast::DownTargetCallback6 GetDownTarget6 (void) const;
+
+	//added by Lin Chen
+	void Initialization (void);
+	void SendDefaultGeneralQuery (void);
+	void SendCurrentStateReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<PerInterfaceTimer> pintimer);
+	void HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
+	void HandleV1MemReport (void);
+	void HandleV2MemReport (void);
+	void HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMulticast> incomingInterface);
+	void HandleGeneralQuery (Ptr<Ipv4InterfaceMulticast> incomingInterface, Time resp_time);
+	void HandleGroupSpecificQuery (void);
+
 protected:
 	/*
 	 * This function will notify other components connected to the node that a new stack member is now connected
@@ -91,7 +108,7 @@ private:
 	 * \param type the IGMPv3 type
 	 * \param code the IGMPv3 code
 	 */
-	void SendMessage (Ptr<Packet> packet, Ipv4Address dest, uint8_t type, uint8_t code);
+	void SendMessage (Ptr<Packet> packet, Ipv4Address dest, Ptr<Ipv4Route> route);
 	/**
 	 * \brief Send a generic IGMPv3 packet
 	 *
@@ -102,12 +119,30 @@ private:
 	 * \param code the IGMPv3 code
 	 * \param route the route to be used
 	 */
-	void SendMessage (Ptr<Packet> packet, Ipv4Address source, Ipv4Address dest, uint8_t type, uint8_t code, Ptr<Ipv4Route> route);
+	//	void SendMessage (Ptr<Packet> packet, Ipv4Address source, Ipv4Address dest, uint8_t type, uint8_t code, Ptr<Ipv4Route> route);
 
 	virtual void DoDispose (void);
 
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	IpL4ProtocolMulticast::DownTargetCallback m_downTarget; //!< callback to Ipv4::Send
+
+	//IGMPv3 Parameters Setting
+	bool m_default_s_flag;				//assumed default
+	uint8_t m_default_qqic;				//125sec, cisco default
+	uint8_t m_default_qrv;				//cisco default
+	uint8_t m_default_max_resp_code;	//10sec, cisco default
+	Ipv4Address m_GenQueAddress;	//!< Address to send for general query
+	Ipv4Address m_RptAddress;		//!< Address to send for group report
+
+	ROLE m_role;
+
+	//States
+	std::list<IGMPv3SocketState> m_lst_socket_states;
+	std::list<IGMPv3InterfaceState> m_lst_interface_states;
+
+	//Timers
+	std::list<Ptr<PerInterfaceTimer> > m_lst_per_interface_timers;
+	std::list<Ptr<PerGroupInterfaceTimer> > m_lst_per_group_interface_timers;
 };
 
 } /* namespace ns3 */
