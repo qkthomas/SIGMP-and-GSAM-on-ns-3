@@ -327,7 +327,33 @@ Ipv4RawSocketImplMulticast::ForwardUp (Ptr<const Packet> p, Ipv4Header ipHeader,
     }
 
   NS_LOG_LOGIC ("src = " << m_src << " dst = " << m_dst);
-  if ((m_src == Ipv4Address::GetAny () || ipHeader.GetDestination () == m_src) &&
+
+  //m_protocol == 2, for igmp
+  if ((ipHeader.GetDestination ().IsLocalMulticast()) &&
+		  (ipHeader.GetProtocol () == m_protocol) && (m_protocol == 2))
+  {
+	  //copied from down below
+
+	  Ptr<Packet> copy = p->Copy();
+	  // Should check via getsockopt ()..
+	  if (IsRecvPktInfo()) {
+		  Ipv4PacketInfoTag tag;
+		  copy->RemovePacketTag(tag);
+		  tag.SetRecvIf(incomingInterface->GetDevice()->GetIfIndex());
+		  copy->AddPacketTag(tag);
+	  }
+
+	  copy->AddHeader(ipHeader);
+	  struct Data data;
+	  data.packet = copy;
+	  data.fromIp = ipHeader.GetSource();
+	  data.fromProtocol = ipHeader.GetProtocol();
+	  m_recv.push_back(data);
+	  NotifyDataRecv();
+	  return true;
+  }
+
+  else if ((m_src == Ipv4Address::GetAny () || ipHeader.GetDestination () == m_src) &&
       (m_dst == Ipv4Address::GetAny () || ipHeader.GetSource () == m_dst) &&
       ipHeader.GetProtocol () == m_protocol)
     {
@@ -380,6 +406,69 @@ Ipv4RawSocketImplMulticast::GetAllowBroadcast () const
 {
   NS_LOG_FUNCTION (this);
   return true;
+}
+
+void
+Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> m_interface,
+												Ipv4Address multicast_address,
+												ns3::FILTER_MODE filter_mode,
+												std::list<Ipv4Address> &src_list)
+{
+	if (true == this->m_lst_socketstates.empty())
+	{
+		IGMPv3SocketState socketstate;
+		socketstate.m_multicast_address = multicast_address;
+		socketstate.m_filter_mode = filter_mode;
+		socketstate.m_lst_source_list = src_list;
+		this->m_lst_socketstates.push_back(socketstate);
+	}
+	else
+	{
+		std::list<IGMPv3SocketState>::iterator it = this->m_lst_socketstates.begin();
+
+		while (it != this->m_lst_socketstates.end())
+		{
+			if (it->m_multicast_address == multicast_address)
+			{
+				if (ns3::INCLUDE == it->m_filter_mode)
+				{
+					//according to rfc 3376, filter mode is INCLUDE *and* the requested source list is empty
+					if (true == src_list.empty())
+					{
+						//the entry corresponding to the requested interface and multicast address is deleted if present
+						it = this->m_lst_socketstates.erase(it);
+						continue;	//skip the codes down below.
+					}
+				}
+				//according to rfc 3376, filter mode is EXCLUDE *or* the requested source list is non-empty
+				else if ((ns3::EXCLUDE == it->m_filter_mode) || (false == src_list.empty()))
+				{
+					//the entry is changed to contain the requested filter mode and source list
+					it->m_filter_mode = filter_mode;
+					it->m_lst_source_list = src_list;
+				}
+				else
+				{
+					//assert here, it should never reach here.
+				}
+			}
+			else
+			{
+
+			}
+			it++;
+		}
+
+		//rfc 3376, no such entry is present *and* (filter mode is EXCLUDE *or* the requested source list is non-empty)
+		if ((ns3::EXCLUDE == it->m_filter_mode) || (false == src_list.empty()))
+		{
+			//a new entry is created
+			IGMPv3SocketState socketstate;
+			socketstate.m_filter_mode = filter_mode;
+			socketstate.m_lst_source_list = src_list;
+			this->m_lst_socketstates.push_back(socketstate);
+		}
+	}
 }
 
 } // namespace ns3

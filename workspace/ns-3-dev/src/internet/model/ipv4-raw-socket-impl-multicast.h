@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-#ifndef IPV4_RAW_SOCKET_IMPL_H
-#define IPV4_RAW_SOCKET_IMPL_H
+#ifndef IPV4_RAW_SOCKET_IMPL_MULTICAST_H
+#define IPV4_RAW_SOCKET_IMPL_MULTICAST_H
 
 #include "ns3/socket.h"
 #include "ns3/ipv4-header.h"
@@ -8,10 +8,14 @@
 #include "ns3/ipv4-interface-multicast.h"
 #include <list>
 
+//added by Lin chen
+#include "ns3/igmpv3.h"
+
 namespace ns3 {
 
 class NetDevice;
 class Node;
+class IGMPv3SocketState;
 
 /**
  * \class Ipv4RawSocketImplMulticast
@@ -85,6 +89,16 @@ public:
   virtual bool SetAllowBroadcast (bool allowBroadcast);
   virtual bool GetAllowBroadcast () const;
 
+  //added by Lin Chen
+  /**
+   *  \brief IPMulticastList at socket
+   *
+   */
+  void IPMulticastListen (Ptr<Ipv4InterfaceMulticast> m_interface,
+		  	  	  	  	  Ipv4Address multicast_address,
+		  	  	  	  	  ns3::FILTER_MODE filter_mode,
+		  	  	  	  	  std::list<Ipv4Address> &src_list);
+
 private:
   virtual void DoDispose (void);
 
@@ -108,6 +122,9 @@ private:
   bool m_shutdownRecv;              //!< Flag to shutdown receive capability.
   uint32_t m_icmpFilter;            //!< ICMPv4 filter specification
   bool m_iphdrincl;                 //!< Include IP Header information (a.k.a setsockopt (IP_HDRINCL))
+
+  //added by Lin Chen
+  std::list<IGMPv3SocketState> m_lst_socketstates;
 };
 
 } // namespace ns3
