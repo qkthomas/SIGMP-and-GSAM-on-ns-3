@@ -235,6 +235,8 @@ def build(bld):
         'model/icmpv4-l4-protocol-multicast.cc',
         'model/igmpv3-l4-protocol.cc',
         'model/gsam.cc',
+        'model/gsam-l4-protocol.cc',
+        'model/ipsec.cc',
         ]
 
     internet_test = bld.create_ns3_module_test_library('internet')
@@ -405,6 +407,8 @@ def build(bld):
         'model/icmpv4-l4-protocol-multicast.h',
         'model/igmpv3-l4-protocol.h',
         'model/gsam.h',
+        'model/gsam-l4-protocol.h',
+        'model/ipsec.h'
        ]
 
     if bld.env['NSC_ENABLED']:
