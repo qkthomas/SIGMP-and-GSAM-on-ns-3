@@ -34,6 +34,7 @@
 #include "ns3/ipv4-routing-protocol-multicast.h"
 #include "ns3/nstime.h"
 #include "ns3/simulator.h"
+#include "ns3/igmpv3.h"
 
 class Ipv4L3ProtocolTestCase;
 
@@ -50,7 +51,10 @@ class Node;
 class Socket;
 class Ipv4RawSocketImplMulticast;
 class IpL4ProtocolMulticast;
-class Icmpv4L4Protocol;
+class Icmpv4L4ProtocolMulticast;
+
+//added by Lin Chen
+class Igmpv3L4Protocol;
 
 
 /**
@@ -269,6 +273,26 @@ public:
    */
   bool IsUnicast (Ipv4Address ad) const;
 
+  /** added by Lin Chen
+   * \brief Get ICMPv4 protocol.
+   * \return Icmpv4L4ProtocolMulticast pointer
+   */
+  Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+
+  /**
+   * added by Lin Chen, for invocation from application
+   */
+  void SendIgmpGeneralQuery (void);
+
+//  /**
+//   * added by Lin Chen, for invocation from IPMulticastListen
+//   */
+//  void IPMulticastListen (Ptr<Socket> socket,
+//		  	  	  	  	  Ptr<NetDevice> device,
+//						  Ipv4Address multicast_address,
+//						  ns3::FILTER_MODE filter_mode,
+//						  std::list<Ipv4Address> &source_list);
+
   /**
    * TracedCallback signature for packet send, forward, or local deliver events.
    *
@@ -422,9 +446,9 @@ private:
 
   /**
    * \brief Get ICMPv4 protocol.
-   * \return Icmpv4L4Protocol pointer
+   * \return Icmpv4L4ProtocolMulticast pointer
    */
-  Ptr<Icmpv4L4Protocol> GetIcmp (void) const;
+  Ptr<Icmpv4L4ProtocolMulticast> GetIcmp (void) const;
 
   /**
    * \brief Check if an IPv4 address is unicast.

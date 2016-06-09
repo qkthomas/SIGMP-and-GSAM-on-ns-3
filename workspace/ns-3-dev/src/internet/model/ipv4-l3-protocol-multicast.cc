@@ -36,12 +36,13 @@
 #include "loopback-net-device.h"
 #include "arp-l3-protocol-multicast.h"
 #include "ipv4-l3-protocol-multicast.h"
-#include "icmpv4-l4-protocol.h"
+#include "icmpv4-l4-protocol-multicast.h"
 #include "ipv4-interface-multicast.h"
 #include "ipv4-raw-socket-impl-multicast.h"
 
 //added by Lin Chen
 #include "ip-l4-protocol-multicast.h"
+#include "igmpv3-l4-protocol.h"
 
 namespace ns3 {
 
@@ -616,20 +617,55 @@ Ipv4L3ProtocolMulticast::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, u
     }
 }
 
-Ptr<Icmpv4L4Protocol> 
+Ptr<Icmpv4L4ProtocolMulticast> 
 Ipv4L3ProtocolMulticast::GetIcmp (void) const
 {
   NS_LOG_FUNCTION (this);
-  Ptr<IpL4ProtocolMulticast> prot = GetProtocol (Icmpv4L4Protocol::GetStaticProtocolNumber ());
+  Ptr<IpL4ProtocolMulticast> prot = GetProtocol (Icmpv4L4ProtocolMulticast::GetStaticProtocolNumber ());
   if (prot != 0)
     {
-      return prot->GetObject<Icmpv4L4Protocol> ();
+      return prot->GetObject<Icmpv4L4ProtocolMulticast> ();
     }
   else
     {
       return 0;
     }
 }
+
+Ptr<Igmpv3L4Protocol>
+Ipv4L3ProtocolMulticast::GetIgmp (void) const
+{
+  NS_LOG_FUNCTION (this);
+  Ptr<IpL4ProtocolMulticast> prot = GetProtocol (Igmpv3L4Protocol::GetStaticProtocolNumber ());
+  if (prot != 0)
+    {
+      return prot->GetObject<Igmpv3L4Protocol> ();
+    }
+  else
+    {
+      return 0;
+    }
+}
+
+void
+Ipv4L3ProtocolMulticast::SendIgmpGeneralQuery (void)
+{
+	Ptr<Igmpv3L4Protocol> igmp = this->GetIgmp ();
+	igmp->SendDefaultGeneralQuery ();
+}
+
+//void
+//Ipv4L3ProtocolMulticast::IPMulticastListen (Ptr<Socket> socket,
+//											Ptr<NetDevice> device,
+//											Ipv4Address multicast_address,
+//											ns3::FILTER_MODE filter_mode,
+//											std::list<Ipv4Address> &source_list)
+//{
+//	Ptr<Igmpv3L4Protocol> igmp = this->GetIgmp ();
+//	uint32_t ifindex = this->GetInterfaceForDevice(device);
+//	Ptr<Ipv4InterfaceMulticast> interface = this->GetInterface(ifindex);
+//	igmp->IPMulticastListen(socket, interface, multicast_address, filter_mode, source_list);
+//}
 
 bool
 Ipv4L3ProtocolMulticast::IsUnicast (Ipv4Address ad) const
@@ -707,15 +743,16 @@ Ipv4L3ProtocolMulticast::Send (Ptr<Packet> packet,
       tos = ipTosTag.GetTos ();
     }
 
-  // Handle a few cases:
+  // Handle a few cases, modified by Lin Chen:
   // 1) packet is destined to limited broadcast address
+  // 1.5) Igmp
   // 2) packet is destined to a subnet-directed broadcast address
   // 3) packet is not broadcast, and is passed in with a route entry
   // 4) packet is not broadcast, and is passed in with a route entry but route->GetGateway is not set (e.g., on-demand)
   // 5) packet is not broadcast, and route is NULL (e.g., a raw socket call, or ICMP)
 
   // 1) packet is destined to limited broadcast address or link-local multicast address
-  if (destination.IsBroadcast () || destination.IsLocalMulticast ())
+  if (destination.IsBroadcast ()/* || destination.IsLocalMulticast ()*/)
     {
       NS_LOG_LOGIC ("Ipv4L3ProtocolMulticast::Send case 1:  limited broadcast");
       ipHeader = BuildHeader (source, destination, protocol, packet->GetSize (), ttl, tos, mayFragment);
@@ -735,6 +772,56 @@ Ipv4L3ProtocolMulticast::Send (Ptr<Packet> packet,
         }
       return;
     }
+
+  // 1.5) Igmp
+  if (/*destination.IsBroadcast () ||*/ destination.IsLocalMulticast ())
+  {
+	  NS_LOG_LOGIC ("Ipv4L3ProtocolMulticast::Send case 1.5:  Igmp");
+	  if (0 == route) {
+		  //for query?
+		  uint32_t ifaceIndex = 0;
+		  for (Ipv4InterfaceList::iterator ifaceIter = m_interfaces.begin ();
+				  ifaceIter != m_interfaces.end (); ifaceIter++, ifaceIndex++)
+		  {
+			  Ptr<Ipv4InterfaceMulticast> outInterface = *ifaceIter;
+
+			  //get the first (default) interface address's ipv4address
+			  Ipv4Address newsource = outInterface->GetAddress(0).GetLocal();
+
+			  ipHeader = BuildHeader (newsource, destination, protocol, packet->GetSize (), ttl, tos, mayFragment);
+
+			  Ptr<Packet> packetCopy = packet->Copy ();
+
+			  NS_ASSERT (packetCopy->GetSize () <= outInterface->GetDevice ()->GetMtu ());
+
+			  m_sendOutgoingTrace (ipHeader, packetCopy, ifaceIndex);
+			  packetCopy->AddHeader (ipHeader);
+			  m_txTrace (packetCopy, m_node->GetObject<Ipv4Multicast> (), ifaceIndex);
+			  outInterface->Send (packetCopy, destination);
+		  }
+	  }
+	  else {
+		  //for report
+		  uint32_t ifaceIndex = this->GetInterfaceForDevice(route->GetOutputDevice());
+
+		  Ptr<Ipv4InterfaceMulticast> outInterface = this->GetInterface(ifaceIndex);
+
+		  //get the first (default) interface address's ipv4address
+		  Ipv4Address newsource = outInterface->GetAddress(0).GetLocal();
+
+		  ipHeader = BuildHeader (newsource, destination, protocol, packet->GetSize (), ttl, tos, mayFragment);
+
+		  Ptr<Packet> packetCopy = packet->Copy ();
+
+		  NS_ASSERT (packetCopy->GetSize () <= outInterface->GetDevice ()->GetMtu ());
+
+		  m_sendOutgoingTrace (ipHeader, packetCopy, ifaceIndex);
+		  packetCopy->AddHeader (ipHeader);
+		  m_txTrace (packetCopy, m_node->GetObject<Ipv4Multicast> (), ifaceIndex);
+		  outInterface->Send (packetCopy, destination);
+	  }
+	  return;
+  }
 
   // 2) check: packet is destined to a subnet-directed broadcast address
   uint32_t ifaceIndex = 0;
@@ -987,11 +1074,11 @@ Ipv4L3ProtocolMulticast::IpForward (Ptr<Ipv4Route> rtentry, Ptr<const Packet> p,
   if (ipHeader.GetTtl () == 0)
     {
       // Do not reply to ICMP or to multicast/broadcast IP address 
-      if (ipHeader.GetProtocol () != Icmpv4L4Protocol::PROT_NUMBER && 
+      if (ipHeader.GetProtocol () != Icmpv4L4ProtocolMulticast::PROT_NUMBER && 
           ipHeader.GetDestination ().IsBroadcast () == false &&
           ipHeader.GetDestination ().IsMulticast () == false)
         {
-          Ptr<Icmpv4L4Protocol> icmp = GetIcmp ();
+          Ptr<Icmpv4L4ProtocolMulticast> icmp = GetIcmp ();
           icmp->SendTimeExceededTtl (ipHeader, packet);
         }
       NS_LOG_WARN ("TTL exceeded.  Drop.");
@@ -1613,7 +1700,7 @@ Ipv4L3ProtocolMulticast::HandleFragmentsTimeout (std::pair<uint64_t, uint32_t> k
   // if we have at least 8 bytes, we can send an ICMP.
   if ( packet->GetSize () > 8 )
     {
-      Ptr<Icmpv4L4Protocol> icmp = GetIcmp ();
+      Ptr<Icmpv4L4ProtocolMulticast> icmp = GetIcmp ();
       icmp->SendTimeExceededTtl (ipHeader, packet);
     }
   m_dropTrace (ipHeader, packet, DROP_FRAGMENT_TIMEOUT, m_node->GetObject<Ipv4Multicast> (), iif);

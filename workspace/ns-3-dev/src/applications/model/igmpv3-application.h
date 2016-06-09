@@ -10,6 +10,9 @@
 
 #include "ns3/application.h"
 #include "ns3/event-id.h"
+#include "ns3/internet-module.h"
+#include "ns3/network-module.h"
+#include <list>
 
 namespace ns3 {
 
@@ -31,11 +34,23 @@ private:
 	virtual void StartApplication (void);
 	virtual void StopApplication (void);
 
-	void SendGeneralQuery (void);
+	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+	Ptr<Ipv4L3ProtocolMulticast> GetIpv4L3 (void) const;
+	uint32_t GetRandomNumber (uint32_t min, uint32_t max);
+	bool IsSkip (uint32_t percentage);
+	bool IsSkip (void);
+	Ipv4Address GetRandomMulticastAddress (void);
 
-	EventId m_sendEvent;
+	void GenerateNextEvent (void);
+	void GenerateGeneralQueryEvent (void);
+	void GenerateHostJoinEvent (void);
+	void GenerateHostLeaveEvent (void);
 
-	Time m_default_query_interval;
+	EventId m_currentEvent;
+
+	Time m_default_query_interval;		//cisco default 60 sec
+
+	std::list<Ptr<Ipv4RawSocketImplMulticast> > m_lst_sockets;
 };
 
 } /* namespace ns3 */

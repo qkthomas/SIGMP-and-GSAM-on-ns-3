@@ -30,6 +30,13 @@ class IGMPv3SocketState;
 class Ipv4RawSocketImplMulticast : public Socket
 {
 public:
+	enum IPMCL_STATUS {
+		ADDED = 0,
+		REMAIN = 1,
+		DELETED = 2
+	};
+
+public:
   /**
    * \brief Get the type ID of this class.
    * \return type ID
@@ -57,6 +64,7 @@ public:
   virtual int Bind ();
   virtual int Bind6 ();
   virtual int GetSockName (Address &address) const; 
+  virtual int GetPeerName (Address &address) const;
   virtual int Close (void);
   virtual int ShutdownSend (void);
   virtual int ShutdownRecv (void);
@@ -94,10 +102,21 @@ public:
    *  \brief IPMulticastList at socket
    *
    */
+  //Ipv4RawSocketImplMulticast::IPMCL_STATUS
   void IPMulticastListen (Ptr<Ipv4InterfaceMulticast> m_interface,
 		  	  	  	  	  Ipv4Address multicast_address,
 		  	  	  	  	  ns3::FILTER_MODE filter_mode,
 		  	  	  	  	  std::list<Ipv4Address> &src_list);
+
+  /*
+   * delete igmp record in the interfaces this socket has invoke IPMulticastListen
+   */
+  void UnSubscribeIGMP (void);
+
+  /*
+   * added by Lin Chen
+   */
+  std::list<Ptr<IGMPv3SocketState> > GetSocketState (void);
 
 private:
   virtual void DoDispose (void);
@@ -112,7 +131,7 @@ private:
     uint16_t fromProtocol;   /**< Protocol used */
   };
 
-  enum Socket::SocketErrno m_err;   //!< Last error number.
+  mutable enum Socket::SocketErrno m_err;   //!< Last error number.
   Ptr<Node> m_node;                 //!< Node
   Ipv4Address m_src;                //!< Source address.
   Ipv4Address m_dst;                //!< Destination address.
@@ -124,7 +143,7 @@ private:
   bool m_iphdrincl;                 //!< Include IP Header information (a.k.a setsockopt (IP_HDRINCL))
 
   //added by Lin Chen
-  std::list<IGMPv3SocketState> m_lst_socketstates;
+  std::list<Ptr<IGMPv3SocketState> > m_lst_socketstates;
 };
 
 } // namespace ns3

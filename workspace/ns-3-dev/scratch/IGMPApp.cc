@@ -313,10 +313,10 @@ IGMPApp::SendCurrentStateReport(Ptr<Socket> socket)
 			it != this->m_lst_interface_states.end();
 			it++)
 	{
-		if (bound_device == (*it).m_interface->GetDevice())
+		if (bound_device == it->GetInterface()->GetDevice())
 		{
 			Igmpv3GrpRecord record;
-			if ((*it).m_filter_mode == /*FILTER_MODE::*/EXCLUDE)
+			if ((*it).GetFilterMode() == /*FILTER_MODE::*/EXCLUDE)
 			{
 				record.SetType(Igmpv3GrpRecord::MODE_IS_EXCLUDE);
 			}
@@ -324,17 +324,17 @@ IGMPApp::SendCurrentStateReport(Ptr<Socket> socket)
 			{
 				record.SetType(Igmpv3GrpRecord::MODE_IS_INCLUDE);
 			}
-			record.SetAuxDataLen(0);
-			record.SetNumSrcs((*it).m_lst_source_list.size());
-			record.SetMulticastAddress((*it).m_multicast_address);
-			record.PushBackSrcAddresses((*it).m_lst_source_list);
+			//record.SetAuxDataLen(0);
+			//record.SetNumSrcs((*it).GetSrcList().size());
+			record.SetMulticastAddress((*it).GetGroupAddress());
+			record.PushBackSrcAddresses((*it).GetSrcList());
 
 			lst_grp_records.push_back(record);
 		}
 	}
 
 	Igmpv3Report report;
-	report.SetNumGrpRecords(lst_grp_records.size());
+	//report.SetNumGrpRecords(lst_grp_records.size());
 	report.PushBackGrpRecords(lst_grp_records);
 
 	packet->AddHeader(report);

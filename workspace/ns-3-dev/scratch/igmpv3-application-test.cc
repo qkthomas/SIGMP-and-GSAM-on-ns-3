@@ -10,11 +10,23 @@
 #include "ns3/internet-module.h"
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
+#include "ns3/command-line.h"
 
 using namespace ns3;
 
-int main()
+int
+main (int argc, char *argv[])
 {
+
+	CommandLine cmd;
+
+	cmd.Parse (argc, argv);
+
+	int simulation_seconds = 60000;
+
+	//std::cout << "Input simulation time (Seconds): ";
+	//std::cin >> simulation_seconds;
+
 	Time::SetResolution (Time::NS);
 
 	NodeContainer nodes;
@@ -70,7 +82,7 @@ int main()
 			factory.SetTypeId(Igmpv3Application::GetTypeId());
 			Ptr<Application> app = factory.Create<Igmpv3Application>();
 			app->SetStartTime(Seconds(0.));
-			app->SetStopTime(Seconds(300.0));
+			app->SetStopTime(Seconds(double(simulation_seconds)));
 			nodes.Get(i)->AddApplication(app);
 		}
 

@@ -18,10 +18,154 @@ class Ipv4InterfaceMulticast;
 class Ipv4Route;
 
 class Igmpv3L4Protocol: public IpL4ProtocolMulticast {
-
+public:
 	enum ROLE {
 		QUERIER = 0, NONQUERIER = 1, HOST = 2
 	};
+
+public:
+	//Algebraic tools
+	/*
+	 * list union, sort lists before use.
+	 */
+	template<typename T>
+	static std::list<T> ListUnion (std::list<T> const &lst_a, std::list<T> const &lst_b)
+	{
+		{
+			std::list<T> reval;
+
+			typename std::list<T>::const_iterator it_a = lst_a.begin();
+			typename std::list<T>::const_iterator it_b = lst_b.begin();
+
+			while (it_a != lst_a.end())
+			{
+				while (it_b != lst_b.end())
+				{
+					if ((*it_a) < (*it_b))
+					{
+						reval.push_back(*it_a);
+						it_a++;
+						break;
+					}
+					else if ((*it_a) != (*it_b))	//(*it_a) > (*it_b)
+					{
+						reval.push_back(*it_b);
+						it_b++;
+						continue;
+					}
+					else
+					{
+						//push a or b, choose pushing a
+						reval.push_back(*it_a);
+						it_a++;
+						it_b++;
+						break;
+					}
+				}
+
+				if (it_b == lst_b.end())
+				{
+					reval.push_back(*it_a);
+					it_a++;
+				}
+			}
+
+			return reval;
+		}
+	}
+
+	/*
+	 * list a minus list b, sort lists before use.
+	 */
+	template<typename T>
+	static std::list<T> ListSubtraction (std::list<T> const &lst_a, std::list<T> const &lst_b)
+	{
+		{
+			std::list<T> reval;
+			std::copy (lst_a.begin(), lst_a.end(), std::back_inserter(reval));
+
+			typename std::list<T>::const_iterator it_a = lst_a.begin();
+			typename std::list<T>::const_iterator it_b = lst_b.begin();
+
+			while (it_a != lst_a.end())
+			{
+				while (it_b != lst_b.end())
+				{
+					if ((*it_a) < (*it_b))
+					{
+						it_a++;
+						break;
+					}
+					else if ((*it_a) != (*it_b))	//(*it_a) > (*it_b)
+					{
+						it_b++;
+						continue;
+					}
+					else	//(*it_a) == (*it_b)
+					{
+						//remove the element has the same value as *it_b from lst_a
+						reval.remove(*it_b);
+						it_a++;
+						it_b++;
+						break;
+					}
+				}
+
+				if (it_b == lst_b.end())
+				{
+					return reval;
+				}
+			}
+
+			return reval;
+		}
+	}
+
+	/*
+	 * list a minus list b, sort lists before use.
+	 */
+	template<typename T>
+	static std::list<T> ListIntersection (std::list<T> const &lst_a, std::list<T> const &lst_b)
+	{
+		{
+			std::list<T> reval;
+
+			typename std::list<T>::const_iterator it_a = lst_a.begin();
+			typename std::list<T>::const_iterator it_b = lst_b.begin();
+
+			while (it_a != lst_a.end())
+			{
+				while (it_b != lst_b.end())
+				{
+					if ((*it_a) < (*it_b))
+					{
+						it_a++;
+						break;
+					}
+					else if ((*it_a) != (*it_b))	//(*it_a) > (*it_b)
+					{
+						it_b++;
+						continue;
+					}
+					else	//(*it_a) == (*it_b)
+					{
+						//remove the element has the same value as *it_b from lst_a
+						reval.push_back(*it_a);
+						it_a++;
+						it_b++;
+						break;
+					}
+				}
+
+				if (it_b == lst_b.end())
+				{
+					return reval;
+				}
+			}
+
+			return reval;
+		}
+	}
 
 public:
 	/**
@@ -82,15 +226,59 @@ public:
 	virtual IpL4ProtocolMulticast::DownTargetCallback6 GetDownTarget6 (void) const;
 
 	//added by Lin Chen
+	void SetRole (Igmpv3L4Protocol::ROLE role);
+	Igmpv3L4Protocol::ROLE GetRole (void);
 	void Initialization (void);
 	void SendDefaultGeneralQuery (void);
 	void SendCurrentStateReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<PerInterfaceTimer> pintimer);
+	void SendStateChangesReport (Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
+	void NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void HandleV1MemReport (void);
 	void HandleV2MemReport (void);
 	void HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMulticast> incomingInterface);
-	void HandleGeneralQuery (Ptr<Ipv4InterfaceMulticast> incomingInterface, Time resp_time);
+//	*obsolete*, moved to interface
+//	void HandleGeneralQuery (Ptr<Ipv4InterfaceMulticast> incomingInterface, Time resp_time);
 	void HandleGroupSpecificQuery (void);
+//	void IPMulticastListen (Ptr<Socket> socket,
+//							Ptr<Ipv4InterfaceMulticast> interface,
+//							Ipv4Address multicast_address,
+//							ns3::FILTER_MODE filter_mode,
+//							std::list<Ipv4Address> &source_list);
+	void IPMulticastListen (Ptr<Ipv4InterfaceMulticast> interface,
+							Ipv4Address multicast_address,
+							ns3::FILTER_MODE filter_mode,
+							std::list<Ipv4Address> &source_list);
+//	*obsolete* Move to Ipv4InterfaceMulticast
+//	void SendStateChangeReport (std::list<Igmpv3GrpRecord> &records);
+
+	/*
+	 * \breif Send IGMPv3 Report
+	 */
+	void SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet);
+
+	Time GetUnsolicitedReportInterval (void);
+	uint8_t GetRobustnessValue (void);
+	uint8_t GetMaxRespCode (void);
+	Time GetRandomTime (Time max);
+	Time GetMaxRespTime (uint8_t max_resp_code);
+	Time GetQueryInterval (void);
+	Time GetQueryReponseInterval (void);
+	Time GetGroupMembershipIntervalGMI (void);
+	Time GetLastMemberQueryTimeLMQT (void);
+	Time GetLastMemberQueryInterval (void);
+	Time GetOtherQuerierPresentInterval (void);
+	Time GetStartupQueryInterval (void);
+	uint8_t GetLastMemberQueryCount (void);
+	uint8_t GetQQIC (void);
+	uint8_t GetQRV (void);
+	uint8_t GetStartupQueryCount (void);
+
+	/*
+	 * query
+	 */
+	void SendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet);
+	void DoSendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet);
 
 protected:
 	/*
@@ -136,13 +324,16 @@ private:
 
 	ROLE m_role;
 
-	//States
-	std::list<IGMPv3SocketState> m_lst_socket_states;
-	std::list<IGMPv3InterfaceState> m_lst_interface_states;
+	//For accessing various States, states are stored in socket or interface
+	//std::list<Ptr<Socket> > m_lst_socket_accessors;
+	std::list<Ptr<Ipv4InterfaceMulticast> > m_lst_interface_accessors;
 
-	//Timers
-	std::list<Ptr<PerInterfaceTimer> > m_lst_per_interface_timers;
-	std::list<Ptr<PerGroupInterfaceTimer> > m_lst_per_group_interface_timers;
+//	*Obsolete*//Timers
+//	std::list<Ptr<PerInterfaceTimer> > m_lst_per_interface_timers;
+//	std::list<Ptr<PerGroupInterfaceTimer> > m_lst_per_group_interface_timers;
+
+	//robustness retransmission
+	EventId m_event_robustness_retransmission;
 };
 
 } /* namespace ns3 */

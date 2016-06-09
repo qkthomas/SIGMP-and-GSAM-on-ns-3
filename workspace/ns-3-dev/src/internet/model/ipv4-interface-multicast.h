@@ -27,9 +27,10 @@
 #include "ns3/ipv4-interface-address.h"
 #include "ns3/ptr.h"
 #include "ns3/object.h"
+#include "ns3/event-id.h"
 
 //added by Lin Chen
-//#include "ns3/igmpv3.h"
+#include "ns3/igmpv3.h"
 
 namespace ns3 {
 
@@ -54,6 +55,12 @@ class IGMPv3InterfaceState;
  */
 class Ipv4InterfaceMulticast  : public Object
 {
+public:
+	enum IPMCL_STATUS {
+		ADDED = 0,
+		REMAIN = 1,
+		DELETED = 2
+	};
 public:
   /**
    * \brief Get the type ID
@@ -184,6 +191,38 @@ public:
    */
   Ipv4InterfaceAddress RemoveAddress (Ipv4Address address);
 
+  /**
+   * added by Lin Chen, IPMulticast invocation, by ipv4 or igmpv3-l4-protocol or raw socket
+   */
+  //Ipv4InterfaceMulticast::IPMCL_STATUS
+  void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state);
+
+  std::list<Ptr<IGMPv3InterfaceState> > GetInterfaceStates (void);
+
+  void UnSubscribeIGMP (Ptr<Socket> socket);
+
+  void AddPendingRecordsToReport (Igmpv3Report &report);
+  bool HasPendingRecords (void);
+
+  void ReportStateChanges (void);
+  void DoReportStateChanges (void);
+  void ReportCurrentStates (void);
+  void ReportCurrentGrpStates (Ipv4Address group_address);
+  void ReportCurrentGrpNSrcStates (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+  void CancelReportStateChanges (void);
+  void RemovePerGroupTimer (Ipv4Address group_address);
+  bool IsReportStateChangesRunning (void);
+  void HandleGeneralQuery (Time resp_time);
+  void HandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
+  void DoHandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
+  void HandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+  void DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+  void HandleV3Records (std::list<Igmpv3GrpRecord> &records);
+  void NonQHandleGroupSpecificQuery (Ipv4Address group_address);
+  void NonQHandleGroupNSrcSpecificQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+  void SendQuery (Ipv4Address group_address, bool s_flag);
+  void SendQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list, bool s_flag);
+
 protected:
   virtual void DoDispose (void);
 private:
@@ -192,6 +231,15 @@ private:
    */
   void DoSetup (void);
 
+//  /*	moved to IGMPv3SocketState
+//   * added by Lin Chen, check and add socket to list of sockets in IGMPv3InterfaceState
+//   */
+//  void AssociateSocketStateToInterfaceState (Ptr<IGMPv3SocketState> socket_state, Ptr<IGMPv3InterfaceState> interfacestate);
+//
+//  /*	moved to IGMPv3SocketState
+//   * added by Lin Chen, check whether all subscribed sockets are of INCLUDE mode
+//   */
+//  bool CheckSubscribedAllSocketsIncludeMode (Ptr<IGMPv3InterfaceState> interfacestate);
 
   /**
    * \brief Container for the Ipv4InterfaceAddresses.
@@ -219,7 +267,17 @@ private:
   Ptr<ArpCacheMulticast> m_cache; //!< ARP cache
 
   //added by Lin Chen
-  std::list<IGMPv3InterfaceState> m_multicast_interface_state;
+  std::list<Ptr<IGMPv3InterfaceState> > m_lst_interfacestates;
+
+  //Robustness retransmission
+  EventId m_event_robustness_retransmission;
+
+  //Timers
+  Timer m_timer_gen_query;
+  std::list<Ptr<PerGroupInterfaceTimer> > m_lst_per_group_interface_timers;
+
+  //Router states
+  std::list<Ptr<IGMPv3MaintenanceState> > m_lst_maintenance_states;
 };
 
 } // namespace ns3
