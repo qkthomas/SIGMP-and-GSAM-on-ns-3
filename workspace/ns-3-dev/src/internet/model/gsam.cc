@@ -21,6 +21,8 @@
 #include "gsam.h"
 #include "ns3/log.h"
 #include "ns3/assert.h"
+#include <cstdlib>
+#include <ctime>
 
 namespace ns3 {
 
@@ -45,10 +47,12 @@ IkeHeader::GetTypeId (void)
 IkeHeader::IkeHeader ()
   :  m_initiator_spi (0),
 	 m_responder_spi (0),
-	 m_next_payload (0),
+     m_next_payload (0),
 	 m_version (2),
 	 m_exchange_type (0),
-	 m_flags (0),
+	 m_flag_response (false),
+	 m_flag_version (false),
+	 m_flag_initiator (false),
 	 m_message_id (0),
 	 m_length (0)
 {
@@ -66,12 +70,12 @@ IkeHeader::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteHtonU64(this->m_initiator_spi);
-	i.WriteHtonU64(this->m_responder_spi);
+	i.WriteHtolsbU64(this->m_initiator_spi);
+	i.WriteHtolsbU64(this->m_responder_spi);
 	i.WriteU8(this->m_next_payload);
 	i.WriteU8(this->m_version.toUint8_t());
 	i.WriteU8(this->m_exchange_type);
-	i.WriteU8(this->m_flags);
+	i.WriteU8(this->FlagsToU8());
 	i.WriteHtonU32(this->m_message_id);
 	i.WriteHtonU32(this->m_length);
 }
@@ -84,21 +88,28 @@ IkeHeader::Deserialize (Buffer::Iterator start)
 	Buffer::Iterator i = start;
 
 	this->m_initiator_spi = i.ReadNtohU64();
-	byte_read+=8;
+	byte_read += sizeof(this->m_initiator_spi);
+
 	this->m_responder_spi = i.ReadNtohU64();
-	byte_read+=8;
+	byte_read += sizeof (this->m_responder_spi);
+
 	this->m_next_payload = i.ReadU8();
-	byte_read++;
+	byte_read += sizeof (this->m_next_payload);
+
 	this->m_version = i.ReadU8();
-	byte_read++;
+	byte_read += sizeof (this->m_version);
+
 	this->m_exchange_type = i.ReadU8();
+	byte_read += sizeof (this->m_exchange_type);
+
+	this->U8ToFlags(i.ReadU8());
 	byte_read++;
-	this->m_flags = i.ReadU8();
-	byte_read++;
+
 	this->m_message_id = i.ReadNtohU32();
-	byte_read+=4;
+	byte_read += sizeof (this->m_message_id);
+
 	this->m_length = i.ReadNtohU32();
-	byte_read+=4;
+	byte_read += sizeof (this->m_length);
 
 	return byte_read;
 }
@@ -122,8 +133,113 @@ IkeHeader::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
 	os << "IKE Packet Header: " << this << ": ";
-	os << "Initiator's SPI: " << this->m_initiator_spi << std::endl;
-	os << "Responder's SPI: " << this->m_responder_spi << std::endl;
+	os << "Initiator SPI: " << this->m_initiator_spi << ", ";
+	os << "Responder SPI: " << this->m_responder_spi << std::endl;
+}
+
+uint8_t
+IkeHeader::FlagsToU8 (void) const
+{
+	NS_LOG_FUNCTION (this);
+	/*
+	 * +-+-+-+-+-+-+-+-+
+     * |X|X|R|V|I|X|X|X|
+     * +-+-+-+-+-+-+-+-+
+	 */
+
+	uint8_t retval = 0;
+
+	if (true == this->m_flag_response)
+	{
+		retval += 0x04;
+	}
+
+	if (true == this->m_flag_version)
+	{
+		retval += 0x08;
+	}
+
+	if (true == this->m_initiator_spi)
+	{
+		retval += 0x10;
+	}
+
+	return retval;
+}
+
+void
+IkeHeader::U8ToFlags (uint8_t input)
+{
+	NS_LOG_FUNCTION (this);
+	/*
+	 * +-+-+-+-+-+-+-+-+
+     * |X|X|R|V|I|X|X|X|
+     * +-+-+-+-+-+-+-+-+
+	 */
+
+	if (0 != (input & 0x04))
+	{
+		this->m_flag_response = true;
+	}
+
+	if (0 != (input & 0x08))
+	{
+		this->m_flag_version = true;
+	}
+
+	if (0 != (input & 0x10))
+	{
+		this->m_initiator_spi = true;
+	}
+}
+
+void
+IkeHeader::SetIkev2Version (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_version.SetIkev2();
+}
+
+void
+IkeHeader::SetInitiatorSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_initiator_spi = spi;
+}
+
+void
+IkeHeader::SetResponderSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_responder_spi = spi;
+}
+
+void
+IkeHeader::SetNextPayload (IkePayloadHeader::PAYLOAD_TYPE payload_type)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_next_payload = payload_type;
+}
+
+void
+IkeHeader::SetExchangeType (IkeHeader::EXCHANGE_TYPE exchange_type)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_exchange_type = exchange_type;
+}
+
+void
+IkeHeader::SetAsInitiator (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_initiator = true;
+}
+
+void
+IkeHeader::SetAsResponder (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_response = true;
 }
 
 /********************************************************
@@ -144,7 +260,7 @@ IkePayloadHeader::GetTypeId (void)
 
 IkePayloadHeader::IkePayloadHeader ()
   :  m_next_payload (0),
-	 m_critial_reserved (0),
+	 m_flag_critical (false),
 	 m_payload_length (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -162,7 +278,14 @@ IkePayloadHeader::Serialize (Buffer::Iterator start) const
 	Buffer::Iterator i = start;
 
 	i.WriteU8(this->m_next_payload);
-	i.WriteU8(this->m_critial_reserved);
+	if (false == this->m_flag_critical)
+	{
+		i.WriteU8(0x00);
+	}
+	else
+	{
+		i.WriteU8(0x01);
+	}
 	i.WriteHtonU16(this->m_payload_length);
 }
 
@@ -174,11 +297,26 @@ IkePayloadHeader::Deserialize (Buffer::Iterator start)
 	Buffer::Iterator i = start;
 
 	this->m_next_payload = i.ReadU8();
-	byte_read++;
-	this->m_critial_reserved = i.ReadU8();
-	byte_read++;
+	byte_read += sizeof (this->m_next_payload);
+
+	uint8_t critial_reserved = i.ReadU8();
+	byte_read += sizeof (critial_reserved);
+
+	if (0x00 == critial_reserved)
+	{
+		this->m_flag_critical = false;
+	}
+	else if (0x01 == critial_reserved)
+	{
+		this->m_flag_critical = true;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
 	this->m_payload_length = i.ReadNtohU16();
-	byte_read+=2;
+	byte_read += sizeof (this->m_payload_length);
 
 	return byte_read;
 }
@@ -214,6 +352,235 @@ IkePayloadHeader::GetPayloadLength (void) const
 	return this->m_payload_length;
 }
 
+void
+IkePayloadHeader::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_next_payload = payload_type;
+}
+void
+IkePayloadHeader::SetPayloadLength (uint16_t length)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_payload_length = length;
+}
+
+/********************************************************
+ *        IkePayloadSubstructure
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkePayloadSubstructure);
+
+TypeId
+IkePayloadSubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkePayloadSubstructure")
+	    .SetParent<Header> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkePayloadSubstructure> ();
+	  return tid;
+}
+
+IkePayloadSubstructure::IkePayloadSubstructure ()
+  :  m_length (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkePayloadSubstructure::~IkePayloadSubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IkePayloadSubstructure::SetLength (uint16_t length)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_length = length;
+}
+
+uint32_t
+IkePayloadSubstructure::Deserialize (Buffer::Iterator start, uint16_t length)
+{
+	NS_LOG_FUNCTION (this << &start);
+
+	this->SetLength(length);
+
+	return this->Deserialize(start);
+}
+
+uint32_t
+IkePayloadSubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	//should not be called
+	NS_ASSERT (false);
+
+	return 0;
+}
+
+TypeId
+IkePayloadSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	//should not be called
+	NS_ASSERT (false);
+
+	return IkePayloadSubstructure::GetTypeId();
+}
+
+void
+IkePayloadSubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this);
+
+	//should not be called
+	NS_ASSERT (false);
+}
+
+uint32_t
+IkePayloadSubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this);
+
+	//should not be called
+	NS_ASSERT (false);
+
+	return 0;
+}
+
+void
+IkePayloadSubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+
+	os << "IkePayloadSubstructure: " << this << std::endl;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkePayloadSubstructure::GetPayloadType (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	return IkePayloadHeader::NO_NEXT_PAYLOAD;
+}
+
+/********************************************************
+ *        IkePayload
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkePayload);
+
+TypeId
+IkePayload::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkePayload")
+	    .SetParent<Header> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkePayload> ();
+	  return tid;
+}
+
+IkePayload::IkePayload ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkePayload::~IkePayload ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+uint32_t
+IkePayload::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_header.GetSerializedSize() + this->m_substructure.GetSerializedSize();
+}
+
+TypeId
+IkePayload::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayload::GetTypeId();
+}
+
+void
+IkePayload::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	this->m_header.Serialize(i);
+	i.Next(this->m_header.GetSerializedSize());
+
+	this->m_substructure.Serialize(i);
+	i.Next(this->m_substructure.GetSerializedSize());
+}
+
+uint32_t
+IkePayload::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+
+	Buffer::Iterator i = start;
+	uint32_t size = 0;
+
+	this->m_header.Deserialize(i);
+	i.Next(this->m_header.GetSerializedSize());
+	size += this->m_header.GetSerializedSize();
+
+	uint16_t total_length = this->m_header.GetPayloadLength();
+	uint16_t length_rest = total_length - this->m_header.GetSerializedSize();
+
+	this->m_substructure.Deserialize(i, length_rest);
+	i.Next(this->m_substructure.GetSerializedSize());
+	size += this->m_substructure.GetSerializedSize();
+
+	NS_ASSERT (size == total_length);
+
+	return size;
+}
+
+void
+IkePayload::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	os << "IkePayload: " << this << std::endl;
+}
+
+bool
+IkePayload::IsInitialized (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return (this->m_substructure.GetInstanceTypeId() != IkePayloadSubstructure::GetTypeId());
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkePayload::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_substructure.GetPayloadType();
+}
+
+void
+IkePayload::SetPayload (IkePayloadSubstructure substructure)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_substructure = substructure;
+	this->m_header.SetPayloadLength(substructure.GetSerializedSize() + this->m_header.GetSerializedSize());
+}
+
+void
+IkePayload::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_header.SetNextPayloadType(payload_type);
+}
+
 /********************************************************
  *        IkeTransformAttribute
  ********************************************************/
@@ -231,7 +598,7 @@ IkeTransformAttribute::GetTypeId (void)
 }
 
 IkeTransformAttribute::IkeTransformAttribute ()
-  :  m_TLV (false),
+  :  m_flag_TLV (false),
 	 m_attribute_type (0),
 	 m_attribute_length_or_value (0)
 {
@@ -267,7 +634,7 @@ IkeTransformAttribute::Serialize (Buffer::Iterator start) const
 	// If the AF bit is zero (0), then
     // the attribute uses TLV format; if the AF bit is one (1), the TV
     // format (with two-byte value) is used.
-	if (true == this->m_TLV)
+	if (true == this->m_flag_TLV)
 	{
 		uint16_t value = (this->m_attribute_type << 1) + 0x00;
 		i.WriteHtonU16(value);
@@ -297,22 +664,22 @@ IkeTransformAttribute::Deserialize (Buffer::Iterator start)
 	uint32_t size = 0;
 
 	uint16_t af_attribute_type = i.ReadNtohU16();
-	size += 2;
+	size += sizeof (af_attribute_type);
 
 	this->m_attribute_length_or_value = (af_attribute_type & 0xfffe) >> 1;
 	if (0 == (af_attribute_type & 0x0001))
 	{
-		this->m_TLV = true;
+		this->m_flag_TLV = true;
 	}
 	else
 	{
-		this->m_TLV = false;
+		this->m_flag_TLV = false;
 	}
 
 	this->m_attribute_length_or_value = i.ReadNtohU16();
-	size += 2;
+	size += sizeof (this->m_attribute_length_or_value);
 
-	if (true == this->m_TLV)
+	if (true == this->m_flag_TLV)
 	{
 		for (	int it = 1;
 				it <= this->m_attribute_length_or_value;
@@ -349,14 +716,14 @@ TypeId
 IkeTransformSubStructure::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeTransformSubStructure")
-	    .SetParent<Header> ()
+	    .SetParent<IkePayloadSubstructure> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeTransformSubStructure> ();
 	  return tid;
 }
 
 IkeTransformSubStructure::IkeTransformSubStructure ()
-  : m_last (true),
+  : m_flag_last (true),
 	m_transform_length (0),
 	m_transform_type (0),
 	m_transform_id (0)
@@ -401,7 +768,7 @@ IkeTransformSubStructure::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(this->m_last);
+	i.WriteU8(this->m_flag_last);
 
 	//to write first RESERVED
 	i.WriteU8(0);
@@ -432,35 +799,39 @@ IkeTransformSubStructure::Deserialize (Buffer::Iterator start)
 	uint32_t size = 0;
 
 	uint8_t field_last = i.ReadU8();
-	size++;
+	size += sizeof (field_last);
+
 	if (0 == field_last)
 	{
-		this->m_last = true;
+		this->m_flag_last = true;
 	}
 	else if (3 == field_last)
 	{
-		this->m_last = false;
+		this->m_flag_last = false;
 	}
 	else
 	{
 		NS_ASSERT (false);
 	}
 
-	//to skip first RESERVED
-	i.Next();
-	size++;
+	//to check whehter field RESERVED is 0
+	uint8_t RESERVED1 = i.ReadU8();
+	NS_ASSERT (RESERVED1 == 0);
+	size ++;
 
 	this->m_transform_length = i.ReadNtohU16();
-	size += 2;
-	this->m_transform_type = i.ReadU8();
-	size++;
+	size += sizeof (this->m_transform_length);
 
-	//to skip second RESERVED
-	i.Next();
+	this->m_transform_type = i.ReadU8();
+	size += sizeof (this->m_transform_type);
+
+	//to check whehter field RESERVED is 0
+	uint16_t RESERVED2 = i.ReadU8();
+	NS_ASSERT (RESERVED2 == 0);
 	size++;
 
 	this->m_transform_id = i.ReadNtohU16();
-	size += 2;
+	size += sizeof (this->m_transform_id);
 
 	while (size < this->m_transform_length)
 	{
@@ -492,48 +863,47 @@ IkeTransformSubStructure::SetLast (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	this->m_last = true;
+	this->m_flag_last = true;
 }
 
 bool
 IkeTransformSubStructure::IsLast (void)
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_last;
+	return this->m_flag_last;
 }
 
 /********************************************************
  *        Spi
  ********************************************************/
 
-NS_OBJECT_ENSURE_REGISTERED (Spi);
+NS_OBJECT_ENSURE_REGISTERED (GsamSpi);
 
 TypeId
-Spi::GetTypeId (void)
+GsamSpi::GetTypeId (void)
 {
-	static TypeId tid = TypeId ("ns3::Spi")
-	    .SetParent<Header> ()
+	static TypeId tid = TypeId ("ns3::GsamSpi")
+	    .SetParent<IkePayloadSubstructure> ()
 	    //.SetGroupName("Internet")
-		.AddConstructor<Spi> ();
+		.AddConstructor<GsamSpi> ();
 	  return tid;
 }
 
-Spi::Spi ()
-  : m_size (0)
+GsamSpi::GsamSpi ()
 {
 	NS_LOG_FUNCTION (this);
 }
 
-Spi::~Spi ()
+GsamSpi::~GsamSpi ()
 {
 	NS_LOG_FUNCTION (this);
 	m_lst_var.clear();
 }
 
 uint32_t
-Spi::GetSerializedSize (void) const
+GsamSpi::GetSerializedSize (void) const
 {
-	if (this->GetSize() <= 0)
+	if (this->m_lst_var.size() <= 0)
 	{
 		NS_ASSERT (false);
 	}
@@ -542,20 +912,20 @@ Spi::GetSerializedSize (void) const
 		//do nothing
 	}
 
-	return this->GetSize();
+	return this->m_lst_var.size();
 }
 
 TypeId
-Spi::GetInstanceTypeId (void) const
+GsamSpi::GetInstanceTypeId (void) const
 {
-	return Spi::GetTypeId();
+	return GsamSpi::GetTypeId();
 }
 
 void
-Spi::Serialize (Buffer::Iterator start) const
+GsamSpi::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
-	if (this->GetSize() <= 0)
+	if (this->m_lst_var.size() <= 0)
 	{
 		NS_ASSERT (false);
 	}
@@ -575,10 +945,10 @@ Spi::Serialize (Buffer::Iterator start) const
 }
 
 uint32_t
-Spi::Deserialize (Buffer::Iterator start)
+GsamSpi::Deserialize (Buffer::Iterator start)
 {
 	NS_LOG_FUNCTION (this << &start);
-	if (this->m_size <= 0)
+	if (this->m_length <= 0)
 	{
 		NS_ASSERT (false);
 	}
@@ -587,35 +957,26 @@ Spi::Deserialize (Buffer::Iterator start)
 		//do nothing
 	}
 
-	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
+	uint32_t size = 0;
 
 	for (	uint16_t count = 1;
-			count <= this->m_size;
+			count <= this->m_length;
 			count++)
 	{
 		this->m_lst_var.push_back(i.ReadU8());
+		size++;
 	}
 
-	return this->GetSize();
+	NS_ASSERT (size == this->m_length);
+
+	return size;
 }
 
 void
-Spi::Print (std::ostream &os) const
+GsamSpi::Print (std::ostream &os) const
 {
 
-}
-
-void
-Spi::SetSize (uint8_t size)
-{
-	this->m_size = size;
-}
-
-uint8_t
-Spi::GetSize (void) const
-{
-	return this->m_lst_var.size();
 }
 
 /********************************************************
@@ -635,7 +996,7 @@ IkeSAProposal::GetTypeId (void)
 }
 
 IkeSAProposal::IkeSAProposal ()
-  :  m_last (true),
+  :  m_flag_last (true),
 	 m_proposal_length (0),
 	 m_proposal_num (0),
 	 m_protocol_id (0),
@@ -683,11 +1044,11 @@ IkeSAProposal::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	if (true == this->m_last)
+	if (true == this->m_flag_last)
 	{
 		i.WriteU8(0);
 	}
-	else if (false == this->m_last)
+	else if (false == this->m_flag_last)
 	{
 		i.WriteU8(2);
 	}
@@ -705,11 +1066,12 @@ IkeSAProposal::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_protocol_id);
 
-	i.WriteU8(this->m_spi.GetSize());
+	i.WriteU8(this->m_spi.GetSerializedSize());
 
 	i.WriteU8(this->m_lst_transforms.size());
 
 	this->m_spi.Serialize(i);
+	i.Next(this->m_spi.GetSerializedSize());
 
 	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
 			const_it != this->m_lst_transforms.end();
@@ -729,15 +1091,15 @@ IkeSAProposal::Deserialize (Buffer::Iterator start)
 	uint32_t size = 0;
 
 	uint8_t field_last = i.ReadU8();
-	size++;
+	size += sizeof (field_last);
 
 	if (0 == field_last)
 	{
-		this->m_last = true;
+		this->m_flag_last = true;
 	}
 	else if (2 == field_last)
 	{
-		this->m_last = false;
+		this->m_flag_last = false;
 	}
 	else
 	{
@@ -749,24 +1111,22 @@ IkeSAProposal::Deserialize (Buffer::Iterator start)
 	size++;
 
 	this->m_proposal_length = i.ReadNtohU16();
-	size += 2;
+	size += sizeof (this->m_proposal_length);
 
 	this->m_proposal_num = i.ReadU8();
-	size++;
+	size += sizeof (this->m_proposal_num);
 
 	this->m_protocol_id = i.ReadU8();
-	size++;
+	size += sizeof (this->m_protocol_id);
 
 	this->m_spi_size = i.ReadU8();
-	size++;
+	size += sizeof (this->m_spi_size);
 
 	this->m_num_transforms = i.ReadU8();
-	size++;
+	size += sizeof (this->m_num_transforms);
 
-	Spi spi;
-	spi.SetSize(this->m_spi_size);
-
-	spi.Deserialize(i);
+	GsamSpi spi;
+	spi.Deserialize(i, m_spi_size);
 	i.Next(spi.GetSerializedSize());
 
 	for (	uint8_t it = 1;
@@ -791,40 +1151,104 @@ IkeSAProposal::Print (std::ostream &os) const
 	os << "IkeSAProposal: " << this << std::endl;
 }
 
-/********************************************************
- *        IkeSAPayload
- ********************************************************/
-
-NS_OBJECT_ENSURE_REGISTERED (IkeSAPayload);
-
-TypeId
-IkeSAPayload::GetTypeId (void)
+void
+IkeSAProposal::SetLast (void)
 {
-	static TypeId tid = TypeId ("ns3::IkeSAPayload")
-	    .SetParent<Header> ()
-	    //.SetGroupName("Internet")
-		.AddConstructor<IkeSAPayload> ();
-	  return tid;
+	NS_LOG_FUNCTION (this);
+	this->m_flag_last = true;
 }
 
-IkeSAPayload::IkeSAPayload ()
+void
+IkeSAProposal::SetProposalNumber (uint16_t proposal_num)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_proposal_num = proposal_num;
+}
+
+void
+IkeSAProposal::SetProtocolId (IPsec::PROTOCOL_ID protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_protocol_id = protocol_id;
+}
+
+void
+IkeSAProposal::SetProtocolIdAndSPISize (IPsec::PROTOCOL_ID protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 }
 
-IkeSAPayload::~IkeSAPayload ()
+void
+IkeSAProposal::SetSPI (GsamSpi spi)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_spi = spi;
+	this->m_spi_size = spi.GetSerializedSize();
+}
+
+void
+IkeSAProposal::PushBackTransform (IkeTransformSubStructure transform)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_transforms.push_back(transform);
+}
+
+uint8_t
+IkeSAProposal::GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint8_t size = 0;
+
+	switch (protocol_id) {
+	case IPsec::IKE:
+		size = 8;	//8 bytes
+		break;
+	case IPsec::AH:
+		size = 4;
+		break;
+	case IPsec::ESP:
+		size = 4;
+		break;
+	default:
+		NS_ASSERT(false);
+	}
+
+	return size;
+}
+
+/********************************************************
+ *        IkeSAPayload
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeSAPayloadSubstructure);
+
+TypeId
+IkeSAPayloadSubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeSAPayload")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeSAPayloadSubstructure> ();
+	  return tid;
+}
+
+IkeSAPayloadSubstructure::IkeSAPayloadSubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeSAPayloadSubstructure::~IkeSAPayloadSubstructure ()
 {
 	NS_LOG_FUNCTION (this);
 }
 
 uint32_t
-IkeSAPayload::GetSerializedSize (void) const
+IkeSAPayloadSubstructure::GetSerializedSize (void) const
 {
 	NS_LOG_FUNCTION (this);
 
 	uint32_t size = 0;
-
-	size += this->m_header.GetSerializedSize();
 
 	for (	std::list<IkeSAProposal>::const_iterator const_it = this->m_lst_proposal.begin();
 			const_it != this->m_lst_proposal.end();
@@ -836,37 +1260,37 @@ IkeSAPayload::GetSerializedSize (void) const
 	return size;
 }
 
+TypeId
+IkeSAPayloadSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return IkeSAPayloadSubstructure::GetTypeId();
+}
+
 void
-IkeSAPayload::Serialize (Buffer::Iterator start) const
+IkeSAPayloadSubstructure::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	this->m_header.Serialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-
-	for (	std::list<IkeSAProposal>::iterator it = this->m_lst_proposal.begin();
-			it != this->m_lst_proposal.end();
-			it++)
+	for (	std::list<IkeSAProposal>::const_iterator const_it = this->m_lst_proposal.begin();
+			const_it != this->m_lst_proposal.end();
+			const_it++)
 	{
-		it->Serialize(i);
-		i.Next(it->GetSerializedSize());
+		const_it->Serialize(i);
+		i.Next(const_it->GetSerializedSize());
 	}
 }
 
 uint32_t
-IkeSAPayload::Deserialize (Buffer::Iterator start)
+IkeSAPayloadSubstructure::Deserialize (Buffer::Iterator start)
 {
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 	uint32_t size = 0;
 
-	this->m_header.Deserialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-	size += this->m_header.GetSerializedSize();
-
-	uint16_t payload_length = this->m_header.GetPayloadLength();
-	uint16_t length_rest = payload_length - this->m_header.GetSerializedSize();
+	uint16_t length_rest = this->m_length;
 
 	while (length_rest > 0)
 	{
@@ -874,17 +1298,20 @@ IkeSAPayload::Deserialize (Buffer::Iterator start)
 		proposal.Deserialize(i);
 		size += proposal.GetSerializedSize();
 		length_rest -= proposal.GetSerializedSize();
+		this->m_lst_proposal.push_back(proposal);
 	}
 
-	NS_ASSERT (size == payload_length);
+	NS_ASSERT (size == this->m_length);
 
 	return size;
 }
 
 void
-IkeSAPayload::Print (std::ostream &os) const
+IkeSAPayloadSubstructure::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
+
+	IkePayloadSubstructure::Print(os);
 
 	os << "IkeSAPayload: " << this << std::endl;
 }
@@ -899,15 +1326,14 @@ TypeId
 IkeKeyExchangeSubStructure::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeKeyExchangeSubStructure")
-	    .SetParent<Header> ()
+	    .SetParent<IkePayloadSubstructure> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeKeyExchangeSubStructure> ();
 	  return tid;
 }
 
 IkeKeyExchangeSubStructure::IkeKeyExchangeSubStructure ()
-  :  m_dh_group_num (0),
-	 m_length (0)
+  :  m_dh_group_num (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -936,13 +1362,20 @@ IkeKeyExchangeSubStructure::GetSerializedSize (void) const
 	return size;
 }
 
+TypeId
+IkeKeyExchangeSubStructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeKeyExchangeSubStructure::GetTypeId();
+}
+
 void
 IkeKeyExchangeSubStructure::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(this->m_dh_group_num);
+	i.WriteHtonU16(this->m_dh_group_num);
 
 	//to skip field RESERVED 16 bits == 2 bytes
 	i.WriteHtonU16(0);
@@ -973,11 +1406,12 @@ IkeKeyExchangeSubStructure::Deserialize (Buffer::Iterator start)
 	uint32_t size = 0;
 
 	this->m_dh_group_num = i.ReadNtohU16();
-	size += 2;
+	size += sizeof (this->m_dh_group_num);
 
-	//to skipped to field RESERVED
-	i.Next(2);
+	//to check whether field RESERVED is 0
+	uint16_t reserved = i.ReadNtohU16();
 	size += 2;
+	NS_ASSERT (reserved == 0);
 
 	uint16_t length_rest = this->m_length - size;
 
@@ -998,91 +1432,16 @@ void
 IkeKeyExchangeSubStructure::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
 	os << "IkeKeyExchangeSubStructure: " << this << std::endl;
 }
 
-void
-IkeKeyExchangeSubStructure::SetLength (uint16_t length)
+IkeKeyExchangeSubStructure
+IkeKeyExchangeSubStructure::GetDummySubstructure (void)
 {
-	NS_LOG_FUNCTION (this);
-	this->m_length = length;
-}
-
-/********************************************************
- *        IkeKeyExchangePayload
- ********************************************************/
-
-NS_OBJECT_ENSURE_REGISTERED (IkeKeyExchangePayload);
-
-TypeId
-IkeKeyExchangePayload::GetTypeId (void)
-{
-	static TypeId tid = TypeId ("ns3::IkeKeyExchangePayload")
-	    .SetParent<Header> ()
-	    //.SetGroupName("Internet")
-		.AddConstructor<IkeKeyExchangePayload> ();
-	  return tid;
-}
-
-IkeKeyExchangePayload::IkeKeyExchangePayload ()
-{
-	NS_LOG_FUNCTION (this);
-}
-
-IkeKeyExchangePayload::~IkeKeyExchangePayload ()
-{
-	NS_LOG_FUNCTION (this);
-}
-
-uint32_t
-IkeKeyExchangePayload::GetSerializedSize (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	return this->m_header.GetSerializedSize() + this->m_substructure.GetSerializedSize();
-}
-
-void
-IkeKeyExchangePayload::Serialize (Buffer::Iterator start) const
-{
-	NS_LOG_FUNCTION (this << &start);
-	Buffer::Iterator i = start;
-
-	this->m_header.Serialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-
-	this->m_substructure.Serialize(i);
-	i.Next(this->m_substructure.GetSerializedSize());
-}
-
-uint32_t
-IkeKeyExchangePayload::Deserialize (Buffer::Iterator start)
-{
-	NS_LOG_FUNCTION (this << &start);
-
-	Buffer::Iterator i = start;
-	uint32_t size = 0;
-
-	this->m_header.Deserialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-	size += this->m_header.GetSerializedSize();
-
-	uint16_t total_length = this->m_header.GetPayloadLength();
-	uint16_t length_rest = total_length - this->m_header.GetSerializedSize();
-
-	this->m_substructure.SetLength(length_rest);
-	this->m_substructure.Deserialize(i);
-	i.Next(this->m_substructure.GetSerializedSize());
-	size += this->m_substructure.GetSerializedSize();
-
-	return size;
-}
-
-void
-IkeKeyExchangePayload::Print (std::ostream &os) const
-{
-	NS_LOG_FUNCTION (this << &os);
-	os << "IkeKeyExchangePayload: " << this << std::endl;
+	IkeKeyExchangeSubStructure substructure;
+	substructure.SetLength(4);
+	return substructure;
 }
 
 /********************************************************
@@ -1095,15 +1454,14 @@ TypeId
 IkeIdSubstructure::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeIdSubstructure")
-	    .SetParent<Header> ()
+	    .SetParent<IkePayloadSubstructure> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeIdSubstructure> ();
 	  return tid;
 }
 
 IkeIdSubstructure::IkeIdSubstructure ()
-  : m_id_type (0),
-	m_length (0)
+  : m_id_type (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1120,6 +1478,13 @@ IkeIdSubstructure::GetSerializedSize (void) const
 	NS_LOG_FUNCTION (this);
 
 	return 4 + this->m_lst_id_data.size();
+}
+
+TypeId
+IkeIdSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeIdSubstructure::GetTypeId();
 }
 
 void
@@ -1157,10 +1522,13 @@ IkeIdSubstructure::Deserialize (Buffer::Iterator start)
 	uint32_t size = 0;
 
 	this->m_id_type = i.ReadU8();
-	size++;
+	size += sizeof (this->m_id_type);
 
-	//to skip the field RESERVED
-	i.Next(3);
+	//to check whether the field RESERVED is 0
+	uint8_t RESERVED1 = i.ReadU8();
+	NS_ASSERT (RESERVED1 == 0);
+	uint16_t RESERVED2 = i.ReadNtohU16();
+	NS_ASSERT (RESERVED2 == 0);
 	size += 3;
 
 	uint16_t length_rest = this->m_length - size;
@@ -1169,7 +1537,7 @@ IkeIdSubstructure::Deserialize (Buffer::Iterator start)
 			it <= length_rest;
 			it++)
 	{
-		i.ReadU8();
+		this->m_lst_id_data.push_back(i.ReadU8());
 		size++;
 	}
 
@@ -1182,91 +1550,8 @@ void
 IkeIdSubstructure::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
 	os << "IkeIdSubstructure: " << this << std::endl;
-}
-
-void
-IkeIdSubstructure::SetLength (uint16_t length)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_length = length;
-}
-
-/********************************************************
- *        IkeIdPayload
- ********************************************************/
-
-NS_OBJECT_ENSURE_REGISTERED (IkeIdPayload);
-
-TypeId
-IkeIdPayload::GetTypeId (void)
-{
-	static TypeId tid = TypeId ("ns3::IkeIdPayload")
-	    .SetParent<Header> ()
-	    //.SetGroupName("Internet")
-		.AddConstructor<IkeIdPayload> ();
-	  return tid;
-}
-
-IkeIdPayload::IkeIdPayload ()
-{
-	NS_LOG_FUNCTION (this);
-}
-
-IkeIdPayload::~IkeIdPayload ()
-{
-	NS_LOG_FUNCTION (this);
-}
-
-uint32_t
-IkeIdPayload::GetSerializedSize (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	return this->m_header.GetSerializedSize() + this->m_substructure.GetSerializedSize();
-}
-
-void
-IkeIdPayload::Serialize (Buffer::Iterator start) const
-{
-	NS_LOG_FUNCTION (this << &start);
-	Buffer::Iterator i = start;
-
-	this->m_header.Serialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-
-	this->m_substructure.Serialize(i);
-	i.Next(this->m_substructure.GetSerializedSize());
-}
-
-uint32_t
-IkeIdPayload::Deserialize (Buffer::Iterator start)
-{
-	NS_LOG_FUNCTION (this << &start);
-
-	Buffer::Iterator i = start;
-	uint32_t size = 0;
-
-	this->m_header.Deserialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-	size += this->m_header.GetSerializedSize();
-
-	uint16_t total_length = this->m_header.GetPayloadLength();
-	uint16_t length_rest = total_length - this->m_header.GetSerializedSize();
-
-	this->m_substructure.SetLength(length_rest);
-	this->m_substructure.Deserialize(i);
-	i.Next(this->m_substructure.GetSerializedSize());
-	size += this->m_substructure.GetSerializedSize();
-
-	return size;
-}
-
-void
-IkeIdPayload::Print (std::ostream &os) const
-{
-	NS_LOG_FUNCTION (this << &os);
-	os << "IkeIdPayload: " << this << std::endl;
 }
 
 /********************************************************
@@ -1279,15 +1564,14 @@ TypeId
 IkeAuthSubstructure::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeAuthSubstructure")
-	    .SetParent<Header> ()
+	    .SetParent<IkePayloadSubstructure> ()
 	    //.SetGroupName("Internet")
-		.AddConstructor<IkeAuthSubstructure> ();
+		.AddConstructor<IkePayloadSubstructure> ();
 	  return tid;
 }
 
 IkeAuthSubstructure::IkeAuthSubstructure ()
-  : m_auth_method (0),
-	m_length (0)
+  : m_auth_method (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1304,6 +1588,13 @@ IkeAuthSubstructure::GetSerializedSize (void) const
 	NS_LOG_FUNCTION (this);
 
 	return 4 + this->m_lst_id_data.size();
+}
+
+TypeId
+IkeAuthSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeAuthSubstructure::GetTypeId();
 }
 
 void
@@ -1341,10 +1632,13 @@ IkeAuthSubstructure::Deserialize (Buffer::Iterator start)
 	uint32_t size = 0;
 
 	this->m_auth_method = i.ReadU8();
-	size++;
+	size += sizeof (this->m_auth_method);
 
-	//to skip the field RESERVED
-	i.Next(3);
+	//to check whehter 24bits field RESERVED is 0
+	uint8_t RESERVED1 = i.ReadU8();
+	NS_ASSERT (RESERVED1 == 0);
+	uint16_t RESERVED2 = i.ReadNtohU16();
+	NS_ASSERT (RESERVED2 == 0);
 	size += 3;
 
 	uint16_t length_rest = this->m_length - size;
@@ -1366,91 +1660,1020 @@ void
 IkeAuthSubstructure::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
 	os << "IkeIdSubstructure: " << this << std::endl;
 }
 
-void
-IkeAuthSubstructure::SetLength (uint16_t length)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_length = length;
-}
-
 /********************************************************
- *        IkeAuthPayload
+ *        IkeNonceSubstructure
  ********************************************************/
 
-NS_OBJECT_ENSURE_REGISTERED (IkeAuthPayload);
+NS_OBJECT_ENSURE_REGISTERED (IkeNonceSubstructure);
 
 TypeId
-IkeAuthPayload::GetTypeId (void)
+IkeNonceSubstructure::GetTypeId (void)
 {
-	static TypeId tid = TypeId ("ns3::IkeAuthPayload")
-	    .SetParent<Header> ()
+	static TypeId tid = TypeId ("ns3::IkeNonceSubstructure")
+	    .SetParent<IkePayloadSubstructure> ()
 	    //.SetGroupName("Internet")
-		.AddConstructor<IkeAuthPayload> ();
+		.AddConstructor<IkeNonceSubstructure> ();
 	  return tid;
 }
 
-IkeAuthPayload::IkeAuthPayload ()
+IkeNonceSubstructure::IkeNonceSubstructure ()
 {
 	NS_LOG_FUNCTION (this);
 }
 
-IkeAuthPayload::~IkeAuthPayload ()
+IkeNonceSubstructure::~IkeNonceSubstructure ()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_lst_nonce_data.clear();
 }
 
 uint32_t
-IkeAuthPayload::GetSerializedSize (void) const
+IkeNonceSubstructure::GetSerializedSize (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	return this->m_header.GetSerializedSize() + this->m_substructure.GetSerializedSize();
+	return this->m_lst_nonce_data.size();
+}
+
+TypeId
+IkeNonceSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeNonceSubstructure::GetTypeId();
 }
 
 void
-IkeAuthPayload::Serialize (Buffer::Iterator start) const
+IkeNonceSubstructure::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	this->m_header.Serialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-
-	this->m_substructure.Serialize(i);
-	i.Next(this->m_substructure.GetSerializedSize());
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_nonce_data.begin();
+			const_it != this->m_lst_nonce_data.end();
+			const_it++)
+	{
+		i.WriteU8((*const_it));
+	}
 }
 
 uint32_t
-IkeAuthPayload::Deserialize (Buffer::Iterator start)
+IkeNonceSubstructure::Deserialize (Buffer::Iterator start)
 {
 	NS_LOG_FUNCTION (this << &start);
-
 	Buffer::Iterator i = start;
+
+	if (0 == this->m_length)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
 	uint32_t size = 0;
 
-	this->m_header.Deserialize(i);
-	i.Next(this->m_header.GetSerializedSize());
-	size += this->m_header.GetSerializedSize();
+	uint16_t length_rest = this->m_length - size;
 
-	uint16_t total_length = this->m_header.GetPayloadLength();
-	uint16_t length_rest = total_length - this->m_header.GetSerializedSize();
+	for (	uint16_t it = 1;
+			it <= length_rest;
+			it++)
+	{
+		this->m_lst_nonce_data.push_back(i.ReadU8());
+		size++;
+	}
 
-	this->m_substructure.SetLength(length_rest);
-	this->m_substructure.Deserialize(i);
-	i.Next(this->m_substructure.GetSerializedSize());
-	size += this->m_substructure.GetSerializedSize();
+	NS_ASSERT (size == this->m_length);
 
 	return size;
 }
 
 void
-IkeAuthPayload::Print (std::ostream &os) const
+IkeNonceSubstructure::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
-	os << "IkeAuthPayload: " << this << std::endl;
+	IkePayloadSubstructure::Print(os);
+	os << "IkeNonceSubstructure: " << this << std::endl;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeNonceSubstructure::GetPayloadType (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	return IkePayloadHeader::NONCE;
+}
+
+IkeNonceSubstructure
+IkeNonceSubstructure::GenerateNonceSubstructure (void)
+{
+	IkeNonceSubstructure nonce;
+
+	uint16_t length = rand();
+	nonce.SetLength(length);
+
+	for (	uint16_t it = 1;
+			it <= length;
+			it++)
+	{
+		uint16_t data = rand();
+		nonce.m_lst_nonce_data.push_back(data);
+	}
+
+	return nonce;
+}
+
+/********************************************************
+ *        IkeNotifySubstructure
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeNotifySubstructure);
+
+TypeId
+IkeNotifySubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeNotifySubstructure")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeNotifySubstructure> ();
+	  return tid;
+}
+
+IkeNotifySubstructure::IkeNotifySubstructure ()
+  :  m_protocol_id (0),
+	 m_spi_size (0),
+	 m_notify_message_type (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeNotifySubstructure::~IkeNotifySubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_notification_data.clear();
+}
+
+uint32_t
+IkeNotifySubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t size = 0;
+
+	size += this->m_lst_notification_data.size();
+
+	return size;
+}
+
+TypeId
+IkeNotifySubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeNotifySubstructure::GetTypeId();
+}
+
+void
+IkeNotifySubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(this->m_protocol_id);
+
+	i.WriteU8(this->m_spi_size);
+
+	i.WriteHtonU16(this->m_notify_message_type);
+
+	this->m_spi.Serialize(i);
+	i.Next(this->m_spi.GetSerializedSize());
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_notification_data.begin();
+			const_it != this->m_lst_notification_data.end();
+			const_it++)
+	{
+		i.WriteU8((*const_it));
+	}
+}
+
+uint32_t
+IkeNotifySubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	if (0 == this->m_length)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	uint32_t size = 0;
+
+	this->m_protocol_id = i.ReadU8();
+	size += sizeof (this->m_protocol_id);
+
+	this->m_spi_size = i.ReadU8();
+	size += sizeof (this->m_spi_size);
+
+	this->m_notify_message_type = i.ReadNtohU16();
+	size += sizeof (this->m_notify_message_type);
+
+	this->m_spi.Deserialize(i, this->m_spi_size);
+	i.Next(this->m_spi.GetSerializedSize());
+	size += this->m_spi.GetSerializedSize();
+
+	uint16_t length_rest = this->m_length - size;
+	for (	uint16_t it = 1;
+			it <= length_rest;
+			it++)
+	{
+		this->m_lst_notification_data.push_back(i.ReadU8());
+		size++;
+	}
+
+	NS_ASSERT (size == this->m_length);
+
+	return size;
+}
+
+void
+IkeNotifySubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
+	os << "IkeNotifySubstructure: " << this << std::endl;
+}
+
+/********************************************************
+ *        IkeDeletePayloadSubstructure
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeDeletePayloadSubstructure);
+
+TypeId
+IkeDeletePayloadSubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeDeletePayloadSubstructure")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeDeletePayloadSubstructure> ();
+	  return tid;
+}
+
+IkeDeletePayloadSubstructure::IkeDeletePayloadSubstructure ()
+  :  m_protocol_id (0),
+	 m_spi_size (0),
+	 m_num_of_spis (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeDeletePayloadSubstructure::~IkeDeletePayloadSubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+uint32_t
+IkeDeletePayloadSubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t size = 0;
+
+	size += sizeof (this->m_protocol_id);
+	size += sizeof (this->m_spi_size);
+	size += sizeof (this->m_num_of_spis);
+
+	for (	std::list<GsamSpi>::const_iterator const_it = this->m_lst_spis.begin();
+			const_it != this->m_lst_spis.end();
+			const_it++)
+	{
+		size += const_it->GetSerializedSize();
+	}
+
+	return size;
+}
+
+TypeId
+IkeDeletePayloadSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeDeletePayloadSubstructure::GetTypeId();
+}
+
+void
+IkeDeletePayloadSubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(this->m_protocol_id);
+
+	i.WriteU8(this->m_spi_size);
+
+	i.WriteHtonU16(this->m_num_of_spis);
+
+	for (	std::list<GsamSpi>::const_iterator const_it = this->m_lst_spis.begin();
+			const_it != this->m_lst_spis.end();
+			const_it++)
+	{
+		const_it->Serialize(i);
+		i.Next(const_it->GetSerializedSize());
+	}
+}
+
+uint32_t
+IkeDeletePayloadSubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	if (0 == this->m_length)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	uint32_t size = 0;
+
+	this->m_protocol_id = i.ReadU8();
+	size += sizeof (this->m_protocol_id);
+
+	this->m_spi_size = i.ReadU8();
+	size += sizeof(this->m_spi_size);
+
+	this->m_num_of_spis = i.ReadNtohU16();
+	size += sizeof (this->m_num_of_spis);
+
+	for (	uint16_t it = 1;
+			it <= this->m_num_of_spis;
+			it++)
+	{
+		GsamSpi spi;
+		spi.Deserialize(i);
+		size += spi.GetSerializedSize();
+	}
+
+	NS_ASSERT (size == this->m_length);
+
+	return size;
+}
+
+void
+IkeDeletePayloadSubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
+	os << "IkeDeletePayloadSubstructure: " << this << std::endl;
+}
+
+/********************************************************
+ *        IkeTrafficSelector
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeTrafficSelector);
+
+TypeId
+IkeTrafficSelector::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeTrafficSelector")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeTrafficSelector> ();
+	  return tid;
+}
+
+IkeTrafficSelector::IkeTrafficSelector ()
+  : m_ts_type (0),
+	m_ip_protocol_id (0),
+	m_selector_length (0),
+	m_start_port (0),
+	m_end_port (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeTrafficSelector::~IkeTrafficSelector ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+uint32_t
+IkeTrafficSelector::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint32_t size = 0;
+
+	size += sizeof (this->m_ts_type);
+
+	size += sizeof (this->m_ip_protocol_id);
+
+	size += sizeof (this->m_selector_length);
+
+	size += sizeof (this->m_start_port);
+
+	size += sizeof (this->m_end_port);
+
+	size += sizeof (this->m_starting_address.Get());
+
+	size += sizeof (m_ending_address.Get());
+
+	return size;
+}
+
+TypeId
+IkeTrafficSelector::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeTrafficSelector::GetTypeId();
+}
+
+void
+IkeTrafficSelector::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(this->m_ts_type);
+
+	i.WriteU8(this->m_ip_protocol_id);
+
+	i.WriteHtonU16(this->m_selector_length);
+
+	i.WriteHtonU16(this->m_start_port);
+
+	i.WriteHtonU16(this->m_end_port);
+
+	i.WriteHtonU32(this->m_starting_address.Get());
+
+	i.WriteHtonU32(this->m_ending_address.Get());
+}
+
+uint32_t
+IkeTrafficSelector::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	uint32_t size = 0;
+
+	this->m_ts_type = i.ReadU8();
+	size += sizeof (this->m_ts_type);
+
+	this->m_ip_protocol_id = i.ReadU8();
+	size += sizeof (this->m_ip_protocol_id);
+
+	this->m_selector_length = i.ReadNtohU16();
+	size += sizeof (this->m_selector_length);
+
+	this->m_start_port = i.ReadNtohU16();
+	size += sizeof (this->m_start_port);
+
+	this->m_end_port = i.ReadNtohU16();
+	size += sizeof (this->m_end_port);
+
+	this->m_starting_address = Ipv4Address (i.ReadNtohU32());
+	size += sizeof (this->m_starting_address.Get());
+
+	this->m_ending_address = Ipv4Address (i.ReadNtohU32());
+	size += sizeof (this->m_ending_address.Get());
+
+	NS_ASSERT (size == this->m_selector_length);
+
+	return size;
+
+}
+
+void
+IkeTrafficSelector::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	os << "IkeTrafficSelector: " << this << std::endl;
+}
+
+/********************************************************
+ *        IkeTrafficSelectorSubstructure
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeTrafficSelectorSubstructure);
+
+TypeId
+IkeTrafficSelectorSubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeTrafficSelectorSubstructure")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeTrafficSelectorSubstructure> ();
+	  return tid;
+}
+
+IkeTrafficSelectorSubstructure::IkeTrafficSelectorSubstructure ()
+  :  m_num_of_tss (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeTrafficSelectorSubstructure::~IkeTrafficSelectorSubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+	m_lst_traffic_selectors.clear();
+}
+
+uint32_t
+IkeTrafficSelectorSubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t size = 0;
+
+	size += sizeof (this->m_num_of_tss);
+
+	//24 bits field RESERVED
+	size += 3;
+
+	for (	std::list<IkeTrafficSelector>::const_iterator const_it = this->m_lst_traffic_selectors.begin();
+			const_it != this->m_lst_traffic_selectors.end();
+			const_it++)
+	{
+		size += const_it->GetSerializedSize();
+	}
+
+	return size;
+}
+
+TypeId
+IkeTrafficSelectorSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeTrafficSelectorSubstructure::GetTypeId();
+}
+
+void
+IkeTrafficSelectorSubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(this->m_num_of_tss);
+
+	//24 bits field RESERVED
+	i.WriteU8(0, 3);
+
+	for (	std::list<IkeTrafficSelector>::const_iterator const_it = this->m_lst_traffic_selectors.begin();
+			const_it != this->m_lst_traffic_selectors.end();
+			const_it++)
+	{
+		const_it->Serialize(i);
+		i.Next(const_it->GetSerializedSize());
+	}
+}
+
+uint32_t
+IkeTrafficSelectorSubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	if (0 == this->m_length)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	uint32_t size = 0;
+
+	this->m_num_of_tss = i.ReadU8();
+	size += sizeof (this->m_num_of_tss);
+
+	//to check whehter 24bits field RESERVED is 0
+	uint8_t RESERVED1 = i.ReadU8();
+	NS_ASSERT (RESERVED1 == 0);
+	uint16_t RESERVED2 = i.ReadNtohU16();
+	NS_ASSERT (RESERVED2 == 0);
+	size += 3;
+
+	while (size < this->m_length)
+	{
+		IkeTrafficSelector selector;
+		uint32_t selector_size = selector.Deserialize(i);
+		this->m_lst_traffic_selectors.push_back(selector);
+		i.Next(selector_size);
+		size += selector_size;
+	}
+
+	NS_ASSERT (size == this->m_length);
+
+	return size;
+}
+
+void
+IkeTrafficSelectorSubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
+	os << "IkeTrafficSelectorSubstructure: " << this << std::endl;
+}
+
+/********************************************************
+ *        IkeEncryptedPayloadSubstructure
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeEncryptedPayloadSubstructure);
+
+TypeId
+IkeEncryptedPayloadSubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeEncryptedPayloadSubstructure")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeEncryptedPayloadSubstructure> ();
+	  return tid;
+}
+
+IkeEncryptedPayloadSubstructure::IkeEncryptedPayloadSubstructure ()
+  :  m_block_size (0),
+	 m_checksum_length (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeEncryptedPayloadSubstructure::~IkeEncryptedPayloadSubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_initialization_vector.clear();
+	this->m_lst_encrypted_payload.clear();
+	this->m_lst_integrity_checksum_data.clear();
+}
+
+uint32_t
+IkeEncryptedPayloadSubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t size = 0;
+
+	size += this->m_lst_integrity_checksum_data.size();
+
+	size += this->m_lst_encrypted_payload.size();
+
+	size += this->m_lst_integrity_checksum_data.size();
+
+	return size;
+}
+
+TypeId
+IkeEncryptedPayloadSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeEncryptedPayloadSubstructure::GetTypeId();
+}
+
+void
+IkeEncryptedPayloadSubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_initialization_vector.begin();
+			const_it != this->m_initialization_vector.end();
+			const_it++)
+	{
+		i.WriteU8(*const_it);
+	}
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_encrypted_payload.begin();
+			const_it != this->m_lst_encrypted_payload.end();
+			const_it++)
+	{
+		i.WriteU8(*const_it);
+	}
+
+	for (std::list<uint8_t>::const_iterator const_it = this->m_lst_integrity_checksum_data.begin();
+			const_it != this->m_lst_integrity_checksum_data.end();
+			const_it++)
+	{
+		i.WriteU8(*const_it);
+	}
+}
+
+uint32_t
+IkeEncryptedPayloadSubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	if (0 == this->m_length)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	if (0 == this->m_block_size)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	if (0 == this->m_checksum_length)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	uint32_t size = 0;
+
+	for (	uint8_t it = 1;
+			it <= this->m_block_size;
+			it++)
+	{
+		this->m_initialization_vector.push_back(i.ReadU8());
+		size++;
+	}
+
+	while ((this->m_length - size) > this->m_checksum_length)
+	{
+		this->m_lst_encrypted_payload.push_back(i.ReadU8());
+		size++;
+	}
+
+	while (size < this->m_length)
+	{
+		this->m_lst_integrity_checksum_data.push_back(i.ReadU8());
+		size++;
+	}
+
+	NS_ASSERT (size == this->m_length);
+
+	return size;
+}
+
+void
+IkeEncryptedPayloadSubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
+	os << "IkeEncryptedPayloadSubstructure: " << this << std::endl;
+}
+
+void
+IkeEncryptedPayloadSubstructure::SetBlockSize (uint8_t block_size)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_block_size = block_size;
+}
+
+bool
+IkeEncryptedPayloadSubstructure::IsInitialized (void)
+{
+	NS_LOG_FUNCTION (this);
+	return (this->m_length != 0) && (this->m_block_size != 0) && (this->m_checksum_length != 0);
+}
+
+/********************************************************
+ *        IkeConfigAttribute
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeConfigAttribute);
+
+TypeId
+IkeConfigAttribute::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeConfigAttribute")
+	    .SetParent<Header> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeConfigAttribute> ();
+	  return tid;
+}
+
+IkeConfigAttribute::IkeConfigAttribute ()
+  :  m_attribute_type (0),
+	 m_length (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeConfigAttribute::~IkeConfigAttribute ()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_value.clear();
+}
+
+uint32_t
+IkeConfigAttribute::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return (4 + this->m_lst_value.size());
+}
+
+TypeId
+IkeConfigAttribute::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeConfigAttribute::GetTypeId();
+}
+
+void
+IkeConfigAttribute::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	if (this->m_attribute_type > 0x7fff)
+	{
+		NS_ASSERT (false);
+	}
+
+	i.WriteHtolsbU16((this->m_attribute_type << 1));	//lowest bit for RESERVED
+
+	i.WriteHtolsbU16(this->m_length);
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_value.begin();
+			const_it != this->m_lst_value.end();
+			const_it++)
+	{
+		i.WriteU8(*const_it);
+	}
+
+}
+
+uint32_t
+IkeConfigAttribute::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	uint32_t size = 0;
+
+	uint16_t field_r_attribute_type = i.ReadNtohU16();
+	size += 2;
+
+	if (0 != (field_r_attribute_type & 0x0001))
+	{
+		NS_ASSERT (false);	//R bit must be set to zero
+	}
+
+	this->m_attribute_type = (field_r_attribute_type >> 1);
+
+	this->m_length = i.ReadNtohU16();
+	size += sizeof (this->m_length);
+
+	for (	uint16_t it = 1;
+			it <= this->m_length;
+			it++)
+	{
+		this->m_lst_value.push_back(i.ReadU8());
+		size++;
+	}
+
+	return size;
+}
+
+void
+IkeConfigAttribute::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+
+	os << "IkeConfigAttribute: " << this;
+	os << " Type: " << this->m_attribute_type << std::endl;
+}
+
+/********************************************************
+ *        IkeConfigPayloadSubstructure
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeConfigPayloadSubstructure);
+
+TypeId
+IkeConfigPayloadSubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeConfigPayloadSubstructure")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeConfigPayloadSubstructure> ();
+	  return tid;
+}
+
+IkeConfigPayloadSubstructure::IkeConfigPayloadSubstructure ()
+  :  m_cfg_type (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeConfigPayloadSubstructure::~IkeConfigPayloadSubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_config_attributes.clear();
+}
+
+uint32_t
+IkeConfigPayloadSubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t size = 0;
+
+	size += 4;
+
+	size += this->m_lst_config_attributes.size();
+
+	return size;
+}
+
+TypeId
+IkeConfigPayloadSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeConfigPayloadSubstructure::GetTypeId();
+}
+
+void
+IkeConfigPayloadSubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(this->m_cfg_type);
+
+	//to write 24bits RESERVED field
+	i.WriteU8(0, 3);
+
+	for (	std::list<IkeConfigAttribute>::const_iterator const_it = this->m_lst_config_attributes.begin();
+			const_it != this->m_lst_config_attributes.end();
+			const_it++)
+	{
+		const_it->Serialize(i);
+		i.Next(const_it->GetSerializedSize());
+	}
+}
+
+uint32_t
+IkeConfigPayloadSubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	if (0 == this->m_length)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	uint32_t size = 0;
+
+	this->m_cfg_type = i.ReadU8();
+
+	//to check whether the field RESERVED is 0
+	uint8_t RESERVED1 = i.ReadU8();
+	NS_ASSERT (RESERVED1 == 0);
+	uint16_t RESERVED2 = i.ReadNtohU16();
+	NS_ASSERT (RESERVED2 == 0);
+	size += 3;
+
+	while (size < this->m_length)
+	{
+		IkeConfigAttribute attribute;
+		attribute.Serialize(i);
+		uint32_t attribute_size = attribute.GetSerializedSize();
+		i.Next(attribute_size);
+		size += attribute_size;
+	}
+
+	NS_ASSERT (size == this->m_length);
+
+	return size;
+}
+
+void
+IkeConfigPayloadSubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	IkePayloadSubstructure::Print(os);
+	os << "IkeConfigPayloadSubstructure: " << this << std::endl;
 }
 
 }  // namespace ns3

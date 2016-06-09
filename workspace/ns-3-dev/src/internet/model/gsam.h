@@ -24,9 +24,72 @@
 #include <stdint.h>
 #include "ns3/header.h"
 #include "ns3/trailer.h"
+#include "ns3/ipv4-address.h"
 #include <list>
 
 namespace ns3 {
+
+class GsamSpi;
+
+class IPsec {
+public:
+	enum PROTOCOL_ID {
+		RESERVED = 0,
+		IKE = 1,
+		AH = 2,
+		ESP = 3
+	};
+};
+
+class IkePayloadHeader : public Header {
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * | Next Payload  |C|  RESERVED   |         Payload Length        |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+public:	//Header override
+	static TypeId GetTypeId (void);
+	IkePayloadHeader ();
+	virtual ~IkePayloadHeader ();
+
+	enum PAYLOAD_TYPE {
+		NO_NEXT_PAYLOAD = 0,
+		SECURITY_ASSOCIATION = 33,
+		KEY_EXCHANGE = 34,
+		IDENTIFICATION_INITIATOR = 35,
+		IDENTIFICATION_RESPONDER = 36,
+		CERTIFICATE = 37,
+		CERTIFICATE_REQUEST = 38,
+		AUTHENTICATION = 39,
+		NONCE = 40,
+		NOTIFY = 41,
+		DELETE = 42,
+		VENDOR_ID = 43,
+		TRAFFIC_SELECTOR_INITIATOR = 44,
+		TRAFFIC_SELECTOR_RESPONDER = 45,
+		ENCRYPTED_AND_AUTHENTICATED = 46,
+		CONFIGURATION = 47,
+		EXTENSIBLE_AUTHENTICATION = 48
+	};
+
+public:	//Header override
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Print (std::ostream &os) const;
+public:	//const
+	uint16_t GetPayloadLength (void) const;
+public:	//non-const
+	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+	void SetPayloadLength (uint16_t length);
+private:
+	uint8_t m_next_payload;
+	bool m_flag_critical;
+	uint16_t m_payload_length;
+};
 
 class IkeHeader : public Header {
 
@@ -68,7 +131,17 @@ public:	//Header override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Print (std::ostream &os) const;
-
+public:
+	void SetIkev2Version (void);
+	void SetInitiatorSpi (uint64_t spi);
+	void SetResponderSpi (uint64_t spi);
+	void SetNextPayload (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+	void SetExchangeType (IkeHeader::EXCHANGE_TYPE exchange_type);
+	void SetAsInitiator (void);
+	void SetAsResponder (void);
+private:
+	uint8_t FlagsToU8 (void) const;
+	void U8ToFlags (uint8_t input);
 private:
 	uint64_t m_initiator_spi;
 	uint64_t m_responder_spi;
@@ -116,65 +189,78 @@ private:
 		uint8_t toUint8_t() const {
 			return this->mnver + this->mjver;
 		}
+		void SetIkev2 (void) {
+			set_Mjver (2);
+			set_Mnver (0);
+		}
 
 	} m_version;
 
 	uint8_t m_exchange_type;
-	uint8_t m_flags;
+	bool m_flag_response;
+	bool m_flag_version;
+	bool m_flag_initiator;
 	uint32_t m_message_id;
 	uint32_t m_length;
 };
 
-class IkePayloadHeader : public Header {
+class IkePayloadSubstructure : public Header {
+public:
+	static TypeId GetTypeId (void);
+	IkePayloadSubstructure ();
+	virtual ~IkePayloadSubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	virtual void SetLength (uint16_t length);
+	virtual uint32_t Deserialize (Buffer::Iterator start, uint16_t length);
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void);
+protected:
+	uint16_t m_length;	//total substructure length (bytes), for deserialization
+};
+
+class IkePayload : public Header {
+
 	/*
-	 *                       1                   2                   3
+	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * | Next Payload  |C|  RESERVED   |         Payload Length        |
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                       SubStructure                       	   ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 */
-public:	//Header override
+
+public:
 	static TypeId GetTypeId (void);
-	IkePayloadHeader ();
-	virtual ~IkePayloadHeader ();
-
-	enum PAYLOAD_TYPE {
-		NO_NEXT_PAYLOAD = 0,
-		SECURITY_ASSOCIATION = 33,
-		KEY_EXCHANGE = 34,
-		IDENTIFICATION_INITIATOR = 35,
-		IDENTIFICATION_RESPONDER = 36,
-		CERTIFICATE = 37,
-		CERTIFICATE_REQUEST = 38,
-		AUTHENTICATION = 39,
-		NONCE = 40,
-		NOTIFY = 41,
-		DELETE = 42,
-		VENDOR_ID = 43,
-		TRAFFIC_SELECTOR_INITIATOR = 44,
-		TRAFFIC_SELECTOR_RESPONDER = 45,
-		ENCRYPTED_AND_AUTHENTICATED = 46,
-		CONFIGURATION = 47,
-		EXTENSIBLE_AUTHENTICATION = 48
-	};
-
-public:	//Header override
-	virtual void Serialize (Buffer::Iterator start) const;
-	virtual uint32_t Deserialize (Buffer::Iterator start);
+	IkePayload ();
+	virtual ~IkePayload ();
+public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
-public:
-	uint16_t GetPayloadLength (void) const;
+public:	//const
+	bool IsInitialized (void) const;
+	IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
+public:	//non-const
+	void SetPayload (IkePayloadSubstructure substructure);
+	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 private:
-	uint8_t m_next_payload;
-	uint8_t m_critial_reserved;
-	uint16_t m_payload_length;
+	IkePayloadHeader m_header;
+	IkePayloadSubstructure m_substructure;
 };
 
 class IkeTransformAttribute : public Header {
 	/*
-	 *                     1                   2                   3
+	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * |A|       Attribute Type        |    AF=0  Attribute Length     |
@@ -188,22 +274,22 @@ public:
 	static TypeId GetTypeId (void);
 	IkeTransformAttribute ();
 	virtual ~IkeTransformAttribute ();
-public:	//Trailer Override
+public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 private:
-	bool m_TLV;
+	bool m_flag_TLV;
 	uint16_t m_attribute_type;
 	uint16_t m_attribute_length_or_value;
 	std::list<uint8_t> m_lst_attribute_value;
 };
 
-class IkeTransformSubStructure : public Header {
+class IkeTransformSubStructure : public IkePayloadSubstructure {
 	/*
-	 *                     1                   2                   3
+	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * | 0 (last) or 3 |   RESERVED    |        Transform Length       |
@@ -229,43 +315,59 @@ public:
 		TYPE_EXTENDED_SEQUENCE_NUMBERS = 5
 	};
 
-	enum TRANSFORM_ID {
+	enum TRANSFORM_EA_ID {
 		//TYPE 1
-		ENCR_DES_IV64,
-		ENCR_DES,
-		ENCR_3DES,
-		ENCR_RC5,
-		ENCR_IDEA,
-		ENCR_CAST,
-		ENCR_BLOWFISH,
-		ENCR_3IDEA,
-		ENCR_DES_IV32,
-		ENCR_NULL,
-		ENCR_AES_CBC,
-		ENCR_AES_CTR,
+		//encryption algorithm
+		ENCR_DES_IV64 = 1,
+		ENCR_DES = 2,
+		ENCR_3DES = 3,
+		ENCR_RC5 = 4,
+		ENCR_IDEA = 5,
+		ENCR_CAST = 6,
+		ENCR_BLOWFISH = 7,
+		ENCR_3IDEA = 8,
+		ENCR_DES_IV32 = 9,
+		ENCR_NULL = 11,
+		ENCR_AES_CBC = 12,
+		ENCR_AES_CTR = 13
+	};
+	enum TRANSFORM_PF_ID {
 		//TYPE 2
-		PRF_HMAC_MD5,
-		PRF_HMAC_SHA1,
-		PRF_HMAC_TIGER,
+		//pseudorandom function
+		PRF_HMAC_MD5 = 1,
+		PRF_HMAC_SHA1 = 2,
+		PRF_HMAC_TIGER = 3
+	};
+	enum TRANSFORM_IA_ID {
 		//TYPE 3
-		NONE,
-		AUTH_HMAC_MD5_96,
-		AUTH_HMAC_SHA1_96,
-		AUTH_DES_MAC,
-		AUTH_KPDK_MD5,
-		AUTH_AES_XCBC_96,
+		//integrity algorithm
+		NONE = 0,
+		AUTH_HMAC_MD5_96 = 1,
+		AUTH_HMAC_SHA1_96 = 2,
+		AUTH_DES_MAC = 3,
+		AUTH_KPDK_MD5 = 4,
+		AUTH_AES_XCBC_96 = 5
+	};
+	enum TRANSFORM_DHG_ID {
 		//TYPE 4
-		DH_768_BIT_MODP,
-		DH_1024_BIT_MODP,
-		DH_1536_BIT_MODP,
-		DH_2048_BIT_MODP,
-		DH_3072_BIT_MODP,
-		DH_4096_BIT_MODP,
-		DH_6144_BIT_MODP,
-		DH_8192_BIT_MODP,
+		//diffie-hellman group
+		NONE = 0,
+		DH_768_BIT_MODP = 1,
+		DH_1024_BIT_MODP = 2,
+		DH_1536_BIT_MODP = 5,
+		DH_2048_BIT_MODP = 14,
+		DH_3072_BIT_MODP = 15,
+		DH_4096_BIT_MODP = 16,
+		DH_6144_BIT_MODP = 17,
+		DH_8192_BIT_MODP = 18,
+		//dummy test use
+		DH_8_BIT_MODP = 19
+	};
+	enum TRANSFORM_ESN_ID {
 		//TYPE 5
-		ID_NO_EXTENDED_SEQUENCE_NUMBERS,
-		ID_EXTENDED_SEQUENCE_NUMBERS
+		//extended sequence numbers
+		NO_EXTENDED_SEQUENCE_NUMBERS = 0,
+		EXTENDED_SEQUENCE_NUMBERS = 1
 	};
 
 public:	//Header Override
@@ -279,18 +381,18 @@ private:	//non virtual functions
 public:
 	bool IsLast (void);
 private:
-	bool m_last;
+	bool m_flag_last;
 	uint16_t m_transform_length;
 	uint8_t m_transform_type;
 	uint8_t m_transform_id;
 	std::list<IkeTransformAttribute> m_lst_transform_attributes;
 };
 
-class Spi : public Header {
+class GsamSpi : public IkePayloadSubstructure {
 public:
 	static TypeId GetTypeId (void);
-	Spi ();
-	virtual ~Spi ();
+	GsamSpi ();
+	virtual ~GsamSpi ();
 public:	//header override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
@@ -298,16 +400,14 @@ public:	//header override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:
-	uint8_t GetSize (void) const;	//does not return m_size;
-	void SetSize (uint8_t size);
+	using IkePayloadSubstructure::Deserialize;
 private:
-	uint8_t m_size;	//for reading
 	std::list<uint8_t> m_lst_var;
 };
 
 class IkeSAProposal : public Header {
 	/*
-	 *                       1                   2                   3
+	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * | 0 (last) or 2 |   RESERVED    |         Proposal Length       |
@@ -322,6 +422,7 @@ class IkeSAProposal : public Header {
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *
 	 */
+
 public:
 	static TypeId GetTypeId (void);
 	IkeSAProposal ();
@@ -332,9 +433,18 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//non-const
+	void SetLast (void);
+	void SetProposalNumber (uint16_t proposal_num);
+	void SetProtocolId (IPsec::PROTOCOL_ID protocol_id);
+	void SetProtocolIdAndSPISize (IPsec::PROTOCOL_ID protocol_id);
+	void SetSPI (GsamSpi spi);
+	void PushBackTransform (IkeTransformSubStructure transform);
 private:
-	Spi m_spi;
-	bool m_last;
+	uint8_t GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id);
+private:
+	GsamSpi m_spi;
+	bool m_flag_last;
 	uint16_t m_proposal_length;
 	uint8_t m_proposal_num;
 	uint8_t m_protocol_id;
@@ -343,13 +453,11 @@ private:
 	std::list<IkeTransformSubStructure> m_lst_transforms;
 };
 
-class IkeSAPayload : public Header {
+class IkeSAPayloadSubstructure : public IkePayloadSubstructure {
 
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * | Next Payload  |C|  RESERVED   |         Payload Length        |
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * |                                                               |
      * ~                          <Proposals>                          ~
@@ -359,19 +467,21 @@ class IkeSAPayload : public Header {
 
 public:
 	static TypeId GetTypeId (void);
-	IkeSAPayload ();
-	virtual ~IkeSAPayload ();
+	IkeSAPayloadSubstructure ();
+	virtual ~IkeSAPayloadSubstructure ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
 private:
-	IkePayloadHeader m_header;
 	std::list<IkeSAProposal> m_lst_proposal;	//proposals? Since it can be more than one.
 };
 
-class IkeKeyExchangeSubStructure : public Header {
+class IkeKeyExchangeSubStructure : public IkePayloadSubstructure {
 
 	/*
 	 *                       1                   2                   3
@@ -391,48 +501,20 @@ public:
 	virtual ~IkeKeyExchangeSubStructure ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:
-	void SetLength (uint16_t length);
+	static IkeKeyExchangeSubStructure GetDummySubstructure (void);
+public:
+	using IkePayloadSubstructure::Deserialize;
 private:
 	uint16_t m_dh_group_num;
-	uint16_t m_length;	//total length for reading
 	std::list<uint8_t> m_lst_data;
 };
 
-class IkeKeyExchangePayload : public Header {
-
-	/*
-	 *                       1                   2                   3
-     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * | Next Payload  |C|  RESERVED   |         Payload Length        |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * |   Diffie-Hellman Group Num    |           RESERVED            |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * |                                                               |
-     * ~                       Key Exchange Data                       ~
-     * |                                                               |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 */
-
-public:
-	static TypeId GetTypeId (void);
-	IkeKeyExchangePayload ();
-	virtual ~IkeKeyExchangePayload ();
-public:	//Header Override
-	virtual uint32_t GetSerializedSize (void) const;
-	virtual void Serialize (Buffer::Iterator start) const;
-	virtual uint32_t Deserialize (Buffer::Iterator start);
-	virtual void Print (std::ostream &os) const;
-private:
-	IkePayloadHeader m_header;
-	IkeKeyExchangeSubStructure m_substructure;
-};
-
-class IkeIdSubstructure : public Header {
+class IkeIdSubstructure : public IkePayloadSubstructure {
 
 	/*
      *                      1                   2                   3
@@ -462,48 +544,18 @@ public:
 	virtual ~IkeIdSubstructure ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:
-	void SetLength (uint16_t length);
+	using IkePayloadSubstructure::Deserialize;
 private:
 	uint8_t m_id_type;
-	uint16_t m_length;	//total length, for reading
 	std::list<uint8_t> m_lst_id_data;
 };
 
-class IkeIdPayload : public Header {
-
-	/*
-     *                      1                   2                   3
-     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * | Next Payload  |C|  RESERVED   |         Payload Length        |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * |   ID Type     |                 RESERVED                      |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * |                                                               |
-     * ~                   Identification Data                         ~
-     * |                                                               |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 */
-
-public:
-	static TypeId GetTypeId (void);
-	IkeIdPayload ();
-	virtual ~IkeIdPayload ();
-public:	//Header Override
-	virtual uint32_t GetSerializedSize (void) const;
-	virtual void Serialize (Buffer::Iterator start) const;
-	virtual uint32_t Deserialize (Buffer::Iterator start);
-	virtual void Print (std::ostream &os) const;
-private:
-	IkePayloadHeader m_header;
-	IkeIdSubstructure m_substructure;
-};
-
-class IkeAuthSubstructure : public Header {
+class IkeAuthSubstructure : public IkePayloadSubstructure {
 
 	/*
      *                      1                   2                   3
@@ -529,45 +581,345 @@ public:
 	virtual ~IkeAuthSubstructure ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:
-	void SetLength (uint16_t length);
+	using IkePayloadSubstructure::Deserialize;
 private:
 	uint8_t m_auth_method;
-	uint16_t m_length;	//total length, for reading
 	std::list<uint8_t> m_lst_id_data;
 };
 
-class IkeAuthPayload : public Header {
+class IkeNonceSubstructure : public IkePayloadSubstructure {
 
 	/*
-     *                      1                   2                   3
+	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * | Next Payload  |C|  RESERVED   |         Payload Length        |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * | Auth Method   |                RESERVED                       |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * |                                                               |
-     * ~                      Authentication Data                      ~
+     * ~                            Nonce Data                         ~
      * |                                                               |
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 */
 
 public:
 	static TypeId GetTypeId (void);
-	IkeAuthPayload ();
-	virtual ~IkeAuthPayload ();
+	IkeNonceSubstructure ();
+	virtual ~IkeNonceSubstructure ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:	//override IkePayloadSubstructure
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void);
+public:	//static
+	static IkeNonceSubstructure GenerateNonceSubstructure (void);
+public:
+	using IkePayloadSubstructure::Deserialize;
+private:
+	std::list<uint8_t> m_lst_nonce_data;
+};
+
+class IkeNotifySubstructure : public IkePayloadSubstructure {
+
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |  Protocol ID  |   SPI Size    |      Notify Message Type      |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                Security Parameter Index (SPI)                 ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                       Notification Data                       ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+
+	enum NOTIFY_MESSAGE_TYPE {
+		//error types
+		UNSUPPORTED_CRITICAL_PAYLOAD = 1,
+		INVALID_IKE_SPI = 4,
+		INVALID_MAJOR_VERSION = 5,
+		INVALID_SYNTAX = 7,
+		INVALID_MESSAGE_ID = 9,
+		INVALID_SPI = 11,
+		NO_PROPOSAL_CHOSEN = 14,
+		INVALID_KE_PAYLOAD = 17,
+		AUTHENTICATION_FAILED = 24,
+		SINGLE_PAIR_REQUIRED = 34,
+		NO_ADDITIONAL_SAS = 35,
+		INTERNAL_ADDRESS_FAILURE = 36,
+		FAILED_CP_REQUIRED = 37,
+		TS_UNACCEPTABLE = 38,
+		INVALID_SELECTORS = 39,
+		TEMPORARY_FAILURE = 43,
+		CHILD_SA_NOT_FOUND = 44,
+		//status types
+		INITIAL_CONTACT = 16384,
+		SET_WINDOW_SIZE = 16385,
+		ADDITIONAL_TS_POSSIBLE = 16386,
+		IPCOMP_SUPPORTED = 16387,
+		NAT_DETECTION_SOURCE_IP = 16388,
+		NAT_DETECTION_DESTINATION_IP = 16389,
+		COOKIE = 16390,
+		USE_TRANSPORT_MODE = 16391,
+		HTTP_CERT_LOOKUP_SURRPOTED = 16392,
+		REKEY_SA = 16393
+	};
+
+public:
+	static TypeId GetTypeId (void);
+	IkeNotifySubstructure ();
+	virtual ~IkeNotifySubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+private:
+	uint8_t m_protocol_id;
+	uint8_t m_spi_size;
+	uint16_t m_notify_message_type;
+	GsamSpi m_spi;
+	std::list<uint8_t> m_lst_notification_data;
+};
+
+class IkeDeletePayloadSubstructure : public IkePayloadSubstructure {
+
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * | Protocol ID   |   SPI Size    |          Num of SPIs          |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~               Security Parameter Index(es) (SPI)              ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+
+public:
+	static TypeId GetTypeId (void);
+	IkeDeletePayloadSubstructure ();
+	virtual ~IkeDeletePayloadSubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+private:
+	uint8_t m_protocol_id;
+	uint8_t m_spi_size;
+	uint16_t m_num_of_spis;
+	std::list<GsamSpi> m_lst_spis;
+};
+
+class IkeTrafficSelector : public IkePayloadSubstructure {
+
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |   TS Type     |IP Protocol ID*|       Selector Length         |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |           Start Port*         |           End Port*           |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                         Starting Address*                     ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                         Ending Address*                       ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 *
+	 */
+
+	enum TS_TYPE {
+		TS_IPV4_ADDR_RANGE = 7,
+		TS_IPV6_ADDR_RANGE = 8
+	};
+
+public:
+	static TypeId GetTypeId (void);
+	IkeTrafficSelector ();
+	virtual ~IkeTrafficSelector ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 private:
-	IkePayloadHeader m_header;
-	IkeAuthSubstructure m_substructure;
+	uint8_t m_ts_type;
+	uint8_t m_ip_protocol_id;
+	uint16_t m_selector_length;
+	uint16_t m_start_port;
+	uint16_t m_end_port;
+	Ipv4Address m_starting_address;
+	Ipv4Address m_ending_address;
+};
+
+class IkeTrafficSelectorSubstructure : public IkePayloadSubstructure {
+
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * | Number of TSs |                 RESERVED                      |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                       <Traffic Selectors>                     ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+
+public:
+	static TypeId GetTypeId (void);
+	IkeTrafficSelectorSubstructure ();
+	virtual ~IkeTrafficSelectorSubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+private:
+	uint8_t m_num_of_tss;
+	std::list<IkeTrafficSelector> m_lst_traffic_selectors;
+};
+
+class IkeEncryptedPayloadSubstructure : public IkePayloadSubstructure {
+
+	/*
+	 *                     1                   2                   3
+     * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                     Initialization Vector                     |
+     * |         (length is block size for encryption algorithm)       |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                    Encrypted IKE Payloads                     ~
+     * +               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |               |             Padding (0-255 octets)            |
+     * +-+-+-+-+-+-+-+-+                               +-+-+-+-+-+-+-+-+
+     * |                                               |  Pad Length   |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                    Integrity Checksum Data                    ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 *
+	 */
+
+public:
+	static TypeId GetTypeId (void);
+	IkeEncryptedPayloadSubstructure ();
+	virtual ~IkeEncryptedPayloadSubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+public:
+	void SetBlockSize (uint8_t block_size);
+	bool IsInitialized (void);
+private:
+	std::list<uint8_t> m_initialization_vector;
+	std::list<uint8_t> m_lst_encrypted_payload;	//including padding and pad length
+	uint8_t m_block_size;
+	uint8_t m_checksum_length;
+	std::list<uint8_t> m_lst_integrity_checksum_data;
+};
+
+class IkeConfigAttribute : public Header {
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |R|         Attribute Type      |            Length             |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                             Value                             ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+
+	enum ATTRIBUTE_TYPE {
+		INTERNAL_IP4_ADDRESS = 1,
+		INTERNAL_IP4_NETMARK = 2,
+		INTERNAL_IP4_DNS = 3,
+		INTERNAL_IP4_NBNS = 4,
+		INTERNAL_IP4_DHCP = 6,
+		APPLICATION_VERSION = 7,
+		INTERNAL_IP6_ADDRESS = 8,
+		INTERNAL_IP6_DNS = 10,
+		INTERNAL_IP6_DHCP = 12,
+		INTERNAL_IP4_SUBNET = 13,
+		SUPPORTED_ATTRIBUTES = 14,
+		INTERNAL_IP6_SUBNET = 15
+	};
+
+public:
+	static TypeId GetTypeId (void);
+	IkeConfigAttribute ();
+	virtual ~IkeConfigAttribute ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+private:
+	uint16_t m_attribute_type;
+	uint16_t m_length;
+	std::list<uint8_t> m_lst_value;
+};
+
+class IkeConfigPayloadSubstructure : public IkePayloadSubstructure {
+
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |   CFG Type    |                    RESERVED                   |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                   Configuration Attributes                    ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+
+public:
+	static TypeId GetTypeId (void);
+	IkeConfigPayloadSubstructure ();
+	virtual ~IkeConfigPayloadSubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+private:
+	uint8_t m_cfg_type;
+	std::list<IkeConfigAttribute> m_lst_config_attributes;
 };
 
 }  // namespace ns3

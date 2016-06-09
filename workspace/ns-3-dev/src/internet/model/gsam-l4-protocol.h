@@ -8,8 +8,10 @@
 #ifndef GSAM_L4_PROTOCOL_MULTICAST_H
 #define GSAM_L4_PROTOCOL_MULTICAST_H
 
-#include "ip-l4-protocol-multicast.h"
+#include "ns3/object.h"
 #include "gsam.h"
+#include <list>
+#include <set>
 
 namespace ns3 {
 
@@ -17,15 +19,108 @@ class Node;
 class Ipv4InterfaceMulticast;
 class Ipv4Route;
 
-class GsamL4Protocol: public IpL4ProtocolMulticast {
+class GsamSa : public Object {
 
-public:
+public:	//Object override
+	static TypeId GetTypeId (void);
+	GsamSa ();
+	virtual ~GsamSa();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+
+public:	//self defined
+	uint64_t GetInitiatorSpi (void) const;
+	uint64_t GetResponderSpi (void) const;
+	bool IsEtablished (void) const;
+private:	//fields
+	uint64_t m_initiator_spi;
+	uint64_t m_responder_spi;
+	bool m_etablished;
+	Ptr<GsamSession> m_ptr_session;
+};
+
+class GsamSession : public Object {
+
+	enum ROLE {
+		UNINITIALIZED = 0,
+		INITIATOR = 1,
+		RESPONDER = 2,
+	};
+
+public:	//Object override
+	static TypeId GetTypeId (void);
+	GsamSession ();
+	virtual ~GsamSession();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+
+public:	//self defined
+	uint32_t GetMessageId (void) const;
+	uint64_t GetLocalSpi (void) const;
+	GsamSession::ROLE GetRole (void) const;
+	uint64_t GetInitiatorSpi (void) const;
+	uint64_t GetResponderSpi (void) const;
+private:	//fields
+	uint32_t m_message_id;
+	GsamSession::ROLE m_role;
+	Ptr<GsamSa> m_ptr_sa;
+	Ptr<GsamDatabase> m_ptr_database;
+};
+
+class GsamDatabase : public Object {
+
+public:	//Object override
+	static TypeId GetTypeId (void);
+	GsamDatabase ();
+	virtual ~GsamDatabase();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+
+public:	//self defined
+	uint64_t GetLocalAvailableSpi (void) const;
+	Ptr<GsamSession> GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint64_t responder_spi) const;
+	Ptr<GsamSession> CreateSession (void);
+
+private:	//fields
+	std::list<Ptr<GsamSession> > m_lst_ptr_sessions;
+	std::set<uint64_t> m_set_occupied_spis;
+	uint32_t m_window_size;
+};
+
+class GsamL4Protocol : public Object {
+
+public:	//Object override
 	/**
 	 * \brief Get the type ID.
 	 * \return the object TypeId
 	 */
 	static TypeId GetTypeId (void);
-	static const uint8_t PROT_NUMBER; //!< using UDP (0x11)
+
+	static const uint16_t PROT_NUMBER;	//udp port number 500s
 
 	GsamL4Protocol();
 	virtual ~GsamL4Protocol();
@@ -36,49 +131,13 @@ public:
 	 */
 	void SetNode (Ptr<Node> node);
 
-	/**
-	 * Get the protocol number
-	 * \returns the protocol number
-	 */
-	static uint16_t GetStaticProtocolNumber (void);
-
-	/**
-	 * Get the protocol number
-	 * \returns the protocol number
-	 */
-	virtual int GetProtocolNumber (void) const;
-
-	/**
-	 * \brief Receive method.
-	 * \param p the packet
-	 * \param header the IPv4 header
-	 * \param incomingInterface the interface from which the packet is coming
-	 * \returns the receive status
-	 */
-	virtual enum IpL4ProtocolMulticast::RxStatus Receive (Ptr<Packet> p,
-			Ipv4Header const &header,
-			Ptr<Ipv4InterfaceMulticast> incomingInterface);
-
-	/**
-	 * \brief Receive method.
-	 * \param p the packet
-	 * \param header the IPv6 header
-	 * \param incomingInterface the interface from which the packet is coming
-	 * \returns the receive status
-	 */
-	virtual enum IpL4ProtocolMulticast::RxStatus Receive (Ptr<Packet> p,
-			Ipv6Header const &header,
-			Ptr<Ipv6Interface> incomingInterface);
-
-	// From IpL4ProtocolMulticast
-	virtual void SetDownTarget (IpL4ProtocolMulticast::DownTargetCallback cb);
-	virtual void SetDownTarget6 (IpL4ProtocolMulticast::DownTargetCallback6 cb);
-	// From IpL4ProtocolMulticast
-	virtual IpL4ProtocolMulticast::DownTargetCallback GetDownTarget (void) const;
-	virtual IpL4ProtocolMulticast::DownTargetCallback6 GetDownTarget6 (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
 
 public:	//added by Lin Chen
 	void Initialization (void);
+	void HandleRead (Ptr<Socket> socket);
+public:	//exchanges, added by Lin Chen
+	void Send_IKE_SA_INIT (Ipv4Address dest);
 protected:
 	/*
 	 * This function will notify other components connected to the node that a new stack member is now connected
@@ -91,7 +150,8 @@ private:
 	virtual void DoDispose (void);
 
 	Ptr<Node> m_node; //!< the node this protocol is associated with
-	IpL4ProtocolMulticast::DownTargetCallback m_downTarget; //!< callback to Ipv4::Send
+	Ptr<Socket> m_socket;
+	Ptr<GsamDatabase> m_ptr_database;
 };
 
 } /* namespace ns3 */
