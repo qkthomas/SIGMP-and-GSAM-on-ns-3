@@ -9,7 +9,8 @@
 #define GSAM_L4_PROTOCOL_MULTICAST_H
 
 #include "ns3/object.h"
-#include "gsam.h"
+#include "ipsec.h"
+#include "ns3/socket.h"
 #include <list>
 #include <set>
 
@@ -40,12 +41,6 @@ public:	//Object override
 	void SetNode (Ptr<Node> node);
 
 	virtual TypeId GetInstanceTypeId (void) const;
-
-public:	//added by Lin Chen
-	void Initialization (void);
-	void HandleRead (Ptr<Socket> socket);
-public:	//exchanges, added by Lin Chen
-	void Send_IKE_SA_INIT (Ipv4Address dest);
 protected:
 	/*
 	 * This function will notify other components connected to the node that a new stack member is now connected
@@ -56,7 +51,19 @@ protected:
 private:
 
 	virtual void DoDispose (void);
-
+public:	//added by Lin Chen
+	void Initialization (void);
+	void HandleRead (Ptr<Socket> socket);
+public:	//exchanges, added by Lin Chen
+	void Send_IKE_SA_INIT (Ipv4Address dest);
+private:	//Sending, added by Lin Chen,
+	void SendMessage (Ptr<Packet> packet, Ipv4Address dest);
+private:	//handle reads, added by Lin Chen
+	void HandlePacketWithoutSession (Ptr<Packet> packet, const IkeHeader& ikeheader);
+	void HandlePacketWithSession (Ptr<Packet> packet, const IkeHeader& ikeheader);
+private:	//responing, added by Lin Chen
+	void HandleIkeSaInit (Ptr<Packet> packet, const IkeHeader& ikeheader);
+private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;
 	Ptr<IpSecDatabase> m_ptr_database;

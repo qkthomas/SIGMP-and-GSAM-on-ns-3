@@ -25,136 +25,356 @@
 
 namespace ns3 {
 
+NS_LOG_COMPONENT_DEFINE ("GsamSa");
+
 /********************************************************
- *        IpSecSa
+ *        GsamInfo
  ********************************************************/
 
-NS_OBJECT_ENSURE_REGISTERED (IpSecSa);
+NS_OBJECT_ENSURE_REGISTERED (GsamInfo);
 
 TypeId
-IpSecSa::GetTypeId (void)
+GsamInfo::GetTypeId (void)
 {
-	static TypeId tid = TypeId ("ns3::GsamSa")
+	static TypeId tid = TypeId ("ns3::GsamInfo")
     		.SetParent<Object> ()
 			.SetGroupName ("Internet")
-			.AddConstructor<IpSecSa> ()
+			.AddConstructor<GsamInfo> ()
 			;
 	return tid;
 }
 
-IpSecSa::IpSecSa ()
-  :  m_initiator_spi (0),
-	 m_responder_spi (0),
-	 m_etablished (false),
-	 m_ptr_session (0)
+GsamInfo::GsamInfo ()
+  :  m_retransmission_delay (Seconds(0.0))
 {
 	NS_LOG_FUNCTION (this);
 }
 
-IpSecSa::~IpSecSa()
+GsamInfo::~GsamInfo()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_set_occupied_gsam_spis.clear();
+	this->m_set_occupied_ipsec_spis.clear();
 }
 
 TypeId
-IpSecSa::GetInstanceTypeId (void) const
+GsamInfo::GetInstanceTypeId (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return IpSecSa::GetTypeId();
+	return GsamInfo::GetTypeId();
 }
 
 void
-IpSecSa::NotifyNewAggregate ()
+GsamInfo::NotifyNewAggregate ()
 {
 	NS_LOG_FUNCTION (this);
 }
 
 void
-IpSecSa::DoDispose (void)
+GsamInfo::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
+}
+
+uint32_t
+GsamInfo::GetLocalAvailableIpSecSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t spi = 0;
+
+	std::set<uint32_t>::const_iterator const_it = this->m_set_occupied_ipsec_spis.find(spi);
+
+	do {
+		spi = rand();
+	} while (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end());
+
+	return spi;
 }
 
 uint64_t
-IpSecSa::GetInitiatorSpi (void) const
+GsamInfo::GetLocalAvailableGsamSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint64_t spi = 0;
+
+	std::set<uint64_t>::const_iterator const_it = this->m_set_occupied_gsam_spis.find(spi);
+
+	do {
+		spi = rand();
+	} while (this->m_set_occupied_gsam_spis.find(spi) != this->m_set_occupied_gsam_spis.end());
+
+	return spi;
+}
+
+Time
+GsamInfo::GetRetransmissionDelay (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_retransmission_delay;
+}
+void
+GsamInfo::SetRetransmissionDelay (Time time)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_retransmission_delay = time;
+}
+
+/********************************************************
+ *        GsamSa
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (GsamSa);
+
+TypeId
+GsamSa::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::GsamSa")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<GsamSa> ()
+			;
+	return tid;
+}
+
+GsamSa::GsamSa ()
+  :  m_initiator_spi (0),
+	 m_responder_spi (0),
+	 m_ptr_session (0),
+	 m_ptr_encrypt_fn (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+GsamSa::~GsamSa()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_session = 0;
+	this->m_ptr_encrypt_fn = 0;
+}
+
+TypeId
+GsamSa::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return GsamSa::GetTypeId();
+}
+
+void
+GsamSa::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamSa::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+bool
+operator == (GsamSa const& lhs, GsamSa const& rhs)
+{
+	bool retval = true;
+
+	if (lhs.m_initiator_spi != rhs.m_initiator_spi)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_responder_spi != rhs.m_responder_spi)
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
+uint64_t
+GsamSa::GetInitiatorSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_initiator_spi;
 }
 
+void
+GsamSa::SetInitiatorSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_initiator_spi = spi;
+}
+
 uint64_t
-IpSecSa::GetResponderSpi (void) const
+GsamSa::GetResponderSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_responder_spi;
 }
 
-bool
-IpSecSa::IsEtablished (void) const
+void
+GsamSa::SetResponderSpi (uint64_t spi)
 {
 	NS_LOG_FUNCTION (this);
-	return this->IsEtablished();
+	this->m_responder_spi = spi;
+}
+
+bool
+GsamSa::IsHalfOpen (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+
+	if (0 == this->m_initiator_spi)
+	{
+		retval = true;
+	}
+
+	if (0 == this->m_responder_spi)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+/********************************************************
+ *        EncryptionFunction
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (EncryptionFunction);
+
+TypeId
+EncryptionFunction::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::EncryptionFunction")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<EncryptionFunction> ()
+			;
+	return tid;
+}
+
+EncryptionFunction::EncryptionFunction ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+EncryptionFunction::~EncryptionFunction()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+TypeId
+EncryptionFunction::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return EncryptionFunction::GetTypeId();
+}
+
+void
+EncryptionFunction::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+EncryptionFunction::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
 }
 
 /********************************************************
  *        IpSecSession
  ********************************************************/
 
-NS_OBJECT_ENSURE_REGISTERED (IpSecSession);
+NS_OBJECT_ENSURE_REGISTERED (GsamSession);
 
 TypeId
-IpSecSession::GetTypeId (void)
+GsamSession::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::GsamSession")
     		.SetParent<Object> ()
 			.SetGroupName ("Internet")
-			.AddConstructor<IpSecSession> ()
+			.AddConstructor<GsamSession> ()
 			;
 	return tid;
 }
 
-IpSecSession::IpSecSession ()
-  :  m_message_id (0),
-	 m_role (IpSecSession::UNINITIALIZED),
+GsamSession::GsamSession ()
+  :  m_current_message_id (0),
+	 m_peer_address (Ipv4Address ("0.0.0.0")),
+	 m_role (GsamSession::UNINITIALIZED),
 	 m_ptr_sa (0),
 	 m_ptr_database (0)
 {
 	NS_LOG_FUNCTION (this);
 }
 
-IpSecSession::~IpSecSession()
+GsamSession::~GsamSession()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_ptr_sa = 0;
+	this->m_ptr_database = 0;
 }
 
 TypeId
-IpSecSession::GetInstanceTypeId (void) const
+GsamSession::GetInstanceTypeId (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return IpSecSession::GetTypeId();
+	return GsamSession::GetTypeId();
 }
 
 void
-IpSecSession::NotifyNewAggregate ()
+GsamSession::NotifyNewAggregate ()
 {
 	NS_LOG_FUNCTION (this);
 }
 
 void
-IpSecSession::DoDispose (void)
+GsamSession::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database != 0)
+	{
+		this->m_ptr_database->RemoveSession(this);
+	}
 }
 
 uint32_t
-IpSecSession::GetMessageId (void) const
+GsamSession::GetCurrentMessageId (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_message_id;
+	return this->m_current_message_id;
+}
+
+bool
+operator == (GsamSession const& lhs, GsamSession const& rhs)
+{
+	bool retval = true;
+
+	if (lhs.m_ptr_sa != rhs.m_ptr_sa)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_role != rhs.m_role)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_current_message_id != rhs.m_current_message_id)
+	{
+		retval = false;
+	}
+
+	return retval;
 }
 
 uint64_t
-IpSecSession::GetLocalSpi (void) const
+GsamSession::GetLocalSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -165,15 +385,15 @@ IpSecSession::GetLocalSpi (void) const
 
 	uint64_t spi = 0;
 
-	if (IpSecSession::UNINITIALIZED == this->m_role)
+	if (GsamSession::UNINITIALIZED == this->m_role)
 	{
 		NS_ASSERT (false);
 	}
-	else if (IpSecSession::INITIATOR == this->m_role)
+	else if (GsamSession::INITIATOR == this->m_role)
 	{
 		spi = this->m_ptr_sa->GetInitiatorSpi();
 	}
-	else if (IpSecSession::RESPONDER == this->m_role)
+	else if (GsamSession::RESPONDER == this->m_role)
 	{
 		spi = this->m_ptr_sa->GetResponderSpi();
 	}
@@ -181,25 +401,322 @@ IpSecSession::GetLocalSpi (void) const
 	return spi;
 }
 
-IpSecSession::ROLE
-IpSecSession::GetRole (void) const
+GsamSession::ROLE
+GsamSession::GetRole (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_role;
 }
 
+void
+GsamSession::SetRole (GsamSession::ROLE role)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_role = role;
+}
+
 uint64_t
-IpSecSession::GetInitiatorSpi (void) const
+GsamSession::GetInitiatorSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ptr_sa->GetInitiatorSpi();
 }
 
+void
+GsamSession::SetInitiatorSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_sa)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_sa->SetInitiatorSpi(spi);
+	}
+}
+
 uint64_t
-IpSecSession::GetResponderSpi (void) const
+GsamSession::GetResponderSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ptr_sa->GetResponderSpi();
+}
+
+void
+GsamSession::SetResponderSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_sa)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_sa->SetResponderSpi(spi);
+	}
+}
+
+void
+GsamSession::SetDatabase (Ptr<IpSecDatabase> database)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_database = database;
+}
+
+void
+GsamSession::EtablishGsamSa (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_sa)
+	{
+		this->m_ptr_sa = Create<GsamSa>();
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamSession::IncrementMessageId (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_current_message_id++;
+}
+
+Timer&
+GsamSession::GetTimer (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_timer;
+}
+
+/********************************************************
+ *        IpSecSAEntry
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IpSecSAEntry);
+
+TypeId
+IpSecSAEntry::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IpSecSAEntry")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<IpSecSAEntry> ()
+			;
+	return tid;
+}
+
+IpSecSAEntry::IpSecSAEntry ()
+  :  m_id (0),
+	 m_spi (0),
+	 m_dest_address (Ipv4Address("0.0.0.0")),
+	 m_ipsec_protocol (IPsec::RESERVED),
+	 m_ipsec_mode (IPsec::NONE),
+	 m_ptr_encrypt_fn (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IpSecSAEntry::~IpSecSAEntry()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_encrypt_fn = 0;
+}
+
+TypeId
+IpSecSAEntry::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IpSecSAEntry::GetTypeId();
+}
+
+void
+IpSecSAEntry::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IpSecSAEntry::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+bool
+operator == (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs)
+{
+	return lhs.m_id == rhs.m_id;
+}
+
+bool
+operator < (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs)
+{
+	return lhs.m_id < rhs.m_id;
+}
+
+/********************************************************
+ *        IpSecSADatabase
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IpSecSADatabase);
+
+TypeId
+IpSecSADatabase::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IpSecSADatabase")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<IpSecSADatabase> ()
+			;
+	return tid;
+}
+
+IpSecSADatabase::IpSecSADatabase ()
+  :  m_ptr_info (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IpSecSADatabase::~IpSecSADatabase()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_info = 0;
+}
+
+TypeId
+IpSecSADatabase::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IpSecSADatabase::GetTypeId();
+}
+
+void
+IpSecSADatabase::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IpSecSADatabase::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+/********************************************************
+ *        IpSecPolicyEntry
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IpSecPolicyEntry);
+
+TypeId
+IpSecPolicyEntry::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IpSecPolicyEntry")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<IpSecPolicyEntry> ()
+			;
+	return tid;
+}
+
+IpSecPolicyEntry::IpSecPolicyEntry ()
+  :  m_id (0),
+	 m_direction (IpSecPolicyEntry::BOTH),
+	 m_src_address (Ipv4Address("0.0.0.0")),
+	 m_dest_address (Ipv4Address("0.0.0.0")),
+	 m_ip_protocol_num (0),
+	 m_src_transport_protocol_num (0),
+	 m_dest_transport_protocol_num (0),
+	 m_process_choise (IpSecPolicyEntry::BYPASS),
+	 m_ptr_sad (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IpSecPolicyEntry::~IpSecPolicyEntry()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_sad = 0;
+}
+
+TypeId
+IpSecPolicyEntry::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IpSecSADatabase::GetTypeId();
+}
+
+void
+IpSecPolicyEntry::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IpSecPolicyEntry::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+bool
+operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
+{
+	return lhs.m_id == rhs.m_id;
+}
+
+bool
+operator < (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
+{
+	return lhs.m_id < rhs.m_id;
+}
+
+/********************************************************
+ *        IpSecPolicyDatabase
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IpSecPolicyDatabase);
+
+TypeId
+IpSecPolicyDatabase::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IpSecPolicyDatabase")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<IpSecPolicyDatabase> ()
+			;
+	return tid;
+}
+
+IpSecPolicyDatabase::IpSecPolicyDatabase ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IpSecPolicyDatabase::~IpSecPolicyDatabase()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+TypeId
+IpSecPolicyDatabase::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IpSecPolicyDatabase::GetTypeId();
+}
+
+void
+IpSecPolicyDatabase::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IpSecPolicyDatabase::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
 }
 
 /********************************************************
@@ -220,7 +737,10 @@ IpSecDatabase::GetTypeId (void)
 }
 
 IpSecDatabase::IpSecDatabase ()
-  :  m_window_size (0)
+  :  m_window_size (0),
+	 m_ptr_spd (0),
+	 m_ptr_sad (0),
+	 m_ptr_info (0)
 {
 	NS_LOG_FUNCTION (this);
 	srand(time(0));	//random
@@ -229,6 +749,10 @@ IpSecDatabase::IpSecDatabase ()
 IpSecDatabase::~IpSecDatabase()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_lst_ptr_sessions.clear();
+	this->m_ptr_spd = 0;
+	this->m_ptr_sad = 0;
+	this->m_ptr_info = 0;
 }
 
 TypeId
@@ -250,37 +774,22 @@ IpSecDatabase::DoDispose (void)
 	NS_LOG_FUNCTION (this);
 }
 
-uint64_t
-IpSecDatabase::GetLocalAvailableSpi (void) const
+Ptr<GsamSession>
+IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id) const
 {
 	NS_LOG_FUNCTION (this);
 
-	uint64_t spi = 0;
+	Ptr<GsamSession> session = 0;
 
-	std::set<uint64_t>::const_iterator const_it = this->m_set_occupied_spis.find(spi);
-
-	do {
-		spi = rand();
-	} while (this->m_set_occupied_spis.find(spi) != this->m_set_occupied_spis.end());
-
-	return spi;
-}
-
-Ptr<IpSecSession>
-IpSecDatabase::GetSession (IpSecSession::ROLE role, uint64_t initiator_spi, uint64_t responder_spi) const
-{
-	NS_LOG_FUNCTION (this);
-
-	Ptr<IpSecSession> session = 0;
-
-	for (	std::list<Ptr<IpSecSession> >::const_iterator const_it = this->m_lst_ptr_sessions.begin();
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_sessions.begin();
 			const_it != this->m_lst_ptr_sessions.end();
 			const_it++)
 	{
-		Ptr<IpSecSession> session_it = (*const_it);
+		Ptr<GsamSession> session_it = (*const_it);
 		if (	(session_it->GetRole() == role) &&
 				(session_it->GetInitiatorSpi() == initiator_spi &&
-				(session_it->GetResponderSpi() == responder_spi))
+				(session_it->GetResponderSpi() == responder_spi) &&
+				 session_it->GetCurrentMessageId() == message_id)
 			)
 		{
 			session = session_it;
@@ -290,15 +799,78 @@ IpSecDatabase::GetSession (IpSecSession::ROLE role, uint64_t initiator_spi, uint
 	return session;
 }
 
-Ptr<IpSecSession>
+Ptr<GsamSession>
+IpSecDatabase::GetSession (const IkeHeader& ikeheader) const
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> session = 0;
+
+	GsamSession::ROLE role = GsamSession::UNINITIALIZED;
+
+	if ((true == ikeheader.IsInitiator()) &&
+			(false == ikeheader.IsResponder()))
+	{
+		role = GsamSession::INITIATOR;
+	}
+	else if ((false == ikeheader.IsInitiator()) &&
+			(true == ikeheader.IsResponder()))
+	{
+		role = GsamSession::RESPONDER;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	session = this->GetSession(role, ikeheader.GetInitiatorSpi(), ikeheader.GetResponderSpi(), ikeheader.GetMessageId());
+
+	return session;
+}
+
+Ptr<GsamInfo>
+IpSecDatabase::GetInfo () const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_info;
+}
+
+Ptr<GsamSession>
 IpSecDatabase::CreateSession (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<IpSecSession> session = Create<IpSecSession>();
+	Ptr<GsamSession> session = Create<GsamSession>();
+	session->SetDatabase(this);
 	this->m_lst_ptr_sessions.push_back(session);
 
 	return session;
+}
+
+void
+IpSecDatabase::RemoveSession (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_sessions.begin();
+			it != this->m_lst_ptr_sessions.end();
+			it++)
+	{
+		Ptr<GsamSession> session_it = (*it);
+
+		if (session_it == session_it)
+		{
+			it = this->m_lst_ptr_sessions.erase(it);
+			break;
+		}
+	}
+}
+
+Time
+IpSecDatabase::GetRetransmissionDelay (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_info->GetRetransmissionDelay();
 }
 
 } /* namespace ns3 */

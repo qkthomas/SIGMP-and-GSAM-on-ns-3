@@ -21,6 +21,7 @@
 #include "gsam.h"
 #include "ns3/log.h"
 #include "ns3/assert.h"
+#include "ipsec.h"
 #include <cstdlib>
 #include <ctime>
 
@@ -47,9 +48,9 @@ IkeHeader::GetTypeId (void)
 IkeHeader::IkeHeader ()
   :  m_initiator_spi (0),
 	 m_responder_spi (0),
-     m_next_payload (0),
+     m_next_payload (IkePayloadHeader::NO_NEXT_PAYLOAD),
 	 m_version (2),
-	 m_exchange_type (0),
+	 m_exchange_type (IkeHeader::IKE_SA_INIT),
 	 m_flag_response (false),
 	 m_flag_version (false),
 	 m_flag_initiator (false),
@@ -64,6 +65,57 @@ IkeHeader::~IkeHeader ()
 	NS_LOG_FUNCTION (this);
 }
 
+uint8_t
+IkeHeader::ExchangeTypeToUint8 (IkeHeader::EXCHANGE_TYPE exchange_type)
+{
+	uint8_t retval = 0;
+
+	switch (exchange_type)
+	{
+	case IkeHeader::IKE_SA_INIT:
+		retval = 34;
+		break;
+	case IkeHeader::IKE_AUTH:
+		retval = 35;
+		break;
+	case IkeHeader::CREATE_CHILD_SA:
+		retval = 36;
+		break;
+	case IkeHeader::INFORMATIONAL:
+		retval = 37;
+		break;
+	default:
+		retval = 0;
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
+IkeHeader::EXCHANGE_TYPE
+IkeHeader::Uint8ToExchangeType (uint8_t value)
+{
+	IkeHeader::EXCHANGE_TYPE retval = IkeHeader::IKE_SA_INIT;
+
+	switch (value)
+	{
+	case 34:
+		retval = IkeHeader::IKE_SA_INIT;
+		break;
+	case 35:
+		retval = IkeHeader::IKE_AUTH;
+		break;
+	case 36:
+		retval = IkeHeader::CREATE_CHILD_SA;
+		break;
+	case 37:
+		retval = IkeHeader::INFORMATIONAL;
+		break;
+	default:
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
 void
 IkeHeader::Serialize (Buffer::Iterator start) const
 {
@@ -72,9 +124,9 @@ IkeHeader::Serialize (Buffer::Iterator start) const
 
 	i.WriteHtolsbU64(this->m_initiator_spi);
 	i.WriteHtolsbU64(this->m_responder_spi);
-	i.WriteU8(this->m_next_payload);
+	i.WriteU8(IkePayloadHeader::PayloadTypeToUnit8(this->m_next_payload));
 	i.WriteU8(this->m_version.toUint8_t());
-	i.WriteU8(this->m_exchange_type);
+	i.WriteU8(IkeHeader::ExchangeTypeToUint8(this->m_exchange_type));
 	i.WriteU8(this->FlagsToU8());
 	i.WriteHtonU32(this->m_message_id);
 	i.WriteHtonU32(this->m_length);
@@ -93,14 +145,16 @@ IkeHeader::Deserialize (Buffer::Iterator start)
 	this->m_responder_spi = i.ReadNtohU64();
 	byte_read += sizeof (this->m_responder_spi);
 
-	this->m_next_payload = i.ReadU8();
-	byte_read += sizeof (this->m_next_payload);
+	uint8_t next_payload_read = i.ReadU8();
+	this->m_next_payload = IkePayloadHeader::Uint8ToPayloadType(next_payload_read);
+	byte_read += sizeof (next_payload_read);
 
 	this->m_version = i.ReadU8();
 	byte_read += sizeof (this->m_version);
 
-	this->m_exchange_type = i.ReadU8();
-	byte_read += sizeof (this->m_exchange_type);
+	uint8_t exchange_type_read = i.ReadU8();
+	this->m_exchange_type = IkeHeader::Uint8ToExchangeType(exchange_type_read);
+	byte_read += sizeof (exchange_type_read);
 
 	this->U8ToFlags(i.ReadU8());
 	byte_read++;
@@ -159,7 +213,7 @@ IkeHeader::FlagsToU8 (void) const
 		retval += 0x08;
 	}
 
-	if (true == this->m_initiator_spi)
+	if (true == this->m_flag_initiator)
 	{
 		retval += 0x10;
 	}
@@ -207,6 +261,13 @@ IkeHeader::SetInitiatorSpi (uint64_t spi)
 	this->m_initiator_spi = spi;
 }
 
+uint64_t
+IkeHeader::GetInitiatorSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_initiator_spi;
+}
+
 void
 IkeHeader::SetResponderSpi (uint64_t spi)
 {
@@ -214,11 +275,25 @@ IkeHeader::SetResponderSpi (uint64_t spi)
 	this->m_responder_spi = spi;
 }
 
+uint64_t
+IkeHeader::GetResponderSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_responder_spi;
+}
+
 void
-IkeHeader::SetNextPayload (IkePayloadHeader::PAYLOAD_TYPE payload_type)
+IkeHeader::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_next_payload = payload_type;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeHeader::GetNextPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_next_payload;
 }
 
 void
@@ -228,6 +303,13 @@ IkeHeader::SetExchangeType (IkeHeader::EXCHANGE_TYPE exchange_type)
 	this->m_exchange_type = exchange_type;
 }
 
+IkeHeader::EXCHANGE_TYPE
+IkeHeader::GetExchangeType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_exchange_type;
+}
+
 void
 IkeHeader::SetAsInitiator (void)
 {
@@ -235,11 +317,46 @@ IkeHeader::SetAsInitiator (void)
 	this->m_flag_initiator = true;
 }
 
+bool
+IkeHeader::IsInitiator (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_initiator;
+}
+
 void
 IkeHeader::SetAsResponder (void)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_flag_response = true;
+}
+
+bool
+IkeHeader::IsResponder (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_response;
+}
+
+void
+IkeHeader::SetMessageId (uint32_t id)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_message_id = id;
+}
+
+uint32_t
+IkeHeader::GetMessageId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_message_id;
+}
+
+void
+IkeHeader::SetLength (uint32_t length)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_length = length;
 }
 
 /********************************************************
@@ -259,7 +376,7 @@ IkePayloadHeader::GetTypeId (void)
 }
 
 IkePayloadHeader::IkePayloadHeader ()
-  :  m_next_payload (0),
+  :  m_next_payload (IkePayloadHeader::NO_NEXT_PAYLOAD),
 	 m_flag_critical (false),
 	 m_payload_length (0)
 {
@@ -271,13 +388,142 @@ IkePayloadHeader::~IkePayloadHeader ()
 	NS_LOG_FUNCTION (this);
 }
 
+uint8_t
+IkePayloadHeader::PayloadTypeToUnit8 (IkePayloadHeader::PAYLOAD_TYPE payload_type)
+{
+	uint8_t retval = 0;
+
+	switch (payload_type)
+	{
+	case IkePayloadHeader::NO_NEXT_PAYLOAD:
+		retval = 0;
+		break;
+	case IkePayloadHeader::SECURITY_ASSOCIATION:
+		retval = 33;
+		break;
+	case IkePayloadHeader::KEY_EXCHANGE:
+		retval = 34;
+		break;
+	case IkePayloadHeader::IDENTIFICATION_INITIATOR:
+		retval = 35;
+		break;
+	case IkePayloadHeader::IDENTIFICATION_RESPONDER:
+		retval = 36;
+		break;
+	case IkePayloadHeader::CERTIFICATE:
+		retval = 37;
+		break;
+	case IkePayloadHeader::CERTIFICATE_REQUEST:
+		retval = 38;
+		break;
+	case IkePayloadHeader::AUTHENTICATION:
+		retval = 39;
+		break;
+	case IkePayloadHeader::NONCE:
+		retval = 40;
+		break;
+	case IkePayloadHeader::NOTIFY:
+		retval = 41;
+		break;
+	case IkePayloadHeader::DELETE:
+		retval = 42;
+		break;
+	case IkePayloadHeader::VENDOR_ID:
+		retval = 43;
+		break;
+	case IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR:
+		retval = 44;
+		break;
+	case IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER:
+		retval = 45;
+		break;
+	case IkePayloadHeader::ENCRYPTED_AND_AUTHENTICATED:
+		retval = 46;
+		break;
+	case IkePayloadHeader::CONFIGURATION:
+		retval = 47;
+		break;
+	case IkePayloadHeader::EXTENSIBLE_AUTHENTICATION:
+			retval = 48;
+			break;
+	default:
+		retval = 0;
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkePayloadHeader::Uint8ToPayloadType (uint8_t value)
+{
+	IkePayloadHeader::PAYLOAD_TYPE retval = IkePayloadHeader::NO_NEXT_PAYLOAD;
+
+	switch (value)
+	{
+	case 0:
+		retval = IkePayloadHeader::NO_NEXT_PAYLOAD;
+		break;
+	case 33:
+		retval = IkePayloadHeader::SECURITY_ASSOCIATION;
+		break;
+	case 34:
+		retval = IkePayloadHeader::KEY_EXCHANGE;
+		break;
+	case 35:
+		retval = IkePayloadHeader::IDENTIFICATION_INITIATOR;
+		break;
+	case 36:
+		retval = IkePayloadHeader::IDENTIFICATION_RESPONDER;
+		break;
+	case 37:
+		retval = IkePayloadHeader::CERTIFICATE;
+		break;
+	case 38:
+		retval = IkePayloadHeader::CERTIFICATE_REQUEST;
+		break;
+	case 39:
+		retval = IkePayloadHeader::AUTHENTICATION;
+		break;
+	case 40:
+		retval = IkePayloadHeader::NONCE;
+		break;
+	case 41:
+		retval = IkePayloadHeader::NOTIFY;
+		break;
+	case 42:
+		retval = IkePayloadHeader::DELETE;
+		break;
+	case 43:
+		retval = IkePayloadHeader::VENDOR_ID;
+		break;
+	case 44:
+		retval = IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR;
+		break;
+	case 45:
+		retval = IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER;
+		break;
+	case 46:
+		retval = IkePayloadHeader::ENCRYPTED_AND_AUTHENTICATED;
+		break;
+	case 47:
+		retval = IkePayloadHeader::CONFIGURATION;
+		break;
+	case 48:
+			retval = IkePayloadHeader::EXTENSIBLE_AUTHENTICATION;
+			break;
+	default:
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
 void
 IkePayloadHeader::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(this->m_next_payload);
+	i.WriteU8(IkePayloadHeader::PayloadTypeToUnit8(this->m_next_payload));
 	if (false == this->m_flag_critical)
 	{
 		i.WriteU8(0x00);
@@ -296,8 +542,9 @@ IkePayloadHeader::Deserialize (Buffer::Iterator start)
 	uint32_t byte_read = 0;
 	Buffer::Iterator i = start;
 
-	this->m_next_payload = i.ReadU8();
-	byte_read += sizeof (this->m_next_payload);
+	uint8_t next_payload_read = i.ReadU8();
+	this->m_next_payload = IkePayloadHeader::Uint8ToPayloadType(next_payload_read);
+	byte_read += sizeof (next_payload_read);
 
 	uint8_t critial_reserved = i.ReadU8();
 	byte_read += sizeof (critial_reserved);
@@ -460,11 +707,212 @@ IkePayloadSubstructure::Print (std::ostream &os) const
 }
 
 IkePayloadHeader::PAYLOAD_TYPE
-IkePayloadSubstructure::GetPayloadType (void)
+IkePayloadSubstructure::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
 
 	return IkePayloadHeader::NO_NEXT_PAYLOAD;
+}
+
+/********************************************************
+ *        Spi
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (Spi);
+
+TypeId
+Spi::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::Spi")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<Spi> ();
+	  return tid;
+}
+
+Spi::Spi ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Spi::~Spi ()
+{
+	NS_LOG_FUNCTION (this);
+	m_lst_var.clear();
+}
+
+uint32_t
+Spi::GetSerializedSize (void) const
+{
+	if (this->m_lst_var.size() <= 0)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	return this->m_lst_var.size();
+}
+
+TypeId
+Spi::GetInstanceTypeId (void) const
+{
+	return Spi::GetTypeId();
+}
+
+void
+Spi::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	if (this->m_lst_var.size() <= 0)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	Buffer::Iterator i = start;
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_var.begin();
+			const_it != this->m_lst_var.end();
+			const_it++)
+	{
+		i.WriteU8(*const_it);
+	}
+}
+
+uint32_t
+Spi::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	if (this->m_length <= 0)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		//do nothing
+	}
+
+	Buffer::Iterator i = start;
+	uint32_t size = 0;
+
+	for (	uint16_t count = 1;
+			count <= this->m_length;
+			count++)
+	{
+		this->m_lst_var.push_back(i.ReadU8());
+		size++;
+	}
+
+	NS_ASSERT (size == this->m_length);
+
+	return size;
+}
+
+void
+Spi::Print (std::ostream &os) const
+{
+
+}
+
+uint32_t
+Spi::ToUint32 (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t retval = 0;
+
+	if (4 != this->m_lst_var.size())
+	{
+		NS_ASSERT (false);
+	}
+
+	uint8_t bits_to_shift = 0;
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_var.begin();
+			const_it != this->m_lst_var.end();
+			const_it++)
+	{
+		uint32_t temp = (*const_it);
+		retval += (temp << bits_to_shift);
+		bits_to_shift += 8;
+	}
+
+	return retval;
+}
+
+uint64_t
+Spi::ToUint64 (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint64_t retval = 0;
+
+	if (8 != this->m_lst_var.size())
+	{
+		NS_ASSERT (false);
+	}
+
+	uint8_t bits_to_shift = 0;
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_var.begin();
+			const_it != this->m_lst_var.end();
+			const_it++)
+	{
+		uint64_t temp = (*const_it);
+		retval += (temp << bits_to_shift);
+		bits_to_shift += 8;
+	}
+
+	return retval;
+}
+
+void
+Spi::SetValueFromUint32 (uint32_t value)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t mask = 0x000000ff;
+
+	uint8_t bits_to_shift = 0;
+
+	for (	uint8_t it = 1;
+			it <= 4;
+			it++)
+	{
+		uint8_t temp = 0;
+		mask = mask << bits_to_shift;
+		temp = ((value & mask) >> bits_to_shift);
+		this->m_lst_var.push_back(temp);
+
+		bits_to_shift += 8;
+	}
+}
+void
+Spi::SetValueFromUint64 (uint64_t value)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint64_t mask = 0x00000000000000ff;
+
+	uint8_t bits_to_shift = 0;
+
+	for (	uint8_t it = 1;
+			it <= 8;
+			it++)
+	{
+		uint8_t temp = 0;
+		mask = mask << bits_to_shift;
+		temp = ((value & mask) >> bits_to_shift);
+		this->m_lst_var.push_back(temp);
+
+		bits_to_shift += 8;
+	}
 }
 
 /********************************************************
@@ -579,6 +1027,80 @@ IkePayload::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_header.SetNextPayloadType(payload_type);
+}
+
+IkePayload
+IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
+{
+	IkePayload retval;
+	switch (payload_type)
+	{
+	case IkePayloadHeader::SECURITY_ASSOCIATION:
+		retval.SetPayload(IkeSAPayloadSubstructure());
+		break;
+	case IkePayloadHeader::KEY_EXCHANGE:
+	retval.SetPayload(IkeKeyExchangeSubStructure());
+	break;
+	case IkePayloadHeader::IDENTIFICATION_INITIATOR:
+		retval.SetPayload(IkeIdSubstructure());
+		break;
+	case IkePayloadHeader::IDENTIFICATION_RESPONDER:
+		retval.SetPayload(IkeIdSubstructure());
+		break;
+	case IkePayloadHeader::CERTIFICATE:
+		//not implemented
+		NS_ASSERT (false);
+		break;
+	case IkePayloadHeader::CERTIFICATE_REQUEST:
+		//not implemented
+		NS_ASSERT (false);
+		break;
+	case IkePayloadHeader::AUTHENTICATION:
+		//not implemented
+		retval.SetPayload(IkeAuthSubstructure());
+		break;
+	case IkePayloadHeader::NONCE:
+		//not implemented
+		retval.SetPayload(IkeNonceSubstructure());
+		break;
+	case IkePayloadHeader::NOTIFY:
+		//not implemented
+		retval.SetPayload(IkeNotifySubstructure());
+		break;
+	case IkePayloadHeader::DELETE:
+		//not implemented
+		retval.SetPayload(IkeDeletePayloadSubstructure());
+		break;
+	case IkePayloadHeader::VENDOR_ID:
+		//not implemented
+		NS_ASSERT (false);
+		break;
+	case IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR:
+		//not implemented
+		retval.SetPayload(IkeTrafficSelectorSubstructure());
+		break;
+	case IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER:
+		//not implemented
+		retval.SetPayload(IkeTrafficSelectorSubstructure());
+		break;
+	case IkePayloadHeader::ENCRYPTED_AND_AUTHENTICATED:
+		//not implemented
+		retval.SetPayload(IkeEncryptedPayloadSubstructure());
+		break;
+	case IkePayloadHeader::CONFIGURATION:
+		//not implemented
+		retval.SetPayload(IkeConfigPayloadSubstructure());
+		break;
+	case IkePayloadHeader::EXTENSIBLE_AUTHENTICATION:
+		//not implemented
+		NS_ASSERT (false);
+		break;
+	default:
+		NS_ASSERT (false);
+		break;
+	}
+
+	return retval;
 }
 
 /********************************************************
@@ -723,7 +1245,7 @@ IkeTransformSubStructure::GetTypeId (void)
 }
 
 IkeTransformSubStructure::IkeTransformSubStructure ()
-  : m_flag_last (true),
+  : m_flag_last (false),
 	m_transform_length (0),
 	m_transform_type (0),
 	m_transform_id (0)
@@ -866,6 +1388,30 @@ IkeTransformSubStructure::SetLast (void)
 	this->m_flag_last = true;
 }
 
+void
+IkeTransformSubStructure::ClearLast (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_flag_last = false;
+}
+
+void
+IkeTransformSubStructure::SetTransformType (IkeTransformSubStructure::TRANSFORM_TYPE transform_type)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_transform_type = transform_type;
+}
+
+void
+IkeTransformSubStructure::SetTransformId (IkeTransformSubStructure::GENERIC_TRANSFORM_ID transform_id)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_transform_id = transform_id;
+}
+
 bool
 IkeTransformSubStructure::IsLast (void)
 {
@@ -873,110 +1419,15 @@ IkeTransformSubStructure::IsLast (void)
 	return this->m_flag_last;
 }
 
-/********************************************************
- *        Spi
- ********************************************************/
-
-NS_OBJECT_ENSURE_REGISTERED (GsamSpi);
-
-TypeId
-GsamSpi::GetTypeId (void)
+IkeTransformSubStructure
+IkeTransformSubStructure::GetEmptyTransform (void)
 {
-	static TypeId tid = TypeId ("ns3::GsamSpi")
-	    .SetParent<IkePayloadSubstructure> ()
-	    //.SetGroupName("Internet")
-		.AddConstructor<GsamSpi> ();
-	  return tid;
-}
+	IkeTransformSubStructure retval;
 
-GsamSpi::GsamSpi ()
-{
-	NS_LOG_FUNCTION (this);
-}
-
-GsamSpi::~GsamSpi ()
-{
-	NS_LOG_FUNCTION (this);
-	m_lst_var.clear();
-}
-
-uint32_t
-GsamSpi::GetSerializedSize (void) const
-{
-	if (this->m_lst_var.size() <= 0)
-	{
-		NS_ASSERT (false);
-	}
-	else
-	{
-		//do nothing
-	}
-
-	return this->m_lst_var.size();
-}
-
-TypeId
-GsamSpi::GetInstanceTypeId (void) const
-{
-	return GsamSpi::GetTypeId();
-}
-
-void
-GsamSpi::Serialize (Buffer::Iterator start) const
-{
-	NS_LOG_FUNCTION (this << &start);
-	if (this->m_lst_var.size() <= 0)
-	{
-		NS_ASSERT (false);
-	}
-	else
-	{
-		//do nothing
-	}
-
-	Buffer::Iterator i = start;
-
-	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_var.begin();
-			const_it != this->m_lst_var.end();
-			const_it++)
-	{
-		i.WriteU8(*const_it);
-	}
-}
-
-uint32_t
-GsamSpi::Deserialize (Buffer::Iterator start)
-{
-	NS_LOG_FUNCTION (this << &start);
-	if (this->m_length <= 0)
-	{
-		NS_ASSERT (false);
-	}
-	else
-	{
-		//do nothing
-	}
-
-	Buffer::Iterator i = start;
-	uint32_t size = 0;
-
-	for (	uint16_t count = 1;
-			count <= this->m_length;
-			count++)
-	{
-		this->m_lst_var.push_back(i.ReadU8());
-		size++;
-	}
-
-	NS_ASSERT (size == this->m_length);
-
-	return size;
-}
-
-void
-GsamSpi::Print (std::ostream &os) const
-{
-
+	retval.SetLength(8);
+	retval.SetTransformType(IkeTransformSubStructure::NO_TRANSFORM);
+	retval.SetTransformId(IkeTransformSubStructure::NO_ID);
+	return retval;
 }
 
 /********************************************************
@@ -996,11 +1447,11 @@ IkeSAProposal::GetTypeId (void)
 }
 
 IkeSAProposal::IkeSAProposal ()
-  :  m_flag_last (true),
-	 m_proposal_length (0),
+  :  m_flag_last (false),
+	 m_proposal_length (12),	//12 bytes until filed SPI. increase by adding more transform
 	 m_proposal_num (0),
 	 m_protocol_id (0),
-	 m_spi_size (0),
+	 m_spi_size (4),	//ah or esp
 	 m_num_transforms (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -1042,6 +1493,7 @@ void
 IkeSAProposal::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
+
 	Buffer::Iterator i = start;
 
 	if (true == this->m_flag_last)
@@ -1120,14 +1572,14 @@ IkeSAProposal::Deserialize (Buffer::Iterator start)
 	size += sizeof (this->m_protocol_id);
 
 	this->m_spi_size = i.ReadU8();
+
 	size += sizeof (this->m_spi_size);
 
 	this->m_num_transforms = i.ReadU8();
 	size += sizeof (this->m_num_transforms);
 
-	GsamSpi spi;
-	spi.Deserialize(i, m_spi_size);
-	i.Next(spi.GetSerializedSize());
+	this->m_spi.Deserialize(i, this->m_spi_size);
+	size += this->m_spi.GetSerializedSize();
 
 	for (	uint8_t it = 1;
 			it <= this->m_num_transforms;
@@ -1159,6 +1611,13 @@ IkeSAProposal::SetLast (void)
 }
 
 void
+IkeSAProposal::ClearLast (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_last = false;
+}
+
+void
 IkeSAProposal::SetProposalNumber (uint16_t proposal_num)
 {
 	NS_LOG_FUNCTION (this);
@@ -1179,18 +1638,25 @@ IkeSAProposal::SetProtocolIdAndSPISize (IPsec::PROTOCOL_ID protocol_id)
 }
 
 void
-IkeSAProposal::SetSPI (GsamSpi spi)
+IkeSAProposal::SetSPI (Spi spi)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_spi = spi;
-	this->m_spi_size = spi.GetSerializedSize();
+	this->m_spi_size = this->m_spi.GetSerializedSize();
 }
 
 void
 IkeSAProposal::PushBackTransform (IkeTransformSubStructure transform)
 {
 	NS_LOG_FUNCTION (this);
+
+	this->ClearLastTranform();
+
 	this->m_lst_transforms.push_back(transform);
+	this->m_num_transforms++;
+	this->m_proposal_length += transform.GetSerializedSize();
+
+	this->SetLastTransform();
 }
 
 uint8_t
@@ -1215,6 +1681,60 @@ IkeSAProposal::GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id)
 	}
 
 	return size;
+}
+
+void
+IkeSAProposal::SetLastTransform (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_lst_transforms.begin() != this->m_lst_transforms.end())
+	{
+		this->m_lst_transforms.back().SetLast();
+	}
+}
+
+void
+IkeSAProposal::ClearLastTranform (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_lst_transforms.begin() != this->m_lst_transforms.end())
+	{
+		this->m_lst_transforms.back().ClearLast();
+	}
+}
+
+IkeSAProposal
+IkeSAProposal::GenerateDefaultIkeProposal (Ptr<GsamInfo> info)
+{
+	IkeSAProposal retval;
+
+	//set ike
+	retval.SetProtocolId(IPsec::IKE);
+	Spi spi;
+	spi.SetValueFromUint64(info->GetLocalAvailableGsamSpi());
+	retval.SetSPI(spi);
+	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
+	retval.PushBackTransform(transform);
+	retval.SetLastTransform();
+	return retval;
+}
+
+IkeSAProposal
+IkeSAProposal::GenerateDefaultEspProposal (Ptr<GsamInfo> info)
+{
+	IkeSAProposal retval;
+
+	//set esp
+	retval.SetProtocolId(IPsec::ESP);
+	Spi spi;
+	spi.SetValueFromUint32(info->GetLocalAvailableIpSecSpi());
+	retval.SetSPI(spi);
+	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
+	retval.PushBackTransform(transform);
+	retval.SetLastTransform();
+	return retval;
 }
 
 /********************************************************
@@ -1314,6 +1834,30 @@ IkeSAPayloadSubstructure::Print (std::ostream &os) const
 	IkePayloadSubstructure::Print(os);
 
 	os << "IkeSAPayload: " << this << std::endl;
+}
+
+IkeSAPayloadSubstructure
+IkeSAPayloadSubstructure::GenerateDefaultIkeProposal (Ptr<GsamInfo> info)
+{
+	IkeSAPayloadSubstructure retval;
+		retval.PushBackProposal(IkeSAProposal::GenerateDefaultIkeProposal(info));
+		return retval;
+}
+
+IkeSAPayloadSubstructure
+IkeSAPayloadSubstructure::GenerateDefaultEspProposal (Ptr<GsamInfo> info)
+{
+	IkeSAPayloadSubstructure retval;
+	retval.PushBackProposal(IkeSAProposal::GenerateDefaultEspProposal(info));
+	return retval;
+}
+
+void
+IkeSAPayloadSubstructure::PushBackProposal (IkeSAProposal proposal)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_proposal.push_back(proposal);
+	this->m_length += proposal.GetSerializedSize();
 }
 
 /********************************************************
@@ -1571,7 +2115,7 @@ IkeAuthSubstructure::GetTypeId (void)
 }
 
 IkeAuthSubstructure::IkeAuthSubstructure ()
-  : m_auth_method (0)
+  : m_auth_method (IkeAuthSubstructure::EMPTY)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1580,6 +2124,56 @@ IkeAuthSubstructure::~IkeAuthSubstructure ()
 {
 	NS_LOG_FUNCTION (this);
 	m_lst_id_data.clear();
+}
+
+uint8_t
+IkeAuthSubstructure::AuthMethodToUint8 (IkeAuthSubstructure::AUTH_METHOD auth_method)
+{
+	uint8_t retval = 0;
+
+	switch (auth_method)
+	{
+	case IkeAuthSubstructure::EMPTY:
+		retval = 0;
+		break;
+	case IkeAuthSubstructure::RSA_DIGITAL_SIGNATURE:
+		retval = 1;
+		break;
+	case IkeAuthSubstructure::SHARED_KEY_MESSAGE_INTEGRITY_CODE:
+		retval = 2;
+		break;
+	case IkeAuthSubstructure::DSS_DIGITAL_SIGNATURE:
+		retval = 3;
+		break;
+	default:
+		retval = 0;
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+IkeAuthSubstructure::AUTH_METHOD
+IkeAuthSubstructure::Uint8ToAuthMethod (uint8_t value)
+{
+	IkeAuthSubstructure::AUTH_METHOD retval = IkeAuthSubstructure::EMPTY;
+
+	switch (value)
+	{
+	case 0:
+		retval = IkeAuthSubstructure::EMPTY;
+		break;
+	case 1:
+		retval = IkeAuthSubstructure::RSA_DIGITAL_SIGNATURE;
+		break;
+	case 2:
+		retval = IkeAuthSubstructure::SHARED_KEY_MESSAGE_INTEGRITY_CODE;
+		break;
+	case 3:
+		retval = IkeAuthSubstructure::DSS_DIGITAL_SIGNATURE;
+		break;
+	default:
+		NS_ASSERT (false);
+	}
+	return retval;
 }
 
 uint32_t
@@ -1603,7 +2197,7 @@ IkeAuthSubstructure::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(this->m_auth_method);
+	i.WriteU8(IkeAuthSubstructure::AuthMethodToUint8(this->m_auth_method));
 	i.WriteU8(0, 3);
 
 	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_id_data.begin();
@@ -1631,8 +2225,9 @@ IkeAuthSubstructure::Deserialize (Buffer::Iterator start)
 
 	uint32_t size = 0;
 
-	this->m_auth_method = i.ReadU8();
-	size += sizeof (this->m_auth_method);
+	uint8_t auth_method = i.ReadU8();
+	this->m_auth_method = IkeAuthSubstructure::Uint8ToAuthMethod(auth_method);
+	size += sizeof (auth_method);
 
 	//to check whehter 24bits field RESERVED is 0
 	uint8_t RESERVED1 = i.ReadU8();
@@ -1887,7 +2482,6 @@ IkeNotifySubstructure::Deserialize (Buffer::Iterator start)
 
 	this->m_spi.Deserialize(i, this->m_spi_size);
 	i.Next(this->m_spi.GetSerializedSize());
-	size += this->m_spi.GetSerializedSize();
 
 	uint16_t length_rest = this->m_length - size;
 	for (	uint16_t it = 1;
@@ -1951,7 +2545,7 @@ IkeDeletePayloadSubstructure::GetSerializedSize (void) const
 	size += sizeof (this->m_spi_size);
 	size += sizeof (this->m_num_of_spis);
 
-	for (	std::list<GsamSpi>::const_iterator const_it = this->m_lst_spis.begin();
+	for (	std::list<Spi>::const_iterator const_it = this->m_lst_spis.begin();
 			const_it != this->m_lst_spis.end();
 			const_it++)
 	{
@@ -1980,7 +2574,7 @@ IkeDeletePayloadSubstructure::Serialize (Buffer::Iterator start) const
 
 	i.WriteHtonU16(this->m_num_of_spis);
 
-	for (	std::list<GsamSpi>::const_iterator const_it = this->m_lst_spis.begin();
+	for (	std::list<Spi>::const_iterator const_it = this->m_lst_spis.begin();
 			const_it != this->m_lst_spis.end();
 			const_it++)
 	{
@@ -2019,8 +2613,10 @@ IkeDeletePayloadSubstructure::Deserialize (Buffer::Iterator start)
 			it <= this->m_num_of_spis;
 			it++)
 	{
-		GsamSpi spi;
-		spi.Deserialize(i);
+		Spi spi;
+		spi.Deserialize(i, m_spi_size);
+		i.Next(spi.GetSerializedSize());
+		this->m_lst_spis.push_back(spi);
 		size += spi.GetSerializedSize();
 	}
 
@@ -2054,7 +2650,7 @@ IkeTrafficSelector::GetTypeId (void)
 }
 
 IkeTrafficSelector::IkeTrafficSelector ()
-  : m_ts_type (0),
+  : m_ts_type (IkeTrafficSelector::TS_IPV4_ADDR_RANGE),
 	m_ip_protocol_id (0),
 	m_selector_length (0),
 	m_start_port (0),

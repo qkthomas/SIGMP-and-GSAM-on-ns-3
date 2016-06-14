@@ -29,7 +29,8 @@
 
 namespace ns3 {
 
-class GsamSpi;
+class GsamInfo;
+class Spi;
 
 class IPsec {
 public:
@@ -38,6 +39,12 @@ public:
 		IKE = 1,
 		AH = 2,
 		ESP = 3
+	};
+
+	enum MODE {
+		NONE = 0,
+		TRANSPORT = 1,
+		TUNNEL = 2
 	};
 };
 
@@ -73,7 +80,9 @@ public:	//Header override
 		CONFIGURATION = 47,
 		EXTENSIBLE_AUTHENTICATION = 48
 	};
-
+public:	//translate enum
+	static uint8_t PayloadTypeToUnit8 (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+	static IkePayloadHeader::PAYLOAD_TYPE Uint8ToPayloadType (uint8_t value);
 public:	//Header override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
@@ -85,8 +94,10 @@ public:	//const
 public:	//non-const
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 	void SetPayloadLength (uint16_t length);
+public:	//static
+	static IkePayloadHeader::PAYLOAD_TYPE GetPayloadTypeFromUint8 (uint8_t value);
 private:
-	uint8_t m_next_payload;
+	IkePayloadHeader::PAYLOAD_TYPE m_next_payload;
 	bool m_flag_critical;
 	uint16_t m_payload_length;
 };
@@ -125,6 +136,9 @@ public:	//Header override
 		INFORMATIONAL = 37
 	};
 
+public:	//static
+	static uint8_t ExchangeTypeToUint8 (IkeHeader::EXCHANGE_TYPE exchange_type);
+	static IkeHeader::EXCHANGE_TYPE Uint8ToExchangeType (uint8_t value);
 public:	//Header override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
@@ -134,18 +148,27 @@ public:	//Header override
 public:
 	void SetIkev2Version (void);
 	void SetInitiatorSpi (uint64_t spi);
+	uint64_t GetInitiatorSpi (void) const;
 	void SetResponderSpi (uint64_t spi);
-	void SetNextPayload (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+	uint64_t GetResponderSpi (void) const;
+	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
 	void SetExchangeType (IkeHeader::EXCHANGE_TYPE exchange_type);
+	IkeHeader::EXCHANGE_TYPE GetExchangeType (void) const;
 	void SetAsInitiator (void);
+	bool IsInitiator (void) const;
 	void SetAsResponder (void);
+	bool IsResponder (void) const;
+	void SetMessageId (uint32_t id);
+	uint32_t GetMessageId (void) const;
+	void SetLength (uint32_t length);
 private:
 	uint8_t FlagsToU8 (void) const;
 	void U8ToFlags (uint8_t input);
 private:
 	uint64_t m_initiator_spi;
 	uint64_t m_responder_spi;
-	uint8_t m_next_payload;
+	IkePayloadHeader::PAYLOAD_TYPE m_next_payload;
 
 	struct Version {
 	private:
@@ -196,7 +219,7 @@ private:
 
 	} m_version;
 
-	uint8_t m_exchange_type;
+	IkeHeader::EXCHANGE_TYPE m_exchange_type;
 	bool m_flag_response;
 	bool m_flag_version;
 	bool m_flag_initiator;
@@ -218,9 +241,31 @@ public:	//Header Override
 public:
 	virtual void SetLength (uint16_t length);
 	virtual uint32_t Deserialize (Buffer::Iterator start, uint16_t length);
-	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void);
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 protected:
 	uint16_t m_length;	//total substructure length (bytes), for deserialization
+};
+
+class Spi : public IkePayloadSubstructure {
+public:
+	static TypeId GetTypeId (void);
+	Spi ();
+	virtual ~Spi ();
+public:	//header override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:	//self-defined
+	uint32_t ToUint32 (void) const;
+	uint64_t ToUint64 (void) const;
+	void SetValueFromUint32 (uint32_t value);
+	void SetValueFromUint64 (uint64_t value);
+public:
+	using IkePayloadSubstructure::Deserialize;
+private:
+	std::list<uint8_t> m_lst_var;
 };
 
 class IkePayload : public Header {
@@ -253,6 +298,8 @@ public:	//const
 public:	//non-const
 	void SetPayload (IkePayloadSubstructure substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+public:	//static
+	static IkePayload GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 private:
 	IkePayloadHeader m_header;
 	IkePayloadSubstructure m_substructure;
@@ -308,11 +355,16 @@ public:
 	virtual ~IkeTransformSubStructure ();
 
 	enum TRANSFORM_TYPE {
+		NO_TRANSFORM = 0,
 		ENCRYPTION_ALGORITHM = 1,
 		PSEUDORANDOM_FUNCTION = 2,
 		INTEGRITY_ALGORITHM = 3,
 		DIFFIE_HELLMAN_GROUP = 4,
 		TYPE_EXTENDED_SEQUENCE_NUMBERS = 5
+	};
+
+	enum GENERIC_TRANSFORM_ID {
+		NO_ID = 0
 	};
 
 	enum TRANSFORM_EA_ID {
@@ -341,7 +393,7 @@ public:
 	enum TRANSFORM_IA_ID {
 		//TYPE 3
 		//integrity algorithm
-		NONE = 0,
+		NONE_IA_ID = 0,
 		AUTH_HMAC_MD5_96 = 1,
 		AUTH_HMAC_SHA1_96 = 2,
 		AUTH_DES_MAC = 3,
@@ -351,7 +403,7 @@ public:
 	enum TRANSFORM_DHG_ID {
 		//TYPE 4
 		//diffie-hellman group
-		NONE = 0,
+		NONE_DHG_ID = 0,
 		DH_768_BIT_MODP = 1,
 		DH_1024_BIT_MODP = 2,
 		DH_1536_BIT_MODP = 5,
@@ -376,33 +428,21 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
-private:	//non virtual functions
-	void SetLast (void);
+private:
+	void SetTransformType (IkeTransformSubStructure::TRANSFORM_TYPE transform_type);
+	void SetTransformId (IkeTransformSubStructure::GENERIC_TRANSFORM_ID transform_id);
 public:
 	bool IsLast (void);
+	void SetLast (void);
+	void ClearLast (void);
+public:	//static
+	static IkeTransformSubStructure GetEmptyTransform (void);
 private:
 	bool m_flag_last;
 	uint16_t m_transform_length;
 	uint8_t m_transform_type;
 	uint8_t m_transform_id;
 	std::list<IkeTransformAttribute> m_lst_transform_attributes;
-};
-
-class GsamSpi : public IkePayloadSubstructure {
-public:
-	static TypeId GetTypeId (void);
-	GsamSpi ();
-	virtual ~GsamSpi ();
-public:	//header override
-	virtual uint32_t GetSerializedSize (void) const;
-	virtual TypeId GetInstanceTypeId (void) const;
-	virtual void Serialize (Buffer::Iterator start) const;
-	virtual uint32_t Deserialize (Buffer::Iterator start);
-	virtual void Print (std::ostream &os) const;
-public:
-	using IkePayloadSubstructure::Deserialize;
-private:
-	std::list<uint8_t> m_lst_var;
 };
 
 class IkeSAProposal : public Header {
@@ -412,7 +452,7 @@ class IkeSAProposal : public Header {
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * | 0 (last) or 2 |   RESERVED    |         Proposal Length       |
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * | Proposal Num  |  Protocol ID  |    SPI Size   |Num  Transforms|
+     * | Proposal Num  |  Protocol ID  |    SPI Size(4)|Num  Transforms|
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * ~                        SPI (variable)                         ~
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -435,19 +475,28 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//non-const
 	void SetLast (void);
+	void ClearLast (void);
 	void SetProposalNumber (uint16_t proposal_num);
 	void SetProtocolId (IPsec::PROTOCOL_ID protocol_id);
 	void SetProtocolIdAndSPISize (IPsec::PROTOCOL_ID protocol_id);
-	void SetSPI (GsamSpi spi);
+	void SetSPI (Spi spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
 private:
 	uint8_t GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id);
+	/*
+	 * Iterate the list of transform and set the last one's "field last"
+	 */
+	void SetLastTransform (void);
+	void ClearLastTranform (void);
+public:
+	static IkeSAProposal GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
+	static IkeSAProposal GenerateDefaultEspProposal (Ptr<GsamInfo> info);
 private:
-	GsamSpi m_spi;
 	bool m_flag_last;
 	uint16_t m_proposal_length;
 	uint8_t m_proposal_num;
 	uint8_t m_protocol_id;
+	Spi m_spi;	//ah or esp or ike
 	uint8_t m_spi_size;			//for reading
 	uint8_t m_num_transforms;	//for reading
 	std::list<IkeTransformSubStructure> m_lst_transforms;
@@ -475,6 +524,17 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//static
+	static IkeSAPayloadSubstructure GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
+	static IkeSAPayloadSubstructure GenerateDefaultEspProposal (Ptr<GsamInfo> info);
+public:	//self-defined
+	void PushBackProposal (IkeSAProposal proposal);
+private:
+	/*
+	 * Iterate the list of proposals and set the last one's "field last"
+	 */
+	void SetLastProposal (void);
+	void ClearLastProposal (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
@@ -570,11 +630,14 @@ class IkeAuthSubstructure : public IkePayloadSubstructure {
 	 */
 
 	enum AUTH_METHOD {
+		EMPTY = 0,
 		RSA_DIGITAL_SIGNATURE = 1,
 		SHARED_KEY_MESSAGE_INTEGRITY_CODE = 2,
 		DSS_DIGITAL_SIGNATURE = 3
 	};
-
+public:	//staitc, enum translation
+	static uint8_t AuthMethodToUint8 (IkeAuthSubstructure::AUTH_METHOD auth_method);
+	static IkeAuthSubstructure::AUTH_METHOD Uint8ToAuthMethod (uint8_t value);
 public:
 	static TypeId GetTypeId (void);
 	IkeAuthSubstructure ();
@@ -588,7 +651,7 @@ public:	//Header Override
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
-	uint8_t m_auth_method;
+	IkeAuthSubstructure::AUTH_METHOD m_auth_method;
 	std::list<uint8_t> m_lst_id_data;
 };
 
@@ -690,7 +753,7 @@ private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;
 	uint16_t m_notify_message_type;
-	GsamSpi m_spi;
+	Spi m_spi;	//ah or esp
 	std::list<uint8_t> m_lst_notification_data;
 };
 
@@ -724,7 +787,7 @@ private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;
 	uint16_t m_num_of_spis;
-	std::list<GsamSpi> m_lst_spis;
+	std::list<Spi> m_lst_spis;
 };
 
 class IkeTrafficSelector : public IkePayloadSubstructure {
@@ -764,7 +827,7 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 private:
-	uint8_t m_ts_type;
+	IkeTrafficSelector::TS_TYPE m_ts_type;
 	uint8_t m_ip_protocol_id;
 	uint16_t m_selector_length;
 	uint16_t m_start_port;
