@@ -296,12 +296,13 @@ public:	//const
 	IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//non-const
 	void SetPayload (IkePayloadSubstructure substructure);
+	void SetPayload (IkePayloadSubstructure* substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 public:	//static
 	static IkePayload GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 private:
 	IkePayloadHeader m_header;
-	IkePayloadSubstructure m_substructure;
+	IkePayloadSubstructure* m_ptr_substructure;
 };
 
 class IkeTransformAttribute : public Header {
@@ -524,8 +525,8 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//static
-	static IkeSAPayloadSubstructure GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
-	static IkeSAPayloadSubstructure GenerateDefaultEspProposal (Ptr<GsamInfo> info);
+	static IkeSAPayloadSubstructure* GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
+	static IkeSAPayloadSubstructure* GenerateDefaultEspProposal (Ptr<GsamInfo> info);
 public:	//self-defined
 	void PushBackProposal (IkeSAProposal proposal);
 private:
@@ -565,7 +566,7 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:
-	static IkeKeyExchangeSubStructure GetDummySubstructure (void);
+	static IkeKeyExchangeSubStructure* GetDummySubstructure (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
@@ -679,7 +680,7 @@ public:	//Header Override
 public:	//override IkePayloadSubstructure
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void);
 public:	//static
-	static IkeNonceSubstructure GenerateNonceSubstructure (void);
+	static IkeNonceSubstructure* GenerateNonceSubstructure (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:

@@ -929,6 +929,7 @@ IkePayload::GetTypeId (void)
 }
 
 IkePayload::IkePayload ()
+  :  m_ptr_substructure(0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -936,6 +937,7 @@ IkePayload::IkePayload ()
 IkePayload::~IkePayload ()
 {
 	NS_LOG_FUNCTION (this);
+	delete m_ptr_substructure;
 }
 
 uint32_t
@@ -943,7 +945,7 @@ IkePayload::GetSerializedSize (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	return this->m_header.GetSerializedSize() + this->m_substructure.GetSerializedSize();
+	return this->m_header.GetSerializedSize() + this->m_ptr_substructure->GetSerializedSize();
 }
 
 TypeId
@@ -962,8 +964,8 @@ IkePayload::Serialize (Buffer::Iterator start) const
 	this->m_header.Serialize(i);
 	i.Next(this->m_header.GetSerializedSize());
 
-	this->m_substructure.Serialize(i);
-	i.Next(this->m_substructure.GetSerializedSize());
+	this->m_ptr_substructure->Serialize(i);
+	i.Next(this->m_ptr_substructure->GetSerializedSize());
 }
 
 uint32_t
@@ -981,9 +983,9 @@ IkePayload::Deserialize (Buffer::Iterator start)
 	uint16_t total_length = this->m_header.GetPayloadLength();
 	uint16_t length_rest = total_length - this->m_header.GetSerializedSize();
 
-	this->m_substructure.Deserialize(i, length_rest);
-	i.Next(this->m_substructure.GetSerializedSize());
-	size += this->m_substructure.GetSerializedSize();
+	this->m_ptr_substructure->Deserialize(i, length_rest);
+	i.Next(this->m_ptr_substructure->GetSerializedSize());
+	size += this->m_ptr_substructure->GetSerializedSize();
 
 	NS_ASSERT (size == total_length);
 
@@ -996,29 +998,39 @@ IkePayload::Print (std::ostream &os) const
 	NS_LOG_FUNCTION (this << &os);
 	os << "IkePayload: " << this << std::endl;
 	this->m_header.Print(os);
-	this->m_substructure.Print(os);
+	this->m_ptr_substructure->Print(os);
 }
 
 bool
 IkePayload::IsInitialized (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return (this->m_substructure.GetInstanceTypeId() != IkePayloadSubstructure::GetTypeId());
+	return (this->m_ptr_substructure->GetInstanceTypeId() != IkePayloadSubstructure::GetTypeId());
 }
 
 IkePayloadHeader::PAYLOAD_TYPE
 IkePayload::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_substructure.GetPayloadType();
+	return this->m_ptr_substructure->GetPayloadType();
 }
 
 void
 IkePayload::SetPayload (IkePayloadSubstructure substructure)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_substructure = substructure;
-	this->m_header.SetPayloadLength(substructure.GetSerializedSize() + this->m_header.GetSerializedSize());
+	//sealed
+	NS_ASSERT (false);
+//	this->m_ptr_substructure = substructure;
+//	this->m_header.SetPayloadLength(substructure.GetSerializedSize() + this->m_header.GetSerializedSize());
+}
+
+void
+IkePayload::SetPayload (IkePayloadSubstructure* substructure)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_substructure = substructure;
+	this->m_header.SetPayloadLength(this->m_ptr_substructure->GetSerializedSize() + this->m_header.GetSerializedSize());
 }
 
 void
@@ -1832,22 +1844,22 @@ IkeSAPayloadSubstructure::Print (std::ostream &os) const
 
 	IkePayloadSubstructure::Print(os);
 
-	os << "IkeSAPayload: " << this << std::endl;
+	os << "IkeSAPayloadSubstructure: " << this << std::endl;
 }
 
-IkeSAPayloadSubstructure
+IkeSAPayloadSubstructure*
 IkeSAPayloadSubstructure::GenerateDefaultIkeProposal (Ptr<GsamInfo> info)
 {
-	IkeSAPayloadSubstructure retval;
-		retval.PushBackProposal(IkeSAProposal::GenerateDefaultIkeProposal(info));
+	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
+		retval->PushBackProposal(IkeSAProposal::GenerateDefaultIkeProposal(info));
 		return retval;
 }
 
-IkeSAPayloadSubstructure
+IkeSAPayloadSubstructure*
 IkeSAPayloadSubstructure::GenerateDefaultEspProposal (Ptr<GsamInfo> info)
 {
-	IkeSAPayloadSubstructure retval;
-	retval.PushBackProposal(IkeSAProposal::GenerateDefaultEspProposal(info));
+	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
+	retval->PushBackProposal(IkeSAProposal::GenerateDefaultEspProposal(info));
 	return retval;
 }
 
@@ -1979,11 +1991,11 @@ IkeKeyExchangeSubStructure::Print (std::ostream &os) const
 	os << "IkeKeyExchangeSubStructure: " << this << std::endl;
 }
 
-IkeKeyExchangeSubStructure
+IkeKeyExchangeSubStructure*
 IkeKeyExchangeSubStructure::GetDummySubstructure (void)
 {
-	IkeKeyExchangeSubStructure substructure;
-	substructure.SetLength(4);
+	IkeKeyExchangeSubStructure* substructure = new IkeKeyExchangeSubStructure();
+	substructure->SetLength(4);
 	return substructure;
 }
 
@@ -2361,20 +2373,20 @@ IkeNonceSubstructure::GetPayloadType (void)
 	return IkePayloadHeader::NONCE;
 }
 
-IkeNonceSubstructure
+IkeNonceSubstructure*
 IkeNonceSubstructure::GenerateNonceSubstructure (void)
 {
-	IkeNonceSubstructure nonce;
+	IkeNonceSubstructure* nonce = new IkeNonceSubstructure();
 
 	uint16_t length = rand();
-	nonce.SetLength(length);
+	nonce->SetLength(length);
 
 	for (	uint16_t it = 1;
 			it <= length;
 			it++)
 	{
 		uint16_t data = rand();
-		nonce.m_lst_nonce_data.push_back(data);
+		nonce->m_lst_nonce_data.push_back(data);
 	}
 
 	return nonce;
