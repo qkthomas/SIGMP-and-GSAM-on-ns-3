@@ -50,7 +50,7 @@ IkeHeader::IkeHeader ()
 	 m_responder_spi (0),
      m_next_payload (IkePayloadHeader::NO_NEXT_PAYLOAD),
 	 m_version (2),
-	 m_exchange_type (IkeHeader::IKE_SA_INIT),
+	 m_exchange_type (IkeHeader::NONE),
 	 m_flag_response (false),
 	 m_flag_version (false),
 	 m_flag_initiator (false),
@@ -124,9 +124,9 @@ IkeHeader::Serialize (Buffer::Iterator start) const
 
 	i.WriteHtolsbU64(this->m_initiator_spi);
 	i.WriteHtolsbU64(this->m_responder_spi);
-	i.WriteU8(IkePayloadHeader::PayloadTypeToUnit8(this->m_next_payload));
+	i.WriteU8(this->m_next_payload);
 	i.WriteU8(this->m_version.toUint8_t());
-	i.WriteU8(IkeHeader::ExchangeTypeToUint8(this->m_exchange_type));
+	i.WriteU8(this->m_exchange_type);
 	i.WriteU8(this->FlagsToU8());
 	i.WriteHtonU32(this->m_message_id);
 	i.WriteHtonU32(this->m_length);
@@ -145,16 +145,14 @@ IkeHeader::Deserialize (Buffer::Iterator start)
 	this->m_responder_spi = i.ReadNtohU64();
 	byte_read += sizeof (this->m_responder_spi);
 
-	uint8_t next_payload_read = i.ReadU8();
-	this->m_next_payload = IkePayloadHeader::Uint8ToPayloadType(next_payload_read);
-	byte_read += sizeof (next_payload_read);
+	this->m_next_payload = i.ReadU8();
+	byte_read += sizeof (this->m_next_payload);
 
 	this->m_version = i.ReadU8();
 	byte_read += sizeof (this->m_version);
 
-	uint8_t exchange_type_read = i.ReadU8();
-	this->m_exchange_type = IkeHeader::Uint8ToExchangeType(exchange_type_read);
-	byte_read += sizeof (exchange_type_read);
+	this->m_exchange_type = i.ReadU8();
+	byte_read += sizeof (this->m_exchange_type);
 
 	this->U8ToFlags(i.ReadU8());
 	byte_read++;
@@ -289,7 +287,7 @@ IkeHeader::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 	this->m_next_payload = payload_type;
 }
 
-IkePayloadHeader::PAYLOAD_TYPE
+uint8_t
 IkeHeader::GetNextPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -303,7 +301,7 @@ IkeHeader::SetExchangeType (IkeHeader::EXCHANGE_TYPE exchange_type)
 	this->m_exchange_type = exchange_type;
 }
 
-IkeHeader::EXCHANGE_TYPE
+uint8_t
 IkeHeader::GetExchangeType (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -523,7 +521,7 @@ IkePayloadHeader::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(IkePayloadHeader::PayloadTypeToUnit8(this->m_next_payload));
+	i.WriteU8(this->m_next_payload);
 	if (false == this->m_flag_critical)
 	{
 		i.WriteU8(0x00);
@@ -542,9 +540,8 @@ IkePayloadHeader::Deserialize (Buffer::Iterator start)
 	uint32_t byte_read = 0;
 	Buffer::Iterator i = start;
 
-	uint8_t next_payload_read = i.ReadU8();
-	this->m_next_payload = IkePayloadHeader::Uint8ToPayloadType(next_payload_read);
-	byte_read += sizeof (next_payload_read);
+	this->m_next_payload = i.ReadU8();
+	byte_read += sizeof (this->m_next_payload);
 
 	uint8_t critial_reserved = i.ReadU8();
 	byte_read += sizeof (critial_reserved);
@@ -600,7 +597,7 @@ IkePayloadHeader::GetPayloadLength (void) const
 }
 
 void
-IkePayloadHeader::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
+IkePayloadHeader::SetNextPayloadType (uint8_t payload_type)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_next_payload = payload_type;
@@ -998,6 +995,8 @@ IkePayload::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
 	os << "IkePayload: " << this << std::endl;
+	this->m_header.Print(os);
+	this->m_substructure.Print(os);
 }
 
 bool
@@ -2197,7 +2196,7 @@ IkeAuthSubstructure::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(IkeAuthSubstructure::AuthMethodToUint8(this->m_auth_method));
+	i.WriteU8(this->m_auth_method);
 	i.WriteU8(0, 3);
 
 	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_id_data.begin();
@@ -2225,9 +2224,8 @@ IkeAuthSubstructure::Deserialize (Buffer::Iterator start)
 
 	uint32_t size = 0;
 
-	uint8_t auth_method = i.ReadU8();
-	this->m_auth_method = IkeAuthSubstructure::Uint8ToAuthMethod(auth_method);
-	size += sizeof (auth_method);
+	this->m_auth_method = i.ReadU8();
+	size += sizeof (this->m_auth_method);
 
 	//to check whehter 24bits field RESERVED is 0
 	uint8_t RESERVED1 = i.ReadU8();
@@ -2650,7 +2648,7 @@ IkeTrafficSelector::GetTypeId (void)
 }
 
 IkeTrafficSelector::IkeTrafficSelector ()
-  : m_ts_type (IkeTrafficSelector::TS_IPV4_ADDR_RANGE),
+  : m_ts_type (0),
 	m_ip_protocol_id (0),
 	m_selector_length (0),
 	m_start_port (0),

@@ -249,9 +249,9 @@ GsamL4Protocol::HandlePacketWithoutSession (Ptr<Packet> packet, const IkeHeader&
 {
 	NS_LOG_FUNCTION (this << packet);
 
-	IkeHeader::EXCHANGE_TYPE exchange_type = ikeheader.GetExchangeType();
+	uint8_t exchange_type = ikeheader.GetExchangeType();
 
-	if (IkeHeader::IKE_SA_INIT == exchange_type)
+	if (exchange_type == IkeHeader::IKE_SA_INIT)
 	{
 
 	}

@@ -92,12 +92,10 @@ public:	//Header override
 public:	//const
 	uint16_t GetPayloadLength (void) const;
 public:	//non-const
-	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+	void SetNextPayloadType (uint8_t payload_type);
 	void SetPayloadLength (uint16_t length);
-public:	//static
-	static IkePayloadHeader::PAYLOAD_TYPE GetPayloadTypeFromUint8 (uint8_t value);
 private:
-	IkePayloadHeader::PAYLOAD_TYPE m_next_payload;
+	uint8_t m_next_payload;
 	bool m_flag_critical;
 	uint16_t m_payload_length;
 };
@@ -130,6 +128,7 @@ public:	//Header override
 	virtual ~IkeHeader ();
 
 	enum EXCHANGE_TYPE {
+		NONE = 0,
 		IKE_SA_INIT = 34,
 		IKE_AUTH = 35,
 		CREATE_CHILD_SA = 36,
@@ -152,9 +151,9 @@ public:
 	void SetResponderSpi (uint64_t spi);
 	uint64_t GetResponderSpi (void) const;
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
-	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
+	uint8_t GetNextPayloadType (void) const;
 	void SetExchangeType (IkeHeader::EXCHANGE_TYPE exchange_type);
-	IkeHeader::EXCHANGE_TYPE GetExchangeType (void) const;
+	uint8_t GetExchangeType (void) const;
 	void SetAsInitiator (void);
 	bool IsInitiator (void) const;
 	void SetAsResponder (void);
@@ -168,7 +167,7 @@ private:
 private:
 	uint64_t m_initiator_spi;
 	uint64_t m_responder_spi;
-	IkePayloadHeader::PAYLOAD_TYPE m_next_payload;
+	uint8_t m_next_payload;
 
 	struct Version {
 	private:
@@ -219,7 +218,7 @@ private:
 
 	} m_version;
 
-	IkeHeader::EXCHANGE_TYPE m_exchange_type;
+	uint8_t m_exchange_type;
 	bool m_flag_response;
 	bool m_flag_version;
 	bool m_flag_initiator;
@@ -651,7 +650,7 @@ public:	//Header Override
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
-	IkeAuthSubstructure::AUTH_METHOD m_auth_method;
+	uint8_t m_auth_method;
 	std::list<uint8_t> m_lst_id_data;
 };
 
@@ -827,7 +826,7 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 private:
-	IkeTrafficSelector::TS_TYPE m_ts_type;
+	uint8_t m_ts_type;
 	uint8_t m_ip_protocol_id;
 	uint16_t m_selector_length;
 	uint16_t m_start_port;
