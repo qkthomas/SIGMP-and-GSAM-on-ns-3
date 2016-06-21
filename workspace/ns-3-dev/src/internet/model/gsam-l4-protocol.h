@@ -57,12 +57,13 @@ public:	//added by Lin Chen
 public:	//exchanges, added by Lin Chen
 	void Send_IKE_SA_INIT (Ipv4Address dest);
 private:	//Sending, added by Lin Chen,
-	void SendMessage (Ptr<Packet> packet, Ipv4Address dest);
+	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, Ipv4Address dest, bool retransmit);
 private:	//handle reads, added by Lin Chen
 	void HandlePacketWithoutSession (Ptr<Packet> packet, const IkeHeader& ikeheader);
 	void HandlePacketWithSession (Ptr<Packet> packet, const IkeHeader& ikeheader);
 private:	//responing, added by Lin Chen
 	void HandleIkeSaInit (Ptr<Packet> packet, const IkeHeader& ikeheader);
+	void RespondIkeSaInit (Ptr<GsamSession> session, Ipv4Address dest);
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;

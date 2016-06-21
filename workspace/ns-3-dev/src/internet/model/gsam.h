@@ -91,11 +91,12 @@ public:	//Header override
 	virtual void Print (std::ostream &os) const;
 public:	//const
 	uint16_t GetPayloadLength (void) const;
+	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
 public:	//non-const
-	void SetNextPayloadType (uint8_t payload_type);
+	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 	void SetPayloadLength (uint16_t length);
 private:
-	uint8_t m_next_payload;
+	IkePayloadHeader::PAYLOAD_TYPE m_next_payload;
 	bool m_flag_critical;
 	uint16_t m_payload_length;
 };
@@ -151,9 +152,9 @@ public:
 	void SetResponderSpi (uint64_t spi);
 	uint64_t GetResponderSpi (void) const;
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
-	uint8_t GetNextPayloadType (void) const;
+	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
 	void SetExchangeType (IkeHeader::EXCHANGE_TYPE exchange_type);
-	uint8_t GetExchangeType (void) const;
+	IkeHeader::EXCHANGE_TYPE GetExchangeType (void) const;
 	void SetAsInitiator (void);
 	bool IsInitiator (void) const;
 	void SetAsResponder (void);
@@ -167,7 +168,7 @@ private:
 private:
 	uint64_t m_initiator_spi;
 	uint64_t m_responder_spi;
-	uint8_t m_next_payload;
+	IkePayloadHeader::PAYLOAD_TYPE m_next_payload;
 
 	struct Version {
 	private:
@@ -218,7 +219,7 @@ private:
 
 	} m_version;
 
-	uint8_t m_exchange_type;
+	IkeHeader::EXCHANGE_TYPE m_exchange_type;
 	bool m_flag_response;
 	bool m_flag_version;
 	bool m_flag_initiator;
@@ -294,12 +295,18 @@ public:	//Header Override
 public:	//const
 	bool IsInitialized (void) const;
 	IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
+	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
 public:	//non-const
-	void SetPayload (IkePayloadSubstructure substructure);
+//	void SetPayload (IkePayloadSubstructure substructure);
 	void SetPayload (IkePayloadSubstructure* substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 public:	//static
+	/*
+	 * For Deserilization Only
+	 */
 	static IkePayload GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+private:	//non-const
+	void DeletePayloadSubstructure (void);
 private:
 	IkePayloadHeader m_header;
 	IkePayloadSubstructure* m_ptr_substructure;
@@ -327,6 +334,11 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//self-defined
+	uint16_t GetAttributeType (void);
+	void SetAttributeType (uint16_t type);
+	uint16_t GetAttributeValue (void);
+	void SetAttributeValue (uint16_t value);
 private:
 	bool m_flag_TLV;
 	uint16_t m_attribute_type;
@@ -413,7 +425,7 @@ public:
 		DH_6144_BIT_MODP = 17,
 		DH_8192_BIT_MODP = 18,
 		//dummy test use
-		DH_8_BIT_MODP = 19
+		DH_32_BIT_MODP = 19
 	};
 	enum TRANSFORM_ESN_ID {
 		//TYPE 5
@@ -489,6 +501,7 @@ private:
 	void SetLastTransform (void);
 	void ClearLastTranform (void);
 public:
+	static IkeSAProposal GenerateInitIkeProposal ();
 	static IkeSAProposal GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
 	static IkeSAProposal GenerateDefaultEspProposal (Ptr<GsamInfo> info);
 private:
@@ -525,6 +538,7 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//static
+	static IkeSAPayloadSubstructure* GenerateInitIkeProposal (void);
 	static IkeSAPayloadSubstructure* GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
 	static IkeSAPayloadSubstructure* GenerateDefaultEspProposal (Ptr<GsamInfo> info);
 public:	//self-defined
@@ -554,6 +568,20 @@ class IkeKeyExchangeSubStructure : public IkePayloadSubstructure {
      * |                                                               |
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 */
+public:
+	enum GROUP_NUM {
+		NONE_DHG_ID = 0,
+		DH_768_BIT_MODP = 1,
+		DH_1024_BIT_MODP = 2,
+		DH_1536_BIT_MODP = 5,
+		DH_2048_BIT_MODP = 14,
+		DH_3072_BIT_MODP = 15,
+		DH_4096_BIT_MODP = 16,
+		DH_6144_BIT_MODP = 17,
+		DH_8192_BIT_MODP = 18,
+		//dummy test use
+		DH_32_BIT_MODP = 19
+	};
 
 public:
 	static TypeId GetTypeId (void);
@@ -902,9 +930,12 @@ public:
 public:
 	void SetBlockSize (uint8_t block_size);
 	bool IsInitialized (void);
+private:	//non-const
+	void DeleteEncryptedPayload (void);
 private:
 	std::list<uint8_t> m_initialization_vector;
-	std::list<uint8_t> m_lst_encrypted_payload;	//including padding and pad length
+	//std::list<uint8_t> m_lst_encrypted_payload;	//including padding and pad length
+	IkePayload* m_ptr_encrypted_payload;
 	uint8_t m_block_size;
 	uint8_t m_checksum_length;
 	std::list<uint8_t> m_lst_integrity_checksum_data;

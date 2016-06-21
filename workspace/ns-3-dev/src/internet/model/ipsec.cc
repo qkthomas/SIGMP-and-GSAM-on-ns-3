@@ -114,11 +114,25 @@ GsamInfo::GetRetransmissionDelay (void) const
 	NS_LOG_FUNCTION (this);
 	return this->m_retransmission_delay;
 }
+
 void
 GsamInfo::SetRetransmissionDelay (Time time)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_retransmission_delay = time;
+}
+
+void
+GsamInfo::OccupyGsamSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	std::pair<std::set<uint64_t>::iterator, bool> result = this->m_set_occupied_gsam_spis.insert(spi);
+
+	if (result.second == this->m_set_occupied_gsam_spis.insert(spi).second)
+	{
+		//there is already a element of the same value of spi in the set
+		NS_ASSERT (false);
+	}
 }
 
 /********************************************************
@@ -139,7 +153,8 @@ GsamSa::GetTypeId (void)
 }
 
 GsamSa::GsamSa ()
-  :  m_initiator_spi (0),
+  :  m_type (GsamSa::NOT_INITIATED),
+	 m_initiator_spi (0),
 	 m_responder_spi (0),
 	 m_ptr_session (0),
 	 m_ptr_encrypt_fn (0)
@@ -189,6 +204,19 @@ operator == (GsamSa const& lhs, GsamSa const& rhs)
 	}
 
 	return retval;
+}
+
+GsamSa::SA_TYPE
+GsamSa::GetType (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_type;
+}
+void
+GsamSa::SetType (GsamSa::SA_TYPE type)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_type = type;
 }
 
 uint64_t
@@ -306,7 +334,8 @@ GsamSession::GsamSession ()
   :  m_current_message_id (0),
 	 m_peer_address (Ipv4Address ("0.0.0.0")),
 	 m_role (GsamSession::UNINITIALIZED),
-	 m_ptr_sa (0),
+	 m_ptr_init_sa (0),
+	 m_ptr_kek_sa (0),
 	 m_ptr_database (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -315,8 +344,9 @@ GsamSession::GsamSession ()
 GsamSession::~GsamSession()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_ptr_sa = 0;
+	this->m_ptr_init_sa = 0;
 	this->m_ptr_database = 0;
+	this->m_ptr_kek_sa = 0;
 }
 
 TypeId
@@ -355,7 +385,7 @@ operator == (GsamSession const& lhs, GsamSession const& rhs)
 {
 	bool retval = true;
 
-	if (lhs.m_ptr_sa != rhs.m_ptr_sa)
+	if (lhs.m_ptr_init_sa != rhs.m_ptr_init_sa)
 	{
 		retval = false;
 	}
@@ -378,7 +408,7 @@ GsamSession::GetLocalSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (0 == this->m_ptr_sa)
+	if (0 == this->m_ptr_init_sa)
 	{
 		NS_ASSERT (false);
 	}
@@ -391,11 +421,11 @@ GsamSession::GetLocalSpi (void) const
 	}
 	else if (GsamSession::INITIATOR == this->m_role)
 	{
-		spi = this->m_ptr_sa->GetInitiatorSpi();
+		spi = this->m_ptr_init_sa->GetInitiatorSpi();
 	}
 	else if (GsamSession::RESPONDER == this->m_role)
 	{
-		spi = this->m_ptr_sa->GetResponderSpi();
+		spi = this->m_ptr_init_sa->GetResponderSpi();
 	}
 
 	return spi;
@@ -416,44 +446,44 @@ GsamSession::SetRole (GsamSession::ROLE role)
 }
 
 uint64_t
-GsamSession::GetInitiatorSpi (void) const
+GsamSession::GetInitSaInitiatorSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_ptr_sa->GetInitiatorSpi();
+	return this->m_ptr_init_sa->GetInitiatorSpi();
 }
 
 void
-GsamSession::SetInitiatorSpi (uint64_t spi)
+GsamSession::SetInitSaInitiatorSpi (uint64_t spi)
 {
 	NS_LOG_FUNCTION (this);
-	if (0 == this->m_ptr_sa)
+	if (0 == this->m_ptr_init_sa)
 	{
 		NS_ASSERT (false);
 	}
 	else
 	{
-		this->m_ptr_sa->SetInitiatorSpi(spi);
+		this->m_ptr_init_sa->SetInitiatorSpi(spi);
 	}
 }
 
 uint64_t
-GsamSession::GetResponderSpi (void) const
+GsamSession::GetInitSaResponderSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_ptr_sa->GetResponderSpi();
+	return this->m_ptr_init_sa->GetResponderSpi();
 }
 
 void
-GsamSession::SetResponderSpi (uint64_t spi)
+GsamSession::SetInitSaResponderSpi (uint64_t spi)
 {
 	NS_LOG_FUNCTION (this);
-	if (0 == this->m_ptr_sa)
+	if (0 == this->m_ptr_init_sa)
 	{
 		NS_ASSERT (false);
 	}
 	else
 	{
-		this->m_ptr_sa->SetResponderSpi(spi);
+		this->m_ptr_init_sa->SetResponderSpi(spi);
 	}
 }
 
@@ -465,12 +495,13 @@ GsamSession::SetDatabase (Ptr<IpSecDatabase> database)
 }
 
 void
-GsamSession::EtablishGsamSa (void)
+GsamSession::EtablishGsamInitSa (void)
 {
 	NS_LOG_FUNCTION (this);
-	if (0 == this->m_ptr_sa)
+	if (0 == this->m_ptr_init_sa)
 	{
-		this->m_ptr_sa = Create<GsamSa>();
+		this->m_ptr_init_sa = Create<GsamSa>();
+		this->m_ptr_init_sa->SetType(GsamSa::GSAM_INIT_SA);
 	}
 	else
 	{
@@ -490,6 +521,39 @@ GsamSession::GetTimer (void)
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_timer;
+}
+
+Time
+GsamSession::GetDefaultDelay (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	Time retval = Seconds(0.0);
+	return retval;
+}
+
+bool
+GsamSession::IsRetransmit (void)
+{
+	NS_LOG_FUNCTION (this);
+	//place holder
+
+	bool retval = false;
+
+	if (GsamSession::INITIATOR == this->m_role)
+	{
+		retval = false;
+	}
+	else if (GsamSession::RESPONDER == this->m_role)
+	{
+		retval = false;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	return retval;
 }
 
 /********************************************************
@@ -787,8 +851,8 @@ IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint6
 	{
 		Ptr<GsamSession> session_it = (*const_it);
 		if (	(session_it->GetRole() == role) &&
-				(session_it->GetInitiatorSpi() == initiator_spi &&
-				(session_it->GetResponderSpi() == responder_spi) &&
+				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
+				(session_it->GetInitSaResponderSpi() == responder_spi) &&
 				 session_it->GetCurrentMessageId() == message_id)
 			)
 		{

@@ -49,6 +49,7 @@ public:	//self-defined
 	uint32_t GetLocalAvailableIpSecSpi (void) const;
 	Time GetRetransmissionDelay (void) const;
 	void SetRetransmissionDelay (Time time);
+	void OccupyGsamSpi (uint64_t spi);
 private:	//fields
 	std::set<uint64_t> m_set_occupied_gsam_spis;
 	std::set<uint32_t> m_set_occupied_ipsec_spis;	//ah or esp
@@ -56,6 +57,12 @@ private:	//fields
 };
 
 class GsamSa : public Object {
+public:
+	enum SA_TYPE {
+		NOT_INITIATED = 0,
+		GSAM_INIT_SA = 1,
+		GSAM_IEK_SA = 2
+	};
 
 public:	//Object override
 	static TypeId GetTypeId (void);
@@ -74,12 +81,15 @@ private:
 public:	//operator
 	friend bool operator == (GsamSa const& lhs, GsamSa const& rhs);
 public:	//self defined
+	GsamSa::SA_TYPE GetType (void);
+	void SetType (GsamSa::SA_TYPE type);
 	uint64_t GetInitiatorSpi (void) const;
 	void SetInitiatorSpi (uint64_t spi);
 	uint64_t GetResponderSpi (void) const;
 	void SetResponderSpi (uint64_t spi);
 	bool IsHalfOpen (void) const;
 private:	//fields
+	GsamSa::SA_TYPE m_type;
 	uint64_t m_initiator_spi;
 	uint64_t m_responder_spi;
 	Ptr<GsamSession> m_ptr_session;
@@ -132,19 +142,22 @@ public:	//self defined
 	uint64_t GetLocalSpi (void) const;
 	GsamSession::ROLE GetRole (void) const;
 	void SetRole (GsamSession::ROLE role);
-	uint64_t GetInitiatorSpi (void) const;
-	void SetInitiatorSpi (uint64_t spi);
-	uint64_t GetResponderSpi (void) const;
-	void SetResponderSpi (uint64_t spi);
+	uint64_t GetInitSaInitiatorSpi (void) const;
+	void SetInitSaInitiatorSpi (uint64_t spi);
+	uint64_t GetInitSaResponderSpi (void) const;
+	void SetInitSaResponderSpi (uint64_t spi);
 	void SetDatabase (Ptr<IpSecDatabase> database);
-	void EtablishGsamSa (void);
+	void EtablishGsamInitSa (void);
 	void IncrementMessageId (void);
 	Timer& GetTimer (void);
+	Time GetDefaultDelay (void);
+	bool IsRetransmit (void);
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
 	GsamSession::ROLE m_role;
-	Ptr<GsamSa> m_ptr_sa;
+	Ptr<GsamSa> m_ptr_init_sa;
+	Ptr<GsamSa> m_ptr_kek_sa;
 	Ptr<IpSecDatabase> m_ptr_database;
 	Timer m_timer;
 };
