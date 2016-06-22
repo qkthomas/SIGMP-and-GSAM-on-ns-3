@@ -28,6 +28,23 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("GsamSa");
 
 /********************************************************
+ *        GsamConfig
+ ********************************************************/
+
+
+Ipv4Address
+GsamConfig::GetSecGrpAddressStart (void)
+{
+	return Ipv4Address ("224.0.0.100");
+}
+
+Ipv4Address
+GsamConfig::GetSecGrpAddressEnd (void)
+{
+	return Ipv4Address ("224.0.0.255");
+}
+
+/********************************************************
  *        GsamInfo
  ********************************************************/
 
@@ -45,7 +62,9 @@ GsamInfo::GetTypeId (void)
 }
 
 GsamInfo::GsamInfo ()
-  :  m_retransmission_delay (Seconds(0.0))
+  :  m_retransmission_delay (Seconds(0.0)),
+	 m_sec_group_start ("0.0.0.0"),
+	 m_sec_group_end ("0.0.0.0")
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -77,7 +96,7 @@ GsamInfo::DoDispose (void)
 }
 
 uint32_t
-GsamInfo::GetLocalAvailableIpSecSpi (void) const
+GsamInfo::GetLocalAvailableIpsecSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -87,7 +106,8 @@ GsamInfo::GetLocalAvailableIpSecSpi (void) const
 
 	do {
 		spi = rand();
-	} while (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end());
+	} while (	(0 != spi) &&
+				(this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end()));
 
 	return spi;
 }
@@ -103,9 +123,29 @@ GsamInfo::GetLocalAvailableGsamSpi (void) const
 
 	do {
 		spi = rand();
-	} while (this->m_set_occupied_gsam_spis.find(spi) != this->m_set_occupied_gsam_spis.end());
+	} while (	(0 != spi) &&
+				(this->m_set_occupied_gsam_spis.find(spi) != this->m_set_occupied_gsam_spis.end()));
 
 	return spi;
+}
+
+uint64_t
+GsamInfo::RegisterGsamSpi (void)
+{
+	uint64_t retval = this->GetLocalAvailableGsamSpi();
+
+	this->OccupyGsamSpi(retval);
+
+	return retval;
+}
+uint32_t
+GsamInfo::RegisterIpsecSpi (void)
+{
+	uint32_t retval = this->GetLocalAvailableIpsecSpi();
+
+	this->OccupyIpsecSpi(retval);
+
+	return retval;
 }
 
 Time
@@ -128,11 +168,61 @@ GsamInfo::OccupyGsamSpi (uint64_t spi)
 	NS_LOG_FUNCTION (this);
 	std::pair<std::set<uint64_t>::iterator, bool> result = this->m_set_occupied_gsam_spis.insert(spi);
 
-	if (result.second == this->m_set_occupied_gsam_spis.insert(spi).second)
+	if (result.second == false)
 	{
 		//there is already a element of the same value of spi in the set
 		NS_ASSERT (false);
 	}
+}
+
+void
+GsamInfo::OccupyIpsecSpi (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	std::pair<std::set<uint32_t>::iterator, bool> result = this->m_set_occupied_ipsec_spis.insert(spi);
+
+	if (result.second == false)
+	{
+		//there is already a element of the same value of spi in the set
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamInfo::FreeGsamSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint8_t deleted_num_spis = 0;
+
+	deleted_num_spis = this->m_set_occupied_gsam_spis.erase(spi);
+
+	NS_ASSERT (deleted_num_spis == 1);
+}
+void
+GsamInfo::FreeIpsecSpi (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint8_t deleted_num_spis = 0;
+
+	deleted_num_spis = this->m_set_occupied_ipsec_spis.erase(spi);
+
+	NS_ASSERT (deleted_num_spis == 1);
+}
+
+void
+GsamInfo::SetSecGrpStart (Ipv4Address address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_sec_group_start = address;
+}
+
+void
+GsamInfo::SetSecGrpEnd (Ipv4Address address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_sec_group_end = address;
 }
 
 /********************************************************
@@ -165,6 +255,9 @@ GsamSa::GsamSa ()
 GsamSa::~GsamSa()
 {
 	NS_LOG_FUNCTION (this);
+
+	this->FreeLocalSpi();
+
 	this->m_ptr_session = 0;
 	this->m_ptr_encrypt_fn = 0;
 }
@@ -265,6 +358,16 @@ GsamSa::IsHalfOpen (void) const
 	}
 
 	return retval;
+}
+
+void
+GsamSa::FreeLocalSpi (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint64_t local_spi = this->m_ptr_session->GetLocalSpi();
+
+	this->m_ptr_session->GetInfo()->FreeGsamSpi(local_spi);
 }
 
 /********************************************************
@@ -516,20 +619,33 @@ GsamSession::IncrementMessageId (void)
 	this->m_current_message_id++;
 }
 
+void
+GsamSession::SetMessageId (uint32_t message_id)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_role == GsamSession::RESPONDER)
+	{
+		if (message_id > this->m_current_message_id)
+		{
+			this->m_current_message_id = message_id;
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
 Timer&
 GsamSession::GetTimer (void)
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_timer;
-}
-
-Time
-GsamSession::GetDefaultDelay (void)
-{
-	NS_LOG_FUNCTION (this);
-
-	Time retval = Seconds(0.0);
-	return retval;
 }
 
 bool
@@ -554,6 +670,27 @@ GsamSession::IsRetransmit (void)
 	}
 
 	return retval;
+}
+
+Ipv4Address
+GsamSession::GetPeerAddress (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_peer_address;
+}
+
+void
+GsamSession::SetPeerAddress (Ipv4Address peer_address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_peer_address = peer_address;
+}
+
+Ptr<GsamInfo>
+GsamSession::GetInfo (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_database->GetInfo();
 }
 
 /********************************************************
@@ -673,6 +810,19 @@ IpSecSADatabase::DoDispose (void)
  *        IpSecPolicyEntry
  ********************************************************/
 
+/********************************************************
+ *        IpSecPolicyEntry::AddressEntry
+ ********************************************************/
+
+IpSecPolicyEntry::AddressEntry::AddressEntry()
+  :  m_type(IpSecPolicyEntry::AddressEntry::NONE),
+	 m_single_address (Ipv4Address("0.0.0.0")),
+	 m_address_range_start (Ipv4Address("0.0.0.0")),
+	 m_address_range_end (Ipv4Address("0.0.0.0"))
+{
+
+}
+
 NS_OBJECT_ENSURE_REGISTERED (IpSecPolicyEntry);
 
 TypeId
@@ -689,8 +839,6 @@ IpSecPolicyEntry::GetTypeId (void)
 IpSecPolicyEntry::IpSecPolicyEntry ()
   :  m_id (0),
 	 m_direction (IpSecPolicyEntry::BOTH),
-	 m_src_address (Ipv4Address("0.0.0.0")),
-	 m_dest_address (Ipv4Address("0.0.0.0")),
 	 m_ip_protocol_num (0),
 	 m_src_transport_protocol_num (0),
 	 m_dest_transport_protocol_num (0),
@@ -854,6 +1002,30 @@ IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint6
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
 				(session_it->GetInitSaResponderSpi() == responder_spi) &&
 				 session_it->GetCurrentMessageId() == message_id)
+			)
+		{
+			session = session_it;
+		}
+	}
+
+	return session;
+}
+
+Ptr<GsamSession>
+IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint32_t message_id) const
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> session = 0;
+
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_sessions.begin();
+			const_it != this->m_lst_ptr_sessions.end();
+			const_it++)
+	{
+		Ptr<GsamSession> session_it = (*const_it);
+		if (	(session_it->GetRole() == role) &&
+				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
+				 session_it->GetCurrentMessageId() <= message_id)
 			)
 		{
 			session = session_it;

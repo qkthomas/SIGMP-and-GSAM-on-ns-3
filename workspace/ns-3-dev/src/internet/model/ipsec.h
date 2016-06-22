@@ -28,6 +28,12 @@ class IpSecSADatabase;
 class IpSecPolicyDatabase;
 class EncryptionFunction;
 
+class GsamConfig {
+public:
+	static Ipv4Address GetSecGrpAddressStart (void);
+	static Ipv4Address GetSecGrpAddressEnd (void);
+};
+
 class GsamInfo : public Object {
 
 public:	//Object override
@@ -45,15 +51,25 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//self-defined
-	uint64_t GetLocalAvailableGsamSpi (void) const;
-	uint32_t GetLocalAvailableIpSecSpi (void) const;
+	uint64_t RegisterGsamSpi (void);
+	uint32_t RegisterIpsecSpi (void);
 	Time GetRetransmissionDelay (void) const;
 	void SetRetransmissionDelay (Time time);
+	void FreeGsamSpi (uint64_t spi);
+	void FreeIpsecSpi (uint32_t spi);
+	void SetSecGrpStart (Ipv4Address address);
+	void SetSecGrpEnd (Ipv4Address address);
+private:
+	uint64_t GetLocalAvailableGsamSpi (void) const;
+	uint32_t GetLocalAvailableIpsecSpi (void) const;
 	void OccupyGsamSpi (uint64_t spi);
+	void OccupyIpsecSpi (uint32_t spi);
 private:	//fields
 	std::set<uint64_t> m_set_occupied_gsam_spis;
 	std::set<uint32_t> m_set_occupied_ipsec_spis;	//ah or esp
 	Time m_retransmission_delay;
+	Ipv4Address m_sec_group_start;
+	Ipv4Address m_sec_group_end;
 };
 
 class GsamSa : public Object {
@@ -88,6 +104,8 @@ public:	//self defined
 	uint64_t GetResponderSpi (void) const;
 	void SetResponderSpi (uint64_t spi);
 	bool IsHalfOpen (void) const;
+private:
+	void FreeLocalSpi (void);
 private:	//fields
 	GsamSa::SA_TYPE m_type;
 	uint64_t m_initiator_spi;
@@ -149,9 +167,12 @@ public:	//self defined
 	void SetDatabase (Ptr<IpSecDatabase> database);
 	void EtablishGsamInitSa (void);
 	void IncrementMessageId (void);
+	void SetMessageId (uint32_t message_id);
 	Timer& GetTimer (void);
-	Time GetDefaultDelay (void);
 	bool IsRetransmit (void);
+	Ipv4Address GetPeerAddress (void);
+	void SetPeerAddress (Ipv4Address peer_address);
+	Ptr<GsamInfo> GetInfo (void);
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
@@ -223,6 +244,25 @@ public:
 		PROTECT = 2
 	};
 
+	class AddressEntry {
+		friend class IpSecPolicyEntry;
+	private:
+		enum TYPE {
+			NONE = 0,
+			SINGLE = 1,
+			RANGE = 2
+		};
+
+	private:
+		AddressEntry();
+	private:
+		AddressEntry::TYPE m_type;
+		Ipv4Address m_single_address;
+		Ipv4Address m_address_range_start;
+		Ipv4Address m_address_range_end;
+
+	};
+
 public:	//Object override
 	static TypeId GetTypeId (void);
 	IpSecPolicyEntry ();
@@ -240,11 +280,14 @@ private:
 public:	//self-defined, operators
 	friend bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
 	friend bool operator < (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
+public:
+	void SetDirection ();
+
 private:
 	uint16_t m_id;
 	IpSecPolicyEntry::DIRECTION m_direction;
-	Ipv4Address m_src_address;
-	Ipv4Address m_dest_address;
+	AddressEntry m_src_address;
+	AddressEntry m_dest_address;
 	uint8_t m_ip_protocol_num;
 	uint16_t m_src_transport_protocol_num;
 	uint16_t m_dest_transport_protocol_num;
@@ -289,6 +332,7 @@ private:
 
 public:	//self defined
 	Ptr<GsamSession> GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id) const;
+	Ptr<GsamSession> GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint32_t message_id) const;
 	Ptr<GsamSession> GetSession (const IkeHeader& ikeheader) const;
 	Ptr<GsamInfo> GetInfo () const;
 	Ptr<GsamSession> CreateSession (void);

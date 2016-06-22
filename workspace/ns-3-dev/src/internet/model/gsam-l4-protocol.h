@@ -56,14 +56,20 @@ public:	//added by Lin Chen
 	void HandleRead (Ptr<Socket> socket);
 public:	//exchanges, added by Lin Chen
 	void Send_IKE_SA_INIT (Ipv4Address dest);
+	void Send_IKE_SA_AUTH (Ipv4Address dest);
 private:	//Sending, added by Lin Chen,
-	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, Ipv4Address dest, bool retransmit);
+	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
 private:	//handle reads, added by Lin Chen
+	//old HandlePacketWithoutSession
 	void HandlePacketWithoutSession (Ptr<Packet> packet, const IkeHeader& ikeheader);
+	//old HandlePacketWithSession
 	void HandlePacketWithSession (Ptr<Packet> packet, const IkeHeader& ikeheader);
 private:	//responing, added by Lin Chen
-	void HandleIkeSaInit (Ptr<Packet> packet, const IkeHeader& ikeheader);
-	void RespondIkeSaInit (Ptr<GsamSession> session, Ipv4Address dest);
+	//old HandleIkeSaInit
+	void HandleIkeSaInit (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
+	void HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
+	void HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
+	void RespondIkeSaInit (Ptr<GsamSession> session);
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;

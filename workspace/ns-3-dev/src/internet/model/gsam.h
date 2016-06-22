@@ -502,8 +502,6 @@ private:
 	void ClearLastTranform (void);
 public:
 	static IkeSAProposal GenerateInitIkeProposal ();
-	static IkeSAProposal GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
-	static IkeSAProposal GenerateDefaultEspProposal (Ptr<GsamInfo> info);
 private:
 	bool m_flag_last;
 	uint16_t m_proposal_length;
@@ -539,8 +537,6 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//static
 	static IkeSAPayloadSubstructure* GenerateInitIkeProposal (void);
-	static IkeSAPayloadSubstructure* GenerateDefaultIkeProposal (Ptr<GsamInfo> info);
-	static IkeSAPayloadSubstructure* GenerateDefaultEspProposal (Ptr<GsamInfo> info);
 public:	//self-defined
 	void PushBackProposal (IkeSAProposal proposal);
 private:
@@ -636,8 +632,12 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//non-virtual const
+	Ipv4Address GetIpv4AddressFromData (void) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//static
+	static IkeIdSubstructure* GenerateIpv4Substructure (Ipv4Address address);
 private:
 	uint8_t m_id_type;
 	std::list<uint8_t> m_lst_id_data;
@@ -678,6 +678,8 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//static
+	static IkeAuthSubstructure* GenerateEmptyAuthSubstructure (void);
 private:
 	uint8_t m_auth_method;
 	std::list<uint8_t> m_lst_id_data;

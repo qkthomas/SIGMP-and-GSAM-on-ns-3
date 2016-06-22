@@ -1821,38 +1821,6 @@ IkeSAProposal::GenerateInitIkeProposal ()
 	return retval;
 }
 
-IkeSAProposal
-IkeSAProposal::GenerateDefaultIkeProposal (Ptr<GsamInfo> info)
-{
-	IkeSAProposal retval;
-
-	//set ike
-	retval.SetProtocolId(IPsec::IKE);
-	Spi spi;
-	spi.SetValueFromUint64(info->GetLocalAvailableGsamSpi());
-	retval.SetSPI(spi);
-	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
-	retval.PushBackTransform(transform);
-	retval.SetLastTransform();
-	return retval;
-}
-
-IkeSAProposal
-IkeSAProposal::GenerateDefaultEspProposal (Ptr<GsamInfo> info)
-{
-	IkeSAProposal retval;
-
-	//set esp
-	retval.SetProtocolId(IPsec::ESP);
-	Spi spi;
-	spi.SetValueFromUint32(info->GetLocalAvailableIpSecSpi());
-	retval.SetSPI(spi);
-	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
-	retval.PushBackTransform(transform);
-	retval.SetLastTransform();
-	return retval;
-}
-
 /********************************************************
  *        IkeSAPayload
  ********************************************************/
@@ -1958,22 +1926,6 @@ IkeSAPayloadSubstructure::GenerateInitIkeProposal (void)
 	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
 		retval->PushBackProposal(IkeSAProposal::GenerateInitIkeProposal());
 		return retval;
-}
-
-IkeSAPayloadSubstructure*
-IkeSAPayloadSubstructure::GenerateDefaultIkeProposal (Ptr<GsamInfo> info)
-{
-	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
-		retval->PushBackProposal(IkeSAProposal::GenerateDefaultIkeProposal(info));
-		return retval;
-}
-
-IkeSAPayloadSubstructure*
-IkeSAPayloadSubstructure::GenerateDefaultEspProposal (Ptr<GsamInfo> info)
-{
-	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
-	retval->PushBackProposal(IkeSAProposal::GenerateDefaultEspProposal(info));
-	return retval;
 }
 
 void
@@ -2257,6 +2209,61 @@ IkeIdSubstructure::Print (std::ostream &os) const
 	os << "IkeIdSubstructure: " << this << std::endl;
 }
 
+Ipv4Address
+IkeIdSubstructure::GetIpv4AddressFromData (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t value = 0;
+
+	if (4 != this->m_lst_id_data.size())
+	{
+		NS_ASSERT (false);
+	}
+
+	uint8_t bits_to_shift = 0;
+
+	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_id_data.begin();
+			const_it != this->m_lst_id_data.end();
+			const_it++)
+	{
+		uint32_t temp = (*const_it);
+		value += (temp << bits_to_shift);
+		bits_to_shift += 8;
+	}
+
+	return Ipv4Address(value);
+}
+
+IkeIdSubstructure*
+IkeIdSubstructure::GenerateIpv4Substructure (Ipv4Address address)
+{
+	IkeIdSubstructure* retval = new IkeIdSubstructure();
+	retval->m_id_type = IkeIdSubstructure::ID_IPV4_ADDR;
+
+	uint32_t uint_address = address.Get();
+
+	uint32_t mask = 0x000000ff;
+
+	uint8_t bits_to_shift = 0;
+
+	for (	uint8_t it = 1;
+			it <= 4;
+			it++)
+	{
+		uint8_t temp = 0;
+		mask = mask << bits_to_shift;
+		temp = ((uint_address & mask) >> bits_to_shift);
+		retval->m_lst_id_data.push_back(temp);
+
+		bits_to_shift += 8;
+	}
+
+	retval->m_length = 8;
+
+	return retval;
+}
+
 /********************************************************
  *        IkeAuthSubstructure
  ********************************************************/
@@ -2415,6 +2422,15 @@ IkeAuthSubstructure::Print (std::ostream &os) const
 	NS_LOG_FUNCTION (this << &os);
 	IkePayloadSubstructure::Print(os);
 	os << "IkeIdSubstructure: " << this << std::endl;
+}
+
+IkeAuthSubstructure*
+IkeAuthSubstructure::GenerateEmptyAuthSubstructure (void)
+{
+	IkeAuthSubstructure* retval = new IkeAuthSubstructure();
+	retval->m_auth_method = IkeAuthSubstructure::EMPTY;
+	retval->m_length = 4;
+	return retval;
 }
 
 /********************************************************
