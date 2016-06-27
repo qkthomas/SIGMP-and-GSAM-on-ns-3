@@ -502,7 +502,7 @@ private:
 	void ClearLastTranform (void);
 public:
 	static IkeSAProposal GenerateInitIkeProposal ();
-	static IkeSAProposal GenerateAuthIkeProposal (Ptr<GsamInfo> info);
+	static IkeSAProposal GenerateAuthIkeProposal (Spi spi);
 private:
 	bool m_flag_last;
 	uint16_t m_proposal_length;	//for deserialization
@@ -538,7 +538,7 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//static
 	static IkeSAPayloadSubstructure* GenerateInitIkeProposal (void);
-	static IkeSAPayloadSubstructure* GenerateAuthIkeProposal (Ptr<GsamInfo> info);
+	static IkeSAPayloadSubstructure* GenerateAuthIkeProposal (Spi spi);
 public:	//self-defined
 	void PushBackProposal (IkeSAProposal proposal);
 private:

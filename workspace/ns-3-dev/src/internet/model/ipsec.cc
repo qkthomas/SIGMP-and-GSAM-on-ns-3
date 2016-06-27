@@ -476,6 +476,33 @@ GsamSession::DoDispose (void)
 	}
 }
 
+GsamSession::ROLE
+GsamSession::GetLocalRole (const IkeHeader& incoming_header)
+{
+	if (incoming_header.IsInitiator() && incoming_header.IsResponder())
+	{
+		NS_ASSERT (false);
+	}
+
+	if ((!incoming_header.IsInitiator()) && (!incoming_header.IsResponder()))
+	{
+		NS_ASSERT (false);
+	}
+
+	GsamSession::ROLE role = GsamSession::UNINITIALIZED;
+
+	if (incoming_header.IsInitiator())
+	{
+		role = GsamSession::RESPONDER;
+	}
+	else
+	{
+		role = GsamSession::INITIATOR;
+	}
+
+	return role;
+}
+
 uint32_t
 GsamSession::GetCurrentMessageId (void) const
 {
@@ -545,6 +572,11 @@ void
 GsamSession::SetRole (GsamSession::ROLE role)
 {
 	NS_LOG_FUNCTION (this);
+	if (this->m_role != GsamSession::UNINITIALIZED)
+	{
+		NS_ASSERT (false);
+	}
+
 	this->m_role = role;
 }
 
@@ -590,6 +622,48 @@ GsamSession::SetInitSaResponderSpi (uint64_t spi)
 	}
 }
 
+uint64_t
+GsamSession::GetKekSaInitiatorSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_kek_sa->GetInitiatorSpi();
+}
+
+void
+GsamSession::SetKekSaInitiatorSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_kek_sa)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_kek_sa->SetInitiatorSpi(spi);
+	}
+}
+
+uint64_t
+GsamSession::GetKekSaResponderSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_kek_sa->GetResponderSpi();
+}
+
+void
+GsamSession::SetKekSaResponderSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_kek_sa)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_kek_sa->SetResponderSpi(spi);
+	}
+}
+
 void
 GsamSession::SetDatabase (Ptr<IpSecDatabase> database)
 {
@@ -610,6 +684,21 @@ GsamSession::EtablishGsamInitSa (void)
 	{
 		NS_ASSERT (false);
 	}
+}
+
+void
+GsamSession::EtablishGsamKekSa (void)
+{
+	NS_LOG_FUNCTION (this);
+		if (0 == this->m_ptr_kek_sa)
+		{
+			this->m_ptr_kek_sa = Create<GsamSa>();
+			this->m_ptr_kek_sa->SetType(GsamSa::GSAM_KEK_SA);
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 }
 
 void
@@ -813,7 +902,6 @@ IpSecSADatabase::DoDispose (void)
 /********************************************************
  *        IpSecPolicyEntry::AddressEntry
  ********************************************************/
-NS_OBJECT_ENSURE_REGISTERED (IpSecPolicyEntry::AddressEntry);
 
 IpSecPolicyEntry::AddressEntry::AddressEntry()
   :  m_type(IpSecPolicyEntry::AddressEntry::NONE),
@@ -873,18 +961,6 @@ IpSecPolicyEntry::DoDispose (void)
 	NS_LOG_FUNCTION (this);
 }
 
-bool
-operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
-{
-	return lhs.m_id == rhs.m_id;
-}
-
-bool
-operator < (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
-{
-	return lhs.m_id < rhs.m_id;
-}
-
 void
 IpSecPolicyEntry::SetDirection (IpSecPolicyEntry::DIRECTION direction)
 {
@@ -917,7 +993,7 @@ void
 IpSecPolicyEntry::SetProtocolId (uint8_t protocol_id)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_ip_protocol_num;
+	this->m_ip_protocol_num = protocol_id;
 }
 
 uint8_t
@@ -1175,7 +1251,7 @@ IpSecDatabase::DoDispose (void)
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id) const
+IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1186,10 +1262,11 @@ IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint6
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetRole() == role) &&
+		if (	(session_it->GetRole() == local_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
 				(session_it->GetInitSaResponderSpi() == responder_spi) &&
-				 session_it->GetCurrentMessageId() == message_id)
+				 session_it->GetCurrentMessageId() == message_id &&
+				 session_it->GetPeerAddress() == peer_address)
 			)
 		{
 			session = session_it;
@@ -1200,7 +1277,7 @@ IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint6
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint32_t message_id) const
+IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1211,9 +1288,10 @@ IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint3
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetRole() == role) &&
+		if (	(session_it->GetRole() == local_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
-				 session_it->GetCurrentMessageId() <= message_id)
+				 session_it->GetCurrentMessageId() <= message_id &&
+				 session_it->GetPeerAddress() == peer_address)
 			)
 		{
 			session = session_it;
@@ -1224,32 +1302,37 @@ IpSecDatabase::GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint3
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetSession (const IkeHeader& ikeheader) const
+IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address)
 {
-	NS_LOG_FUNCTION (this);
+	Ptr<GsamSession> retval = 0;
 
-	Ptr<GsamSession> session = 0;
+	GsamSession::ROLE local_role = GsamSession::GetLocalRole(header);
+	uint32_t header_message_id = header.GetMessageId();
 
-	GsamSession::ROLE role = GsamSession::UNINITIALIZED;
-
-	if ((true == ikeheader.IsInitiator()) &&
-			(false == ikeheader.IsResponder()))
+	switch (header_message_id)
 	{
-		role = GsamSession::INITIATOR;
-	}
-	else if ((false == ikeheader.IsInitiator()) &&
-			(true == ikeheader.IsResponder()))
-	{
-		role = GsamSession::RESPONDER;
-	}
-	else
-	{
-		NS_ASSERT (false);
+	case 0:
+		retval = this->GetSession(local_role, header.GetInitiatorSpi(), header_message_id, peer_address);
+		break;
+	case 1:
+		retval = this->GetSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
+		break;
+	case 2:
+		retval = this->GetSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
+		break;
+	default:
+		if (header_message_id < 0)
+		{
+			//something went wrong
+			NS_ASSERT (false);
+		}
+		else
+		{
+
+		}
 	}
 
-	session = this->GetSession(role, ikeheader.GetInitiatorSpi(), ikeheader.GetResponderSpi(), ikeheader.GetMessageId());
-
-	return session;
+	return retval;
 }
 
 Ptr<GsamInfo>

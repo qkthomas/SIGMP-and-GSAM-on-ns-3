@@ -77,7 +77,7 @@ public:
 	enum SA_TYPE {
 		NOT_INITIATED = 0,
 		GSAM_INIT_SA = 1,
-		GSAM_IEK_SA = 2
+		GSAM_KEK_SA = 2
 	};
 
 public:	//Object override
@@ -153,6 +153,8 @@ protected:
 
 private:
 	virtual void DoDispose (void);
+public:	//static
+	static GsamSession::ROLE GetLocalRole (const IkeHeader& incoming_header);
 public:	//operator
 	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
 public:	//self defined
@@ -160,12 +162,20 @@ public:	//self defined
 	uint64_t GetLocalSpi (void) const;
 	GsamSession::ROLE GetRole (void) const;
 	void SetRole (GsamSession::ROLE role);
+	//init sa
 	uint64_t GetInitSaInitiatorSpi (void) const;
 	void SetInitSaInitiatorSpi (uint64_t spi);
 	uint64_t GetInitSaResponderSpi (void) const;
 	void SetInitSaResponderSpi (uint64_t spi);
+	//kek sa
+	uint64_t GetKekSaInitiatorSpi (void) const;
+	void SetKekSaInitiatorSpi (uint64_t spi);
+	uint64_t GetKekSaResponderSpi (void) const;
+	void SetKekSaResponderSpi (uint64_t spi);
+	//
 	void SetDatabase (Ptr<IpSecDatabase> database);
 	void EtablishGsamInitSa (void);
+	void EtablishGsamKekSa (void);
 	void IncrementMessageId (void);
 	void SetMessageId (uint32_t message_id);
 	Timer& GetTimer (void);
@@ -283,9 +293,6 @@ protected:
 
 private:
 	virtual void DoDispose (void);
-public:	//self-defined, operators
-	friend bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
-	friend bool operator < (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
 public:	//const
 	IpSecPolicyEntry::DIRECTION GetDirection (void) const;
 	IpSecPolicyEntry::PROCESS_CHOICE GetProcessChoice (void) const;
@@ -359,9 +366,9 @@ private:
 	virtual void DoDispose (void);
 
 public:	//self defined
-	Ptr<GsamSession> GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id) const;
-	Ptr<GsamSession> GetSession (GsamSession::ROLE role, uint64_t initiator_spi, uint32_t message_id) const;
-	Ptr<GsamSession> GetSession (const IkeHeader& ikeheader) const;
+	Ptr<GsamSession> GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address);
 	Ptr<GsamInfo> GetInfo () const;
 	Ptr<GsamSession> CreateSession (void);
 	void RemoveSession (Ptr<GsamSession> session);

@@ -1832,14 +1832,12 @@ IkeSAProposal::GenerateInitIkeProposal ()
 }
 
 IkeSAProposal
-IkeSAProposal::GenerateAuthIkeProposal (Ptr<GsamInfo> info)
+IkeSAProposal::GenerateAuthIkeProposal (Spi spi)
 {
 	IkeSAProposal retval;
 	//set ike
 	retval.SetProtocolId(IPsec::IKE);
 	//set spi
-	Spi spi;
-	spi.SetValueFromUint64(info->RegisterGsamSpi());
 	retval.SetSPI(spi);
 	//set trasform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
@@ -1956,10 +1954,10 @@ IkeSAPayloadSubstructure::GenerateInitIkeProposal (void)
 }
 
 IkeSAPayloadSubstructure*
-IkeSAPayloadSubstructure::GenerateAuthIkeProposal (Ptr<GsamInfo> info)
+IkeSAPayloadSubstructure::GenerateAuthIkeProposal (Spi spi)
 {
 	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
-	retval->PushBackProposal(IkeSAProposal::GenerateAuthIkeProposal(info));
+	retval->PushBackProposal(IkeSAProposal::GenerateAuthIkeProposal(spi));
 	return retval;
 }
 

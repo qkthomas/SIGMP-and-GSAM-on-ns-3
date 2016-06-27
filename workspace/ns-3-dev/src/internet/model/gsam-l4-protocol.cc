@@ -163,6 +163,7 @@ GsamL4Protocol::HandleRead (Ptr<Socket> socket)
 		this->HandleIkeSaInit(packet, ikeheader, peer_address);
 		break;
 	case IkeHeader::IKE_AUTH:
+		this->HandleIkeSaAuth(packet, ikeheader, peer_address);
 		break;
 	case IkeHeader::CREATE_CHILD_SA:
 		break;
@@ -239,7 +240,9 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest)
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sai2
 	IkePayload sai2;
-	sai2.SetPayload(IkeSAPayloadSubstructure::GenerateAuthIkeProposal(session->GetInfo()));
+	Spi kek_sa_spi;
+	kek_sa_spi.SetValueFromUint64(session->GetInfo()->RegisterGsamSpi());
+	sai2.SetPayload(IkeSAPayloadSubstructure::GenerateAuthIkeProposal(kek_sa_spi));
 	sai2.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up auth
 	IkePayload auth;
@@ -252,6 +255,10 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest)
 	ikeheader.SetIkev2Version();
 	ikeheader.SetExchangeType(IkeHeader::IKE_AUTH);
 	ikeheader.SetAsInitiator();
+	//pause setting up HDR, start setting up a kek sa
+	session->EtablishGsamKekSa();
+	session->SetKekSaInitiatorSpi(kek_sa_spi.ToUint64());
+	//continue setting up hdr
 	ikeheader.SetMessageId(session->GetCurrentMessageId());
 	ikeheader.SetNextPayloadType(auth.GetPayloadType());
 	ikeheader.SetLength(ikeheader.GetSerializedSize() +
@@ -283,44 +290,6 @@ GsamL4Protocol::SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool 
 		session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
 		session->GetTimer().SetArguments(session, packet, session_retransmit);
 		session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
-	}
-}
-
-void
-GsamL4Protocol::HandlePacketWithoutSession (Ptr<Packet> packet, const IkeHeader& ikeheader)
-{
-	NS_LOG_FUNCTION (this << packet);
-
-	IkeHeader::EXCHANGE_TYPE exchange_type = ikeheader.GetExchangeType();
-
-	if (exchange_type == IkeHeader::IKE_SA_INIT)
-	{
-
-	}
-	else
-	{
-		//message id == 0, but not IKE_SA_INIT????????
-		//dropping
-		NS_ASSERT (false);
-	}
-
-}
-
-void
-GsamL4Protocol::HandlePacketWithSession (Ptr<Packet> packet, const IkeHeader& ikeheader)
-{
-	NS_LOG_FUNCTION (this << packet);
-
-	//find session
-	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader);
-
-	if (0 != session)
-	{
-
-	}
-	else
-	{
-		//message from initiator or message is a reply
 	}
 }
 
@@ -390,7 +359,7 @@ GsamL4Protocol::HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& 
 	IkePayload n_i = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
 	packet->RemoveHeader(n_i);
 
-	Ptr<GsamSession> session = this->m_ptr_database->GetSession(GsamSession::RESPONDER, initiator_spi, message_id);
+	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader, peer_address);
 
 	if (session == 0)
 	{
@@ -412,7 +381,6 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 {
 	NS_LOG_FUNCTION (this << packet);
 
-	uint64_t initiator_spi = ikeheader.GetInitiatorSpi();
 	uint32_t message_id = ikeheader.GetMessageId();
 
 	NS_ASSERT (message_id == 0);
@@ -444,7 +412,7 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 	IkePayload n_r = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
 	packet->RemoveHeader(n_r);
 
-	Ptr<GsamSession> session = this->m_ptr_database->GetSession(GsamSession::INITIATOR, initiator_spi, message_id);
+	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader, peer_address);
 
 	if (0 == session)
 	{
@@ -517,6 +485,32 @@ GsamL4Protocol::RespondIkeSaInit (Ptr<GsamSession> session)
 	session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
 	session->GetTimer().SetArguments(session, packet, false);
 	session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+}
+
+void
+GsamL4Protocol::HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader, peer_address);
+
+}
+void
+GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamL4Protocol::RespondIkeSaAuth (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
 }
 
 } /* namespace ns3 */
