@@ -813,6 +813,7 @@ IpSecSADatabase::DoDispose (void)
 /********************************************************
  *        IpSecPolicyEntry::AddressEntry
  ********************************************************/
+NS_OBJECT_ENSURE_REGISTERED (IpSecPolicyEntry::AddressEntry);
 
 IpSecPolicyEntry::AddressEntry::AddressEntry()
   :  m_type(IpSecPolicyEntry::AddressEntry::NONE),
@@ -837,8 +838,7 @@ IpSecPolicyEntry::GetTypeId (void)
 }
 
 IpSecPolicyEntry::IpSecPolicyEntry ()
-  :  m_id (0),
-	 m_direction (IpSecPolicyEntry::BOTH),
+  :  m_direction (IpSecPolicyEntry::BOTH),
 	 m_ip_protocol_num (0),
 	 m_src_transport_protocol_num (0),
 	 m_dest_transport_protocol_num (0),
@@ -885,6 +885,186 @@ operator < (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
 	return lhs.m_id < rhs.m_id;
 }
 
+void
+IpSecPolicyEntry::SetDirection (IpSecPolicyEntry::DIRECTION direction)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_direction = direction;
+}
+
+IpSecPolicyEntry::DIRECTION
+IpSecPolicyEntry::GetDirection (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_direction;
+}
+
+void
+IpSecPolicyEntry::SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_process_choise = process_choice;
+}
+
+IpSecPolicyEntry::PROCESS_CHOICE
+IpSecPolicyEntry::GetProcessChoice (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_process_choise;
+}
+
+void
+IpSecPolicyEntry::SetProtocolId (uint8_t protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ip_protocol_num;
+}
+
+uint8_t
+IpSecPolicyEntry::GetProtocolId () const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ip_protocol_num;
+}
+
+void
+IpSecPolicyEntry::SetTranSrcPort (uint16_t port_num)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_src_transport_protocol_num = port_num;
+}
+
+uint16_t
+IpSecPolicyEntry::GetTranSrcPort (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_src_transport_protocol_num;
+}
+
+void
+IpSecPolicyEntry::SetTranDestPort (uint16_t port_num)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_dest_transport_protocol_num = port_num;
+}
+
+uint16_t
+IpSecPolicyEntry::GetTranDestPort (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_dest_transport_protocol_num;
+}
+
+void
+IpSecPolicyEntry::SetSrcAddressRange (Ipv4Address range_start, Ipv4Address range_end)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_src_address.m_type = AddressEntry::RANGE;
+	this->m_src_address.m_address_range_start = range_start;
+	this->m_src_address.m_address_range_end = range_end;
+}
+
+Ipv4Address
+IpSecPolicyEntry::GetSrcAddressRangeStart (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_src_address.m_type != AddressEntry::RANGE)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_src_address.m_address_range_start;
+}
+
+Ipv4Address
+IpSecPolicyEntry::GetSrcAddressRangeEnd (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_src_address.m_type != AddressEntry::RANGE)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_src_address.m_address_range_end;
+}
+
+void
+IpSecPolicyEntry::SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_dest_address.m_type = AddressEntry::RANGE;
+	this->m_dest_address.m_address_range_start = range_start;
+	this->m_dest_address.m_address_range_end = range_end;
+}
+
+Ipv4Address
+IpSecPolicyEntry::GetDestAddressRangeStart (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_dest_address.m_type != AddressEntry::RANGE)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_dest_address.m_address_range_start;
+}
+
+Ipv4Address
+IpSecPolicyEntry::GetDestAddressRangeEnd (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_dest_address.m_type != AddressEntry::RANGE)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_dest_address.m_address_range_end;
+}
+
+void
+IpSecPolicyEntry::SetSingleSrcAddress (Ipv4Address address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_src_address.m_type = AddressEntry::SINGLE;
+	this->m_src_address.m_single_address = address;
+}
+
+Ipv4Address
+IpSecPolicyEntry::GetSrcAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_src_address.m_type != AddressEntry::SINGLE)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_src_address.m_single_address;
+}
+
+void
+IpSecPolicyEntry::SetSingleDestAddress (Ipv4Address address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_dest_address.m_type = AddressEntry::SINGLE;
+	this->m_dest_address.m_single_address = address;
+}
+
+Ipv4Address
+IpSecPolicyEntry::GetDestAddress (Ipv4Address address) const
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_dest_address.m_type != AddressEntry::SINGLE)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_dest_address.m_single_address;
+}
+
 /********************************************************
  *        IpSecPolicyDatabase
  ********************************************************/
@@ -910,6 +1090,7 @@ IpSecPolicyDatabase::IpSecPolicyDatabase ()
 IpSecPolicyDatabase::~IpSecPolicyDatabase()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_lst_entries.clear();
 }
 
 TypeId
@@ -929,6 +1110,13 @@ void
 IpSecPolicyDatabase::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
+}
+
+void
+IpSecPolicyDatabase::PushBackEntry (Ptr<IpSecPolicyEntry> entry)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_entries.push_back(entry);
 }
 
 /********************************************************

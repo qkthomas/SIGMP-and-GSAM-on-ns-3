@@ -56,7 +56,7 @@ public:	//added by Lin Chen
 	void HandleRead (Ptr<Socket> socket);
 public:	//exchanges, added by Lin Chen
 	void Send_IKE_SA_INIT (Ipv4Address dest);
-	void Send_IKE_SA_AUTH (Ipv4Address dest);
+	void Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
 private:	//handle reads, added by Lin Chen

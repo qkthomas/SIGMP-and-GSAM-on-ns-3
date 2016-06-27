@@ -502,9 +502,10 @@ private:
 	void ClearLastTranform (void);
 public:
 	static IkeSAProposal GenerateInitIkeProposal ();
+	static IkeSAProposal GenerateAuthIkeProposal (Ptr<GsamInfo> info);
 private:
 	bool m_flag_last;
-	uint16_t m_proposal_length;
+	uint16_t m_proposal_length;	//for deserialization
 	uint8_t m_proposal_num;
 	uint8_t m_protocol_id;
 	Spi m_spi;	//ah or esp or ike
@@ -537,6 +538,7 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//static
 	static IkeSAPayloadSubstructure* GenerateInitIkeProposal (void);
+	static IkeSAPayloadSubstructure* GenerateAuthIkeProposal (Ptr<GsamInfo> info);
 public:	//self-defined
 	void PushBackProposal (IkeSAProposal proposal);
 private:
@@ -856,6 +858,8 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//static
+	static IkeTrafficSelector GenerateDefaultSigmpTs(void);
 private:
 	uint8_t m_ts_type;
 	uint8_t m_ip_protocol_id;
@@ -892,8 +896,11 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//static
+	static IkeTrafficSelectorSubstructure* GenerateEmptySubstructure (void);
+	static IkeTrafficSelectorSubstructure* GenerateDefaultSubstructure (void);
 private:
-	uint8_t m_num_of_tss;
+	uint8_t m_num_of_tss;	//for deserilization
 	std::list<IkeTrafficSelector> m_lst_traffic_selectors;
 };
 

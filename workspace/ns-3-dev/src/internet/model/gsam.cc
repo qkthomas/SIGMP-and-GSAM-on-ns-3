@@ -1612,10 +1612,20 @@ IkeSAProposal::Serialize (Buffer::Iterator start) const
 		NS_ASSERT (false);
 	}
 
+	uint16_t proposal_length = 0;
+	proposal_length += 8;	//fields before SPI and Transforms
+	proposal_length += this->m_spi.GetSerializedSize();
+	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
+			const_it != this->m_lst_transforms.end();
+			const_it++)
+	{
+		proposal_length += const_it->GetSerializedSize();
+	}
+
 	//to write the RESERVED field
 	i.WriteU8(0);
 
-	i.WriteHtolsbU16(this->m_proposal_length);
+	i.WriteHtolsbU16(proposal_length);
 
 	i.WriteU8(this->m_proposal_num);
 
@@ -1814,7 +1824,24 @@ IkeSAProposal::GenerateInitIkeProposal ()
 	IkeSAProposal retval;
 	//set ike
 	retval.SetProtocolId(IPsec::IKE);
-	//no need to set spi
+	//no need to set spi, set transform
+	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
+	retval.PushBackTransform(transform);
+	retval.SetLastTransform();
+	return retval;
+}
+
+IkeSAProposal
+IkeSAProposal::GenerateAuthIkeProposal (Ptr<GsamInfo> info)
+{
+	IkeSAProposal retval;
+	//set ike
+	retval.SetProtocolId(IPsec::IKE);
+	//set spi
+	Spi spi;
+	spi.SetValueFromUint64(info->RegisterGsamSpi());
+	retval.SetSPI(spi);
+	//set trasform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
 	retval.PushBackTransform(transform);
 	retval.SetLastTransform();
@@ -1924,8 +1951,16 @@ IkeSAPayloadSubstructure*
 IkeSAPayloadSubstructure::GenerateInitIkeProposal (void)
 {
 	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
-		retval->PushBackProposal(IkeSAProposal::GenerateInitIkeProposal());
-		return retval;
+	retval->PushBackProposal(IkeSAProposal::GenerateInitIkeProposal());
+	return retval;
+}
+
+IkeSAPayloadSubstructure*
+IkeSAPayloadSubstructure::GenerateAuthIkeProposal (Ptr<GsamInfo> info)
+{
+	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
+	retval->PushBackProposal(IkeSAProposal::GenerateAuthIkeProposal(info));
+	return retval;
 }
 
 void
@@ -2932,6 +2967,24 @@ IkeTrafficSelector::Print (std::ostream &os) const
 	os << "IkeTrafficSelector: " << this << std::endl;
 }
 
+IkeTrafficSelector
+IkeTrafficSelector::GenerateDefaultSigmpTs(void)
+{
+	IkeTrafficSelector retval;
+	retval.m_ts_type = IkeTrafficSelector::TS_IPV4_ADDR_RANGE;
+	retval.m_ip_protocol_id = IpSecPolicyEntry::IGMP;
+	retval.m_start_port = 0;
+	retval.m_end_port = 0;
+	retval.m_starting_address = GsamConfig::GetSecGrpAddressStart();
+	retval.m_ending_address = GsamConfig::GetSecGrpAddressEnd();
+
+	//header = 4; 2 ports = 4; 2 ipv4 address = 8
+	retval.m_length = 16;	//16 bytes
+
+	return retval;
+
+}
+
 /********************************************************
  *        IkeTrafficSelectorSubstructure
  ********************************************************/
@@ -2995,7 +3048,7 @@ IkeTrafficSelectorSubstructure::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(this->m_num_of_tss);
+	i.WriteU8(this->m_lst_traffic_selectors.size());
 
 	//24 bits field RESERVED
 	i.WriteU8(0, 3);
@@ -3056,6 +3109,33 @@ IkeTrafficSelectorSubstructure::Print (std::ostream &os) const
 	NS_LOG_FUNCTION (this << &os);
 	IkePayloadSubstructure::Print(os);
 	os << "IkeTrafficSelectorSubstructure: " << this << std::endl;
+}
+
+IkeTrafficSelectorSubstructure*
+IkeTrafficSelectorSubstructure::GenerateEmptySubstructure (void)
+{
+	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+
+	return retval;
+}
+
+IkeTrafficSelectorSubstructure*
+IkeTrafficSelectorSubstructure::GenerateDefaultSubstructure (void)
+{
+	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+
+	retval->m_num_of_tss = 1;
+	retval->m_lst_traffic_selectors.push_back(IkeTrafficSelector::GenerateDefaultSigmpTs());
+	retval->m_length = 4;
+
+	for (	std::list<IkeTrafficSelector>::const_iterator const_it = retval->m_lst_traffic_selectors.begin();
+			const_it != retval->m_lst_traffic_selectors.end();
+			const_it++)
+	{
+		retval->m_length += const_it->GetSerializedSize();
+	}
+
+	return retval;
 }
 
 /********************************************************

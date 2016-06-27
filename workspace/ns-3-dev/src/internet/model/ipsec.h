@@ -244,6 +244,12 @@ public:
 		PROTECT = 2
 	};
 
+	enum PROTOCOL_ID {
+		IGMP = 2,
+		ESP = 50,
+		AH = 51
+	};
+
 	class AddressEntry {
 		friend class IpSecPolicyEntry;
 	private:
@@ -280,11 +286,29 @@ private:
 public:	//self-defined, operators
 	friend bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
 	friend bool operator < (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
+public:	//const
+	IpSecPolicyEntry::DIRECTION GetDirection (void) const;
+	IpSecPolicyEntry::PROCESS_CHOICE GetProcessChoice (void) const;
+	uint8_t GetProtocolId () const;
+	uint16_t GetTranSrcPort (void) const;
+	uint16_t GetTranDestPort (void) const;
+	Ipv4Address GetSrcAddressRangeStart (void) const;
+	Ipv4Address GetSrcAddressRangeEnd (void) const;
+	Ipv4Address GetDestAddressRangeStart (void) const;
+	Ipv4Address GetDestAddressRangeEnd (void) const;
+	Ipv4Address GetSrcAddress (void) const;
+	Ipv4Address GetDestAddress (Ipv4Address address) const;
 public:
-	void SetDirection ();
-
+	void SetDirection (IpSecPolicyEntry::DIRECTION direction);
+	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
+	void SetProtocolId (uint8_t protocol_id);
+	void SetTranSrcPort (uint16_t port_num);
+	void SetTranDestPort (uint16_t port_num);
+	void SetSrcAddressRange (Ipv4Address range_start, Ipv4Address range_end);
+	void SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end);
+	void SetSingleSrcAddress (Ipv4Address address);
+	void SetSingleDestAddress (Ipv4Address address);
 private:
-	uint16_t m_id;
 	IpSecPolicyEntry::DIRECTION m_direction;
 	AddressEntry m_src_address;
 	AddressEntry m_dest_address;
@@ -292,7 +316,7 @@ private:
 	uint16_t m_src_transport_protocol_num;
 	uint16_t m_dest_transport_protocol_num;
 	IpSecPolicyEntry::PROCESS_CHOICE m_process_choise;
-	Ptr<IpSecSADatabase> m_ptr_sad;
+	Ptr<IpSecPolicyDatabase> m_ptr_sad;
 };
 
 class IpSecPolicyDatabase : public Object {
@@ -311,6 +335,10 @@ protected:
 
 private:
 	virtual void DoDispose (void);
+public:
+	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
+private:	//fields
+	std::list<Ptr<IpSecPolicyEntry> > m_lst_entries;
 };
 
 class IpSecDatabase : public Object {

@@ -226,9 +226,46 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ipv4Address dest)
 }
 
 void
-GsamL4Protocol::Send_IKE_SA_AUTH (Ipv4Address dest)
+GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest)
 {
 	NS_LOG_FUNCTION (this);
+
+	//Setting up TSr
+	IkePayload tsr;
+	tsr.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	//settuping up tsi
+	IkePayload tsi;
+	tsi.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	tsi.SetNextPayloadType(tsr.GetPayloadType());
+	//setting up sai2
+	IkePayload sai2;
+	sai2.SetPayload(IkeSAPayloadSubstructure::GenerateAuthIkeProposal(session->GetInfo()));
+	sai2.SetNextPayloadType(tsi.GetPayloadType());
+	//setting up auth
+	IkePayload auth;
+	auth.SetPayload(IkeAuthSubstructure::GenerateEmptyAuthSubstructure());
+	auth.SetNextPayloadType(sai2.GetPayloadType());
+	//setting up HDR
+	IkeHeader ikeheader;
+	ikeheader.SetInitiatorSpi(session->GetInitSaInitiatorSpi());
+	ikeheader.SetResponderSpi(session->GetInitSaResponderSpi());
+	ikeheader.SetIkev2Version();
+	ikeheader.SetExchangeType(IkeHeader::IKE_AUTH);
+	ikeheader.SetAsInitiator();
+	ikeheader.SetMessageId(session->GetCurrentMessageId());
+	ikeheader.SetNextPayloadType(auth.GetPayloadType());
+	ikeheader.SetLength(ikeheader.GetSerializedSize() +
+			auth.GetSerializedSize() +
+			sai2.GetSerializedSize() +
+			tsi.GetSerializedSize() +
+			tsr.GetSerializedSize());
+
+	Ptr<Packet> packet = Create<Packet>();
+	packet->AddHeader(tsr);
+	packet->AddHeader(tsi);
+	packet->AddHeader(sai2);
+	packet->AddHeader(auth);
+	packet->AddHeader(ikeheader);
 }
 
 void
@@ -407,7 +444,7 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 	IkePayload n_r = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
 	packet->RemoveHeader(n_r);
 
-	Ptr<GsamSession> session = this->m_ptr_database->GetSession(GsamSession::RESPONDER, initiator_spi, message_id);
+	Ptr<GsamSession> session = this->m_ptr_database->GetSession(GsamSession::INITIATOR, initiator_spi, message_id);
 
 	if (0 == session)
 	{
@@ -430,7 +467,7 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 		session->SetInitSaResponderSpi(responder_spi);
 		session->IncrementMessageId();
 
-		this->Send_IKE_SA_AUTH(peer_address);
+		this->Send_IKE_SA_AUTH(session, peer_address);
 	}
 }
 
