@@ -68,6 +68,7 @@ private:	//responing, added by Lin Chen
 	//HandleIkeSaAuth
 	void HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void RespondIkeSaAuth (Ptr<GsamSession> session);
 private:	//fields

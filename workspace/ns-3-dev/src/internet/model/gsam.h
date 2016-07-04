@@ -31,6 +31,8 @@ namespace ns3 {
 
 class GsamInfo;
 class Spi;
+class IkeSAProposal;
+class IkeTrafficSelector;
 
 class IPsec {
 public:
@@ -296,6 +298,9 @@ public:	//const
 	bool IsInitialized (void) const;
 	IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
+	const IkePayloadSubstructure* GetSubstructure (void) const;
+	const std::list<IkeSAProposal>& GetSAProposals (void) const;
+	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
 	void SetPayload (IkePayloadSubstructure* substructure);
@@ -541,6 +546,8 @@ public:	//static
 	static IkeSAPayloadSubstructure* GenerateAuthIkeProposal (Spi spi);
 public:	//self-defined
 	void PushBackProposal (IkeSAProposal proposal);
+public:	//const
+	const std::list<IkeSAProposal>& GetProposals (void) const;
 private:
 	/*
 	 * Iterate the list of proposals and set the last one's "field last"
@@ -858,6 +865,13 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//const
+	uint8_t GetTsType (void) const;
+	uint8_t GetProtocolId (void) const;
+	uint16_t GetStartPort (void) const;
+	uint16_t GetEndPort (void) const;
+	Ipv4Address GetStartingAddress (void) const;
+	Ipv4Address GetEndingAddress (void) const;
 public:	//static
 	static IkeTrafficSelector GenerateDefaultSigmpTs(void);
 private:
@@ -899,6 +913,8 @@ public:
 public:	//static
 	static IkeTrafficSelectorSubstructure* GenerateEmptySubstructure (void);
 	static IkeTrafficSelectorSubstructure* GenerateDefaultSubstructure (void);
+public:	//const
+	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
 private:
 	uint8_t m_num_of_tss;	//for deserilization
 	std::list<IkeTrafficSelector> m_lst_traffic_selectors;

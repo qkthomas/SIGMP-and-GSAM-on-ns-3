@@ -820,23 +820,7 @@ Spi::ToUint32 (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	uint32_t retval = 0;
-
-	if (4 != this->m_lst_var.size())
-	{
-		NS_ASSERT (false);
-	}
-
-	uint8_t bits_to_shift = 0;
-
-	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_var.begin();
-			const_it != this->m_lst_var.end();
-			const_it++)
-	{
-		uint32_t temp = (*const_it);
-		retval += (temp << bits_to_shift);
-		bits_to_shift += 8;
-	}
+	uint32_t retval = GsamUtility::BytesToUint32(this->m_lst_var);
 
 	return retval;
 }
@@ -846,23 +830,7 @@ Spi::ToUint64 (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	uint64_t retval = 0;
-
-	if (8 != this->m_lst_var.size())
-	{
-		NS_ASSERT (false);
-	}
-
-	uint8_t bits_to_shift = 0;
-
-	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_var.begin();
-			const_it != this->m_lst_var.end();
-			const_it++)
-	{
-		uint64_t temp = (*const_it);
-		retval += (temp << bits_to_shift);
-		bits_to_shift += 8;
-	}
+	uint64_t retval = GsamUtility::BytesToUint64(this->m_lst_var);
 
 	return retval;
 }
@@ -872,42 +840,14 @@ Spi::SetValueFromUint32 (uint32_t value)
 {
 	NS_LOG_FUNCTION (this);
 
-	uint32_t mask = 0x000000ff;
-
-	uint8_t bits_to_shift = 0;
-
-	for (	uint8_t it = 1;
-			it <= 4;
-			it++)
-	{
-		uint8_t temp = 0;
-		mask = mask << bits_to_shift;
-		temp = ((value & mask) >> bits_to_shift);
-		this->m_lst_var.push_back(temp);
-
-		bits_to_shift += 8;
-	}
+	GsamUtility::Uint32ToBytes(this->m_lst_var, value);
 }
 void
 Spi::SetValueFromUint64 (uint64_t value)
 {
 	NS_LOG_FUNCTION (this);
 
-	uint64_t mask = 0x00000000000000ff;
-
-	uint8_t bits_to_shift = 0;
-
-	for (	uint8_t it = 1;
-			it <= 8;
-			it++)
-	{
-		uint8_t temp = 0;
-		mask = mask << bits_to_shift;
-		temp = ((value & mask) >> bits_to_shift);
-		this->m_lst_var.push_back(temp);
-
-		bits_to_shift += 8;
-	}
+	GsamUtility::Uint64ToBytes(this->m_lst_var, value);
 }
 
 /********************************************************
@@ -1045,6 +985,45 @@ IkePayload::GetNextPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_header.GetNextPayloadType();
+}
+
+const IkePayloadSubstructure*
+IkePayload::GetSubstructure (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_substructure;
+}
+
+const std::list<IkeSAProposal>&
+IkePayload::GetSAProposals (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
+	{
+		NS_ASSERT (false);
+	}
+
+	IkeSAPayloadSubstructure* ptr_derived = dynamic_cast<IkeSAPayloadSubstructure*>(this->m_ptr_substructure);
+
+	return ptr_derived->GetProposals();
+}
+
+const std::list<IkeTrafficSelector>&
+IkePayload::GetTrafficSelectors (void) const
+{
+	NS_LOG_FUNCTION (this);
+	NS_LOG_FUNCTION (this);
+
+	if ((this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR) &&
+			(this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER))
+	{
+		NS_ASSERT (false);
+	}
+
+	IkeTrafficSelectorSubstructure* ptr_derived = dynamic_cast<IkeTrafficSelectorSubstructure*>(this->m_ptr_substructure);
+
+	return ptr_derived->GetTrafficSelectors();
 }
 
 //void
@@ -1969,6 +1948,13 @@ IkeSAPayloadSubstructure::PushBackProposal (IkeSAProposal proposal)
 	this->m_length += proposal.GetSerializedSize();
 }
 
+const std::list<IkeSAProposal>&
+IkeSAPayloadSubstructure::GetProposals (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_proposal;
+}
+
 /********************************************************
  *        IkeKeyExchangeSubStructure
  ********************************************************/
@@ -2860,7 +2846,7 @@ IkeTrafficSelector::GetTypeId (void)
 IkeTrafficSelector::IkeTrafficSelector ()
   : m_ts_type (0),
 	m_ip_protocol_id (0),
-	m_selector_length (0),
+	m_selector_length (16),	//16 bytes
 	m_start_port (0),
 	m_end_port (0)
 {
@@ -2963,6 +2949,48 @@ IkeTrafficSelector::Print (std::ostream &os) const
 {
 	NS_LOG_FUNCTION (this << &os);
 	os << "IkeTrafficSelector: " << this << std::endl;
+}
+
+uint8_t
+IkeTrafficSelector::GetTsType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ts_type;
+}
+
+uint8_t
+IkeTrafficSelector::GetProtocolId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ip_protocol_id;
+}
+
+uint16_t
+IkeTrafficSelector::GetStartPort (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_start_port;
+}
+
+uint16_t
+IkeTrafficSelector::GetEndPort (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_end_port;
+}
+
+Ipv4Address
+IkeTrafficSelector::GetStartingAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_starting_address;
+}
+
+Ipv4Address
+IkeTrafficSelector::GetEndingAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ending_address;
 }
 
 IkeTrafficSelector
@@ -3134,6 +3162,14 @@ IkeTrafficSelectorSubstructure::GenerateDefaultSubstructure (void)
 	}
 
 	return retval;
+}
+
+const std::list<IkeTrafficSelector>&
+IkeTrafficSelectorSubstructure::GetTrafficSelectors (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_lst_traffic_selectors;
 }
 
 /********************************************************

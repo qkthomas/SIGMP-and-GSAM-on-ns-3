@@ -28,6 +28,14 @@ class IpSecSADatabase;
 class IpSecPolicyDatabase;
 class EncryptionFunction;
 
+class GsamUtility {
+public://static
+	static uint32_t BytesToUint32 (const std::list<uint8_t>& lst_bytes);
+	static uint64_t BytesToUint64 (const std::list<uint8_t>& lst_bytes);
+	static void Uint32ToBytes (std::list<uint8_t>& lst_retval, uint32_t input_value);
+	static void Uint64ToBytes (std::list<uint8_t>& lst_retval, uint64_t input_value);
+};
+
 class GsamConfig {
 public:
 	static Ipv4Address GetSecGrpAddressStart (void);
@@ -182,7 +190,8 @@ public:	//self defined
 	bool IsRetransmit (void);
 	Ipv4Address GetPeerAddress (void);
 	void SetPeerAddress (Ipv4Address peer_address);
-	Ptr<GsamInfo> GetInfo (void);
+	Ptr<GsamInfo> GetInfo (void) const;
+	Ptr<IpSecDatabase> GetDatabase (void) const;
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
@@ -260,25 +269,6 @@ public:
 		AH = 51
 	};
 
-	class AddressEntry {
-		friend class IpSecPolicyEntry;
-	private:
-		enum TYPE {
-			NONE = 0,
-			SINGLE = 1,
-			RANGE = 2
-		};
-
-	private:
-		AddressEntry();
-	private:
-		AddressEntry::TYPE m_type;
-		Ipv4Address m_single_address;
-		Ipv4Address m_address_range_start;
-		Ipv4Address m_address_range_end;
-
-	};
-
 public:	//Object override
 	static TypeId GetTypeId (void);
 	IpSecPolicyEntry ();
@@ -297,8 +287,10 @@ public:	//const
 	IpSecPolicyEntry::DIRECTION GetDirection (void) const;
 	IpSecPolicyEntry::PROCESS_CHOICE GetProcessChoice (void) const;
 	uint8_t GetProtocolId () const;
-	uint16_t GetTranSrcPort (void) const;
-	uint16_t GetTranDestPort (void) const;
+	uint16_t GetTranSrcStartingPort (void) const;
+	uint16_t GetTranSrcEndingPort (void) const;
+	uint16_t GetTranDestStartingPort (void) const;
+	uint16_t GetTranDestEndingPort (void) const;
 	Ipv4Address GetSrcAddressRangeStart (void) const;
 	Ipv4Address GetSrcAddressRangeEnd (void) const;
 	Ipv4Address GetDestAddressRangeStart (void) const;
@@ -309,19 +301,25 @@ public:
 	void SetDirection (IpSecPolicyEntry::DIRECTION direction);
 	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
 	void SetProtocolId (uint8_t protocol_id);
-	void SetTranSrcPort (uint16_t port_num);
-	void SetTranDestPort (uint16_t port_num);
+	void SetTranSrcStartingPort (uint16_t port_num);
+	void SetTranSrcEndingPort (uint16_t port_num);
+	void SetTranDestStartingPort (uint16_t port_num);
+	void SetTranDestEndingPort (uint16_t port_num);
 	void SetSrcAddressRange (Ipv4Address range_start, Ipv4Address range_end);
 	void SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end);
 	void SetSingleSrcAddress (Ipv4Address address);
 	void SetSingleDestAddress (Ipv4Address address);
 private:
 	IpSecPolicyEntry::DIRECTION m_direction;
-	AddressEntry m_src_address;
-	AddressEntry m_dest_address;
+	Ipv4Address m_src_starting_address;
+	Ipv4Address m_src_ending_address;
+	Ipv4Address m_dest_starting_address;
+	Ipv4Address m_dest_ending_address;
 	uint8_t m_ip_protocol_num;
-	uint16_t m_src_transport_protocol_num;
-	uint16_t m_dest_transport_protocol_num;
+	uint16_t m_src_transport_protocol_starting_num;
+	uint16_t m_src_transport_protocol_ending_num;
+	uint16_t m_dest_transport_protocol_starting_num;
+	uint16_t m_dest_transport_protocol_ending_num;
 	IpSecPolicyEntry::PROCESS_CHOICE m_process_choise;
 	Ptr<IpSecPolicyDatabase> m_ptr_sad;
 };
@@ -368,8 +366,10 @@ private:
 public:	//self defined
 	Ptr<GsamSession> GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
-	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address);
+	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
 	Ptr<GsamInfo> GetInfo () const;
+	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
+	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
 	Ptr<GsamSession> CreateSession (void);
 	void RemoveSession (Ptr<GsamSession> session);
 	Time GetRetransmissionDelay (void);

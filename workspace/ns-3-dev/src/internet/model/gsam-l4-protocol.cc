@@ -221,6 +221,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ipv4Address dest)
 
 	this->SendMessage(session, packet, true);
 
+	session->GetTimer().Cancel();
 	session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
 	session->GetTimer().SetArguments(session, packet, true);
 	session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
@@ -273,6 +274,13 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest)
 	packet->AddHeader(sai2);
 	packet->AddHeader(auth);
 	packet->AddHeader(ikeheader);
+
+	this->SendMessage(session, packet, true);
+
+	session->GetTimer().Cancel();
+	session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
+	session->GetTimer().SetArguments(session, packet, true);
+	session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
 }
 
 void
@@ -494,11 +502,111 @@ GsamL4Protocol::HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader, peer_address);
 
+	if (session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	bool is_invitation = ikeheader.IsInitiator();
+	bool is_response = ikeheader.IsResponder();
+
+	if (	(true == is_invitation) &&
+			(false == is_response))
+	{
+		//invitation
+		this->HandleIkeSaAuthInvitation(packet, ikeheader, session);
+
+	}
+	else if ((false == is_invitation) &&
+			(true == is_response))
+	{
+		//response
+		this->HandleIkeSaAuthResponse(packet, ikeheader, session);
+	}
+	else
+	{
+		//error
+		NS_ASSERT (false);
+	}
+
 }
 void
 GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	uint32_t message_id = ikeheader.GetMessageId();
+
+	NS_ASSERT (message_id == 1);
+
+	//picking up auth payload
+	IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
+	if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
+	packet->RemoveHeader(auth);
+
+	//picking up SAi2 payload
+	IkePayloadHeader::PAYLOAD_TYPE sai2_payload_type = auth.GetNextPayloadType();
+	if (sai2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload sai2 = IkePayload::GetEmptyPayloadFromPayloadType(sai2_payload_type);
+	packet->RemoveHeader(sai2);
+
+	//picking up TSi payload
+	IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sai2.GetNextPayloadType();
+	if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
+	packet->RemoveHeader(tsi);
+
+	//picking up TSr payload
+	IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
+	if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
+	packet->RemoveHeader(tsr);
+}
+
+void
+GsamL4Protocol::ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr)
+{
+	NS_LOG_FUNCTION (this);
+
+	const std::list<IkeSAProposal> proposals = sai2.GetSAProposals();
+	const std::list<IkeTrafficSelector> traffic_selectors_initiator = tsi.GetTrafficSelectors();
+	const std::list<IkeTrafficSelector> traffic_selectors_responder = tsr.GetTrafficSelectors();
+
+	if (traffic_selectors_initiator.size() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (traffic_selectors_responder.size() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	IkeTrafficSelector ts_incoming = traffic_selectors_initiator.front();
+	IkeTrafficSelector ts_outgoing = traffic_selectors_responder.front();
+
+	Ptr<IpSecPolicyEntry> entry = Create<IpSecPolicyEntry>();
+	entry->SetDirection(IpSecPolicyEntry::BOTH);
+	entry->SetProcessChoice(IpSecPolicyEntry::PROTECT);
+	entry->SetProtocolId(ts_incoming.GetProtocolId());
+	entry->SetSrcAddressRange(ts_incoming.GetStartingAddress(), ts_incoming.GetEndingAddress());
+	entry->SetTranSrcStartingPort(ts_incoming.GetStartPort());
+	entry->SetDestAddressRange(ts_outgoing.GetStartingAddress(), ts_outgoing.GetEndingAddress());
+	entry->SetTranDestStartingPort(ts_outgoing.GetStartPort());
+
 }
 
 void

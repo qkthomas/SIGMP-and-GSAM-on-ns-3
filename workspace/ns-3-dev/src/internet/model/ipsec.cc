@@ -28,6 +28,102 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("GsamSa");
 
 /********************************************************
+ *        GsamUtility
+ ********************************************************/
+
+uint32_t
+GsamUtility::BytesToUint32 (const std::list<uint8_t>& lst_bytes)
+{
+	uint32_t retval = 0;
+
+	if (4 != lst_bytes.size())
+	{
+		NS_ASSERT (false);
+	}
+
+	uint8_t bits_to_shift = 0;
+
+	for (	std::list<uint8_t>::const_iterator const_it = lst_bytes.begin();
+			const_it != lst_bytes.end();
+			const_it++)
+	{
+		uint32_t temp = (*const_it);
+		retval += (temp << bits_to_shift);
+		bits_to_shift += 8;
+	}
+
+	return retval;
+}
+
+uint64_t
+GsamUtility::BytesToUint64 (const std::list<uint8_t>& lst_bytes)
+{
+	uint64_t retval = 0;
+
+	if (8 != lst_bytes.size())
+	{
+		NS_ASSERT (false);
+	}
+
+	uint8_t bits_to_shift = 0;
+
+	for (	std::list<uint8_t>::const_iterator const_it = lst_bytes.begin();
+			const_it != lst_bytes.end();
+			const_it++)
+	{
+		uint64_t temp = (*const_it);
+		retval += (temp << bits_to_shift);
+		bits_to_shift += 8;
+	}
+
+	return retval;
+}
+
+void
+GsamUtility::Uint32ToBytes (std::list<uint8_t>& lst_retval, uint32_t input_value)
+{
+	lst_retval.clear();
+
+	uint32_t mask = 0x000000ff;
+
+	uint8_t bits_to_shift = 0;
+
+	for (	uint8_t it = 1;
+			it <= 4;
+			it++)
+	{
+		uint8_t temp = 0;
+		mask = mask << bits_to_shift;
+		temp = ((input_value & mask) >> bits_to_shift);
+		lst_retval.push_back(temp);
+
+		bits_to_shift += 8;
+	}
+}
+
+void
+GsamUtility::Uint64ToBytes (std::list<uint8_t>& lst_retval, uint64_t input_value)
+{
+	lst_retval.clear();
+
+	uint64_t mask = 0x00000000000000ff;
+
+	uint8_t bits_to_shift = 0;
+
+	for (	uint8_t it = 1;
+			it <= 8;
+			it++)
+	{
+		uint8_t temp = 0;
+		mask = mask << bits_to_shift;
+		temp = ((input_value & mask) >> bits_to_shift);
+		lst_retval.push_back(temp);
+
+		bits_to_shift += 8;
+	}
+}
+
+/********************************************************
  *        GsamConfig
  ********************************************************/
 
@@ -776,10 +872,17 @@ GsamSession::SetPeerAddress (Ipv4Address peer_address)
 }
 
 Ptr<GsamInfo>
-GsamSession::GetInfo (void)
+GsamSession::GetInfo (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ptr_database->GetInfo();
+}
+
+Ptr<IpSecDatabase>
+GsamSession::GetDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_database;
 }
 
 /********************************************************
@@ -899,19 +1002,6 @@ IpSecSADatabase::DoDispose (void)
  *        IpSecPolicyEntry
  ********************************************************/
 
-/********************************************************
- *        IpSecPolicyEntry::AddressEntry
- ********************************************************/
-
-IpSecPolicyEntry::AddressEntry::AddressEntry()
-  :  m_type(IpSecPolicyEntry::AddressEntry::NONE),
-	 m_single_address (Ipv4Address("0.0.0.0")),
-	 m_address_range_start (Ipv4Address("0.0.0.0")),
-	 m_address_range_end (Ipv4Address("0.0.0.0"))
-{
-
-}
-
 NS_OBJECT_ENSURE_REGISTERED (IpSecPolicyEntry);
 
 TypeId
@@ -927,9 +1017,15 @@ IpSecPolicyEntry::GetTypeId (void)
 
 IpSecPolicyEntry::IpSecPolicyEntry ()
   :  m_direction (IpSecPolicyEntry::BOTH),
+	 m_src_starting_address (Ipv4Address ("0.0.0.0")),
+	 m_src_ending_address (Ipv4Address ("0.0.0.0")),
+	 m_dest_starting_address (Ipv4Address ("0.0.0.0")),
+	 m_dest_ending_address (Ipv4Address ("0.0.0.0")),
 	 m_ip_protocol_num (0),
-	 m_src_transport_protocol_num (0),
-	 m_dest_transport_protocol_num (0),
+	 m_src_transport_protocol_starting_num (0),
+	 m_src_transport_protocol_ending_num (0),
+	 m_dest_transport_protocol_starting_num (0),
+	 m_dest_transport_protocol_ending_num (0),
 	 m_process_choise (IpSecPolicyEntry::BYPASS),
 	 m_ptr_sad (0)
 {
@@ -1004,40 +1100,67 @@ IpSecPolicyEntry::GetProtocolId () const
 }
 
 void
-IpSecPolicyEntry::SetTranSrcPort (uint16_t port_num)
+IpSecPolicyEntry::SetTranSrcStartingPort (uint16_t port_num)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_src_transport_protocol_num = port_num;
+	this->m_src_transport_protocol_starting_num = port_num;
 }
 
 uint16_t
-IpSecPolicyEntry::GetTranSrcPort (void) const
+IpSecPolicyEntry::GetTranSrcStartingPort (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_src_transport_protocol_num;
+	return this->m_src_transport_protocol_starting_num;
 }
 
 void
-IpSecPolicyEntry::SetTranDestPort (uint16_t port_num)
+IpSecPolicyEntry::SetTranSrcEndingPort (uint16_t port_num)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_dest_transport_protocol_num = port_num;
+	this->m_src_transport_protocol_ending_num = port_num;
 }
 
 uint16_t
-IpSecPolicyEntry::GetTranDestPort (void) const
+IpSecPolicyEntry::GetTranSrcEndingPort (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_dest_transport_protocol_num;
+	return this->m_src_transport_protocol_ending_num;
+}
+
+void
+IpSecPolicyEntry::SetTranDestStartingPort (uint16_t port_num)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_dest_transport_protocol_starting_num = port_num;
+}
+
+uint16_t
+IpSecPolicyEntry::GetTranDestStartingPort (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_dest_transport_protocol_starting_num;
+}
+
+void
+IpSecPolicyEntry::SetTranDestEndingPort (uint16_t port_num)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_dest_transport_protocol_ending_num = port_num;
+}
+
+uint16_t
+IpSecPolicyEntry::GetTranDestEndingPort (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_dest_transport_protocol_ending_num;
 }
 
 void
 IpSecPolicyEntry::SetSrcAddressRange (Ipv4Address range_start, Ipv4Address range_end)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_src_address.m_type = AddressEntry::RANGE;
-	this->m_src_address.m_address_range_start = range_start;
-	this->m_src_address.m_address_range_end = range_end;
+	this->m_src_starting_address = range_start;
+	this->m_dest_ending_address = range_end;
 }
 
 Ipv4Address
@@ -1045,12 +1168,7 @@ IpSecPolicyEntry::GetSrcAddressRangeStart (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_src_address.m_type != AddressEntry::RANGE)
-	{
-		NS_ASSERT (false);
-	}
-
-	return this->m_src_address.m_address_range_start;
+	return this->m_src_starting_address;
 }
 
 Ipv4Address
@@ -1058,21 +1176,15 @@ IpSecPolicyEntry::GetSrcAddressRangeEnd (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_src_address.m_type != AddressEntry::RANGE)
-	{
-		NS_ASSERT (false);
-	}
-
-	return this->m_src_address.m_address_range_end;
+	return this->m_src_ending_address;
 }
 
 void
 IpSecPolicyEntry::SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_dest_address.m_type = AddressEntry::RANGE;
-	this->m_dest_address.m_address_range_start = range_start;
-	this->m_dest_address.m_address_range_end = range_end;
+	this->m_dest_starting_address = range_start;
+	this->m_dest_ending_address = range_end;
 }
 
 Ipv4Address
@@ -1080,12 +1192,7 @@ IpSecPolicyEntry::GetDestAddressRangeStart (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_dest_address.m_type != AddressEntry::RANGE)
-	{
-		NS_ASSERT (false);
-	}
-
-	return this->m_dest_address.m_address_range_start;
+	return this->m_dest_starting_address;
 }
 
 Ipv4Address
@@ -1093,52 +1200,47 @@ IpSecPolicyEntry::GetDestAddressRangeEnd (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_dest_address.m_type != AddressEntry::RANGE)
-	{
-		NS_ASSERT (false);
-	}
-
-	return this->m_dest_address.m_address_range_end;
+	return this->m_dest_ending_address;
 }
 
 void
 IpSecPolicyEntry::SetSingleSrcAddress (Ipv4Address address)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_src_address.m_type = AddressEntry::SINGLE;
-	this->m_src_address.m_single_address = address;
+
+	this->SetSrcAddressRange(address, address);
 }
 
 Ipv4Address
 IpSecPolicyEntry::GetSrcAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_src_address.m_type != AddressEntry::SINGLE)
+	if (this->m_src_starting_address != this->m_src_ending_address)
 	{
 		NS_ASSERT (false);
 	}
 
-	return this->m_src_address.m_single_address;
+	return this->m_src_starting_address;
 }
 
 void
 IpSecPolicyEntry::SetSingleDestAddress (Ipv4Address address)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_dest_address.m_type = AddressEntry::SINGLE;
-	this->m_dest_address.m_single_address = address;
+
+	this->SetDestAddressRange(address, address);
 }
 
 Ipv4Address
 IpSecPolicyEntry::GetDestAddress (Ipv4Address address) const
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_dest_address.m_type != AddressEntry::SINGLE)
+	if (this->m_dest_starting_address != this->m_dest_ending_address)
 	{
 		NS_ASSERT (false);
 	}
 
-	return this->m_dest_address.m_single_address;
+	return this->m_dest_starting_address;
 }
 
 /********************************************************
@@ -1302,7 +1404,7 @@ IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi,
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address)
+IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address) const
 {
 	Ptr<GsamSession> retval = 0;
 
@@ -1340,6 +1442,20 @@ IpSecDatabase::GetInfo () const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ptr_info;
+}
+
+Ptr<IpSecPolicyDatabase>
+IpSecDatabase::GetPolicyDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_spd;
+}
+
+Ptr<IpSecSADatabase>
+IpSecDatabase::GetIpSecSaDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_sad;
 }
 
 Ptr<GsamSession>
