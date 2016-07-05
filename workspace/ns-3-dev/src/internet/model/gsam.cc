@@ -1013,7 +1013,6 @@ const std::list<IkeTrafficSelector>&
 IkePayload::GetTrafficSelectors (void) const
 {
 	NS_LOG_FUNCTION (this);
-	NS_LOG_FUNCTION (this);
 
 	if ((this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR) &&
 			(this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER))
@@ -1024,6 +1023,19 @@ IkePayload::GetTrafficSelectors (void) const
 	IkeTrafficSelectorSubstructure* ptr_derived = dynamic_cast<IkeTrafficSelectorSubstructure*>(this->m_ptr_substructure);
 
 	return ptr_derived->GetTrafficSelectors();
+}
+
+Ipv4Address
+IkePayload::GetIpv4AddressId (void) const
+{
+	if (this->GetPayloadType() != IkePayloadHeader::IDENTIFICATION_INITIATOR)
+	{
+		NS_ASSERT (false);
+	}
+
+	IkeIdSubstructure* ptr_derived = dynamic_cast<IkeIdSubstructure*>(this->m_ptr_substructure);
+
+	return ptr_derived->GetIpv4AddressFromData();
 }
 
 //void
@@ -2235,28 +2247,27 @@ IkeIdSubstructure::Print (std::ostream &os) const
 	os << "IkeIdSubstructure: " << this << std::endl;
 }
 
+void
+IkeIdSubstructure::SetIpv4AddressData (Ipv4Address address)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_id_type != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_id_type = IkeIdSubstructure::ID_IPV4_ADDR;
+
+	GsamUtility::Uint32ToBytes(this->m_lst_id_data, address.Get());
+}
+
 Ipv4Address
 IkeIdSubstructure::GetIpv4AddressFromData (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	uint32_t value = 0;
-
-	if (4 != this->m_lst_id_data.size())
-	{
-		NS_ASSERT (false);
-	}
-
-	uint8_t bits_to_shift = 0;
-
-	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_id_data.begin();
-			const_it != this->m_lst_id_data.end();
-			const_it++)
-	{
-		uint32_t temp = (*const_it);
-		value += (temp << bits_to_shift);
-		bits_to_shift += 8;
-	}
+	uint32_t value = GsamUtility::BytesToUint32(this->m_lst_id_data);
 
 	return Ipv4Address(value);
 }
@@ -2265,25 +2276,8 @@ IkeIdSubstructure*
 IkeIdSubstructure::GenerateIpv4Substructure (Ipv4Address address)
 {
 	IkeIdSubstructure* retval = new IkeIdSubstructure();
-	retval->m_id_type = IkeIdSubstructure::ID_IPV4_ADDR;
 
-	uint32_t uint_address = address.Get();
-
-	uint32_t mask = 0x000000ff;
-
-	uint8_t bits_to_shift = 0;
-
-	for (	uint8_t it = 1;
-			it <= 4;
-			it++)
-	{
-		uint8_t temp = 0;
-		mask = mask << bits_to_shift;
-		temp = ((uint_address & mask) >> bits_to_shift);
-		retval->m_lst_id_data.push_back(temp);
-
-		bits_to_shift += 8;
-	}
+	retval->SetIpv4AddressData(address);
 
 	retval->m_length = 8;
 

@@ -301,6 +301,7 @@ public:	//const
 	const IkePayloadSubstructure* GetSubstructure (void) const;
 	const std::list<IkeSAProposal>& GetSAProposals (void) const;
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
+	Ipv4Address GetIpv4AddressId (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
 	void SetPayload (IkePayloadSubstructure* substructure);
@@ -643,6 +644,8 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//self-defined
+	void SetIpv4AddressData (Ipv4Address address);
 public:	//non-virtual const
 	Ipv4Address GetIpv4AddressFromData (void) const;
 public:

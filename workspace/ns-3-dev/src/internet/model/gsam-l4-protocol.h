@@ -55,7 +55,8 @@ public:	//added by Lin Chen
 	void Initialization (void);
 	void HandleRead (Ptr<Socket> socket);
 public:	//exchanges, added by Lin Chen
-	void Send_IKE_SA_INIT (Ipv4Address dest);
+	//create session somewhere first
+	void Send_IKE_SA_INIT (Ptr<GsamSession> session, Ipv4Address dest);
 	void Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
@@ -68,7 +69,7 @@ private:	//responing, added by Lin Chen
 	//HandleIkeSaAuth
 	void HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr);
+	void ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& id, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr);
 	void ProcessIkeSaAuthResponse (Ptr<GsamSession> session, const IkePayload& sar2, const IkePayload& tsi, const IkePayload& tsr);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void RespondIkeSaAuth (Ptr<GsamSession> session);

@@ -140,6 +140,12 @@ GsamConfig::GetSecGrpAddressEnd (void)
 	return Ipv4Address ("224.0.0.255");
 }
 
+Time
+GsamConfig::GetDefaultSessionTimeout (void)
+{
+	return Seconds(2.0);
+}
+
 /********************************************************
  *        GsamInfo
  ********************************************************/
@@ -546,12 +552,15 @@ GsamSession::GetTypeId (void)
 GsamSession::GsamSession ()
   :  m_current_message_id (0),
 	 m_peer_address (Ipv4Address ("0.0.0.0")),
+	 m_group_address (Ipv4Address ("0.0.0.0")),
 	 m_role (GsamSession::UNINITIALIZED),
 	 m_ptr_init_sa (0),
 	 m_ptr_kek_sa (0),
 	 m_ptr_database (0)
 {
 	NS_LOG_FUNCTION (this);
+
+	this->m_timer_timeout.SetFunction(&GsamSession::TimeoutAction, this);
 }
 
 GsamSession::~GsamSession()
@@ -864,11 +873,12 @@ GsamSession::GetRetransmitTimer (void)
 	return this->m_timer_retransmit;
 }
 
-Timer&
-GsamSession::GetTimeoutTimer (void)
+void
+GsamSession::SceduleTimeout (Time delay)
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_timer_timeout;
+	this->m_timer_timeout.Cancel();
+	this->m_timer_timeout.Schedule(delay);
 }
 
 bool
@@ -896,10 +906,29 @@ GsamSession::IsRetransmit (void)
 }
 
 Ipv4Address
-GsamSession::GetPeerAddress (void)
+GsamSession::GetPeerAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
+
+	if (this->m_peer_address.Get() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	return this->m_peer_address;
+}
+
+Ipv4Address
+GsamSession::GetGroupAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_group_address.Get() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_group_address;
 }
 
 void
@@ -907,6 +936,13 @@ GsamSession::SetPeerAddress (Ipv4Address peer_address)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_peer_address = peer_address;
+}
+
+void
+GsamSession::SetGroupAddress (Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_group_address = group_address;
 }
 
 Ptr<GsamInfo>

@@ -40,6 +40,7 @@ class GsamConfig {
 public:
 	static Ipv4Address GetSecGrpAddressStart (void);
 	static Ipv4Address GetSecGrpAddressEnd (void);
+	static Time GetDefaultSessionTimeout (void);
 };
 
 class GsamInfo : public Object {
@@ -183,10 +184,10 @@ public:	//self defined
 	void IncrementMessageId (void);
 	void SetMessageId (uint32_t message_id);
 	Timer& GetRetransmitTimer (void);
-	Timer& GetTimeoutTimer (void);
+	void SceduleTimeout (Time delay);
 	bool IsRetransmit (void);
-	Ipv4Address GetPeerAddress (void);
 	void SetPeerAddress (Ipv4Address peer_address);
+	void SetGroupAddress (Ipv4Address group_address);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -198,9 +199,14 @@ public: //const
 	uint64_t GetInitSaInitiatorSpi (void) const;
 	GsamSession::ROLE GetRole (void) const;
 	uint32_t GetCurrentMessageId (void) const;
+	Ipv4Address GetPeerAddress (void) const;
+	Ipv4Address GetGroupAddress (void) const;
+private:
+	void TimeoutAction (void);
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
+	Ipv4Address m_group_address;
 	GsamSession::ROLE m_role;
 	Ptr<GsamSa> m_ptr_init_sa;
 	Ptr<GsamSa> m_ptr_kek_sa;
