@@ -396,11 +396,25 @@ operator == (GsamSa const& lhs, GsamSa const& rhs)
 }
 
 GsamSa::SA_TYPE
-GsamSa::GetType (void)
+GsamSa::GetType (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_type;
 }
+
+void
+GsamSa::SetSession (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_session != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_session = session;
+}
+
 void
 GsamSa::SetType (GsamSa::SA_TYPE type)
 {
@@ -543,6 +557,11 @@ GsamSession::GsamSession ()
 GsamSession::~GsamSession()
 {
 	NS_LOG_FUNCTION (this);
+
+	if(this->m_ptr_database != 0)
+	{
+		this->m_ptr_database->RemoveSession(this);
+	}
 	this->m_ptr_init_sa = 0;
 	this->m_ptr_database = 0;
 	this->m_ptr_kek_sa = 0;
@@ -611,7 +630,17 @@ operator == (GsamSession const& lhs, GsamSession const& rhs)
 {
 	bool retval = true;
 
+	if (lhs.m_peer_address != rhs.m_peer_address)
+	{
+		retval = false;
+	}
+
 	if (lhs.m_ptr_init_sa != rhs.m_ptr_init_sa)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_ptr_kek_sa != rhs.m_ptr_kek_sa)
 	{
 		retval = false;
 	}
@@ -775,6 +804,7 @@ GsamSession::EtablishGsamInitSa (void)
 	{
 		this->m_ptr_init_sa = Create<GsamSa>();
 		this->m_ptr_init_sa->SetType(GsamSa::GSAM_INIT_SA);
+		this->m_ptr_init_sa->SetSession(this);
 	}
 	else
 	{
@@ -790,6 +820,7 @@ GsamSession::EtablishGsamKekSa (void)
 		{
 			this->m_ptr_kek_sa = Create<GsamSa>();
 			this->m_ptr_kek_sa->SetType(GsamSa::GSAM_KEK_SA);
+			this->m_ptr_kek_sa->SetSession(this);
 		}
 		else
 		{
@@ -827,10 +858,17 @@ GsamSession::SetMessageId (uint32_t message_id)
 }
 
 Timer&
-GsamSession::GetTimer (void)
+GsamSession::GetRetransmitTimer (void)
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_timer;
+	return this->m_timer_retransmit;
+}
+
+Timer&
+GsamSession::GetTimeoutTimer (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_timer_timeout;
 }
 
 bool
@@ -883,6 +921,17 @@ GsamSession::GetDatabase (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ptr_database;
+}
+
+bool
+GsamSession::HaveInitSa (void) const
+{
+	return (this->m_ptr_init_sa != 0);
+}
+bool
+GsamSession::HaveKekSa (void) const
+{
+	return (this->m_ptr_kek_sa != 0);
 }
 
 /********************************************************
@@ -1153,6 +1202,22 @@ IpSecPolicyEntry::GetTranDestEndingPort (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_dest_transport_protocol_ending_num;
+}
+
+void
+IpSecPolicyEntry::SetTranSrcPortRange (uint16_t range_start, uint16_t range_end)
+{
+	NS_LOG_FUNCTION (this);
+	this->SetTranSrcStartingPort(range_start);
+	this->SetTranSrcEndingPort(range_end);
+}
+
+void
+IpSecPolicyEntry::SetTranDestPortRange (uint16_t range_start, uint16_t range_end)
+{
+	NS_LOG_FUNCTION (this);
+	this->SetTranDestStartingPort(range_start);
+	this->SetTranDestEndingPort(range_end);
 }
 
 void

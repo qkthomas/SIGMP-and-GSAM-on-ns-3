@@ -205,6 +205,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ipv4Address dest)
 	session->SetRole(GsamSession::INITIATOR);
 	session->EtablishGsamInitSa();
 	session->SetInitSaInitiatorSpi(initiator_spi);
+	session->SetPeerAddress(dest);
 	//continue setting HDR
 	ikeheader.SetMessageId(session->GetCurrentMessageId());
 	ikeheader.SetNextPayloadType(sa_payload_init.GetPayloadType());
@@ -221,10 +222,10 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ipv4Address dest)
 
 	this->SendMessage(session, packet, true);
 
-	session->GetTimer().Cancel();
-	session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
-	session->GetTimer().SetArguments(session, packet, true);
-	session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+	session->GetRetransmitTimer().Cancel();
+	session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
+	session->GetRetransmitTimer().SetArguments(session, packet, true);
+	session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
 }
 
 void
@@ -277,10 +278,10 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest)
 
 	this->SendMessage(session, packet, true);
 
-	session->GetTimer().Cancel();
-	session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
-	session->GetTimer().SetArguments(session, packet, true);
-	session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+	session->GetRetransmitTimer().Cancel();
+	session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
+	session->GetRetransmitTimer().SetArguments(session, packet, true);
+	session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
 }
 
 void
@@ -295,9 +296,9 @@ GsamL4Protocol::SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool 
 	if (true == retransmit)
 	{
 		bool session_retransmit = session->IsRetransmit();
-		session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
-		session->GetTimer().SetArguments(session, packet, session_retransmit);
-		session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
+		session->GetRetransmitTimer().SetArguments(session, packet, session_retransmit);
+		session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
 	}
 }
 
@@ -490,9 +491,9 @@ GsamL4Protocol::RespondIkeSaInit (Ptr<GsamSession> session)
 	this->SendMessage(session, packet, true);
 
 	//setting up retransmission
-	session->GetTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
-	session->GetTimer().SetArguments(session, packet, false);
-	session->GetTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+	session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
+	session->GetRetransmitTimer().SetArguments(session, packet, false);
+	session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
 }
 
 void
@@ -535,6 +536,82 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 {
 	NS_LOG_FUNCTION (this);
 
+	if (!session->HaveKekSa())
+	{
+		uint32_t message_id = ikeheader.GetMessageId();
+
+		NS_ASSERT (message_id == 1);
+
+		//picking up auth payload
+		IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
+		if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
+		packet->RemoveHeader(auth);
+
+		//picking up SAi2 payload
+		IkePayloadHeader::PAYLOAD_TYPE sai2_payload_type = auth.GetNextPayloadType();
+		if (sai2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload sai2 = IkePayload::GetEmptyPayloadFromPayloadType(sai2_payload_type);
+		packet->RemoveHeader(sai2);
+
+		//picking up TSi payload
+		IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sai2.GetNextPayloadType();
+		if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
+		packet->RemoveHeader(tsi);
+
+		//picking up TSr payload
+		IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
+		if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
+		packet->RemoveHeader(tsr);
+
+		this->ProcessIkeSaAuthInvitation(session, sai2, tsi, tsr);
+
+		session->SetMessageId(message_id);
+
+		this->RespondIkeSaAuth(session);
+	}
+
+}
+
+void
+GsamL4Protocol::ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr)
+{
+	NS_LOG_FUNCTION (this);
+
+	const std::list<IkeSAProposal> proposals = sai2.GetSAProposals();
+
+	if (proposals.size() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	IkeSAProposal proposal = proposals.front();
+
+	session->EtablishGsamKekSa();
+	session->SetKekSaInitiatorSpi(proposal.GetSpi().ToUint64());
+	session->SetKekSaResponderSpi(session->GetInfo()->RegisterGsamSpi());
+
+}
+
+void
+GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
 	uint32_t message_id = ikeheader.GetMessageId();
 
 	NS_ASSERT (message_id == 1);
@@ -548,17 +625,17 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 	IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
 	packet->RemoveHeader(auth);
 
-	//picking up SAi2 payload
-	IkePayloadHeader::PAYLOAD_TYPE sai2_payload_type = auth.GetNextPayloadType();
-	if (sai2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+	//picking up SAr2 payload
+	IkePayloadHeader::PAYLOAD_TYPE sar2_payload_type = auth.GetNextPayloadType();
+	if (sar2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
 	{
 		NS_ASSERT (false);
 	}
-	IkePayload sai2 = IkePayload::GetEmptyPayloadFromPayloadType(sai2_payload_type);
-	packet->RemoveHeader(sai2);
+	IkePayload sar2 = IkePayload::GetEmptyPayloadFromPayloadType(sar2_payload_type);
+	packet->RemoveHeader(sar2);
 
 	//picking up TSi payload
-	IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sai2.GetNextPayloadType();
+	IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sar2.GetNextPayloadType();
 	if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
 	{
 		NS_ASSERT (false);
@@ -574,51 +651,78 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 	}
 	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
 	packet->RemoveHeader(tsr);
+
+	this->ProcessIkeSaAuthResponse(session, sar2, tsi, tsr);
+
+	session->IncrementMessageId();
 }
 
 void
-GsamL4Protocol::ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr)
+GsamL4Protocol::ProcessIkeSaAuthResponse (Ptr<GsamSession> session, const IkePayload& sar2, const IkePayload& tsi, const IkePayload& tsr)
 {
 	NS_LOG_FUNCTION (this);
 
-	const std::list<IkeSAProposal> proposals = sai2.GetSAProposals();
-	const std::list<IkeTrafficSelector> traffic_selectors_initiator = tsi.GetTrafficSelectors();
-	const std::list<IkeTrafficSelector> traffic_selectors_responder = tsr.GetTrafficSelectors();
+	const std::list<IkeSAProposal> proposals = sar2.GetSAProposals();
 
-	if (traffic_selectors_initiator.size() == 0)
+	if (proposals.size() == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	if (traffic_selectors_responder.size() == 0)
-	{
-		NS_ASSERT (false);
-	}
+	IkeSAProposal proposal = proposals.front();
 
-	IkeTrafficSelector ts_incoming = traffic_selectors_initiator.front();
-	IkeTrafficSelector ts_outgoing = traffic_selectors_responder.front();
+	Spi spi_responder = proposal.GetSpi();
 
-	Ptr<IpSecPolicyEntry> entry = Create<IpSecPolicyEntry>();
-	entry->SetDirection(IpSecPolicyEntry::BOTH);
-	entry->SetProcessChoice(IpSecPolicyEntry::PROTECT);
-	entry->SetProtocolId(ts_incoming.GetProtocolId());
-	entry->SetSrcAddressRange(ts_incoming.GetStartingAddress(), ts_incoming.GetEndingAddress());
-	entry->SetTranSrcStartingPort(ts_incoming.GetStartPort());
-	entry->SetDestAddressRange(ts_outgoing.GetStartingAddress(), ts_outgoing.GetEndingAddress());
-	entry->SetTranDestStartingPort(ts_outgoing.GetStartPort());
-
-}
-
-void
-GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
-{
-	NS_LOG_FUNCTION (this);
+	session->SetKekSaResponderSpi(spi_responder.ToUint64());
 }
 
 void
 GsamL4Protocol::RespondIkeSaAuth (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	//Setting up TSr
+	IkePayload tsr;
+	tsr.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	//settuping up tsi
+	IkePayload tsi;
+	tsi.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	tsi.SetNextPayloadType(tsr.GetPayloadType());
+	//setting up sar2
+	IkePayload sar2;
+	Spi kek_sa_spi;
+	kek_sa_spi.SetValueFromUint64(session->GetKekSaResponderSpi());
+	sar2.SetPayload(IkeSAPayloadSubstructure::GenerateAuthIkeProposal(kek_sa_spi));
+	sar2.SetNextPayloadType(tsi.GetPayloadType());
+	//setting up auth
+	IkePayload auth;
+	auth.SetPayload(IkeAuthSubstructure::GenerateEmptyAuthSubstructure());
+	auth.SetNextPayloadType(sar2.GetPayloadType());
+	//setting up HDR
+	IkeHeader ikeheader;
+	ikeheader.SetInitiatorSpi(session->GetInitSaInitiatorSpi());
+	ikeheader.SetResponderSpi(session->GetInitSaResponderSpi());
+	ikeheader.SetIkev2Version();
+	ikeheader.SetExchangeType(IkeHeader::IKE_AUTH);
+	ikeheader.SetAsResponder();
+	//pause setting up HDR, start setting up a kek sa
+	//continue setting up hdr
+	ikeheader.SetMessageId(session->GetCurrentMessageId());
+	ikeheader.SetNextPayloadType(auth.GetPayloadType());
+	ikeheader.SetLength(ikeheader.GetSerializedSize() +
+			auth.GetSerializedSize() +
+			sar2.GetSerializedSize() +
+			tsi.GetSerializedSize() +
+			tsr.GetSerializedSize());
+
+	Ptr<Packet> packet = Create<Packet>();
+	packet->AddHeader(tsr);
+	packet->AddHeader(tsi);
+	packet->AddHeader(sar2);
+	packet->AddHeader(auth);
+	packet->AddHeader(ikeheader);
+
+	this->SendMessage(session, packet, true);
 }
 
 } /* namespace ns3 */

@@ -1751,6 +1751,13 @@ IkeSAProposal::PushBackTransform (IkeTransformSubStructure transform)
 	this->SetLastTransform();
 }
 
+Spi
+IkeSAProposal::GetSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_spi;
+}
+
 uint8_t
 IkeSAProposal::GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id)
 {

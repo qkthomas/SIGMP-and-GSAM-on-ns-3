@@ -105,13 +105,15 @@ private:
 public:	//operator
 	friend bool operator == (GsamSa const& lhs, GsamSa const& rhs);
 public:	//self defined
-	GsamSa::SA_TYPE GetType (void);
+	void SetSession (Ptr<GsamSession> session);
 	void SetType (GsamSa::SA_TYPE type);
-	uint64_t GetInitiatorSpi (void) const;
 	void SetInitiatorSpi (uint64_t spi);
-	uint64_t GetResponderSpi (void) const;
 	void SetResponderSpi (uint64_t spi);
 	bool IsHalfOpen (void) const;
+public:	//const
+	GsamSa::SA_TYPE GetType (void) const;
+	uint64_t GetInitiatorSpi (void) const;
+	uint64_t GetResponderSpi (void) const;
 private:
 	void FreeLocalSpi (void);
 private:	//fields
@@ -166,19 +168,13 @@ public:	//static
 public:	//operator
 	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
 public:	//self defined
-	uint32_t GetCurrentMessageId (void) const;
 	uint64_t GetLocalSpi (void) const;
-	GsamSession::ROLE GetRole (void) const;
 	void SetRole (GsamSession::ROLE role);
 	//init sa
-	uint64_t GetInitSaInitiatorSpi (void) const;
 	void SetInitSaInitiatorSpi (uint64_t spi);
-	uint64_t GetInitSaResponderSpi (void) const;
 	void SetInitSaResponderSpi (uint64_t spi);
 	//kek sa
-	uint64_t GetKekSaInitiatorSpi (void) const;
 	void SetKekSaInitiatorSpi (uint64_t spi);
-	uint64_t GetKekSaResponderSpi (void) const;
 	void SetKekSaResponderSpi (uint64_t spi);
 	//
 	void SetDatabase (Ptr<IpSecDatabase> database);
@@ -186,12 +182,22 @@ public:	//self defined
 	void EtablishGsamKekSa (void);
 	void IncrementMessageId (void);
 	void SetMessageId (uint32_t message_id);
-	Timer& GetTimer (void);
+	Timer& GetRetransmitTimer (void);
+	Timer& GetTimeoutTimer (void);
 	bool IsRetransmit (void);
 	Ipv4Address GetPeerAddress (void);
 	void SetPeerAddress (Ipv4Address peer_address);
+public: //const
+	bool HaveInitSa (void) const;
+	bool HaveKekSa (void) const;
 	Ptr<GsamInfo> GetInfo (void) const;
 	Ptr<IpSecDatabase> GetDatabase (void) const;
+	uint64_t GetKekSaResponderSpi (void) const;
+	uint64_t GetKekSaInitiatorSpi (void) const;
+	uint64_t GetInitSaResponderSpi (void) const;
+	uint64_t GetInitSaInitiatorSpi (void) const;
+	GsamSession::ROLE GetRole (void) const;
+	uint32_t GetCurrentMessageId (void) const;
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
@@ -199,7 +205,8 @@ private:	//fields
 	Ptr<GsamSa> m_ptr_init_sa;
 	Ptr<GsamSa> m_ptr_kek_sa;
 	Ptr<IpSecDatabase> m_ptr_database;
-	Timer m_timer;
+	Timer m_timer_retransmit;
+	Timer m_timer_timeout;
 };
 
 class IpSecSAEntry : public Object {
@@ -305,6 +312,8 @@ public:
 	void SetTranSrcEndingPort (uint16_t port_num);
 	void SetTranDestStartingPort (uint16_t port_num);
 	void SetTranDestEndingPort (uint16_t port_num);
+	void SetTranSrcPortRange (uint16_t range_start, uint16_t range_end);
+	void SetTranDestPortRange (uint16_t range_start, uint16_t range_end);
 	void SetSrcAddressRange (Ipv4Address range_start, Ipv4Address range_end);
 	void SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end);
 	void SetSingleSrcAddress (Ipv4Address address);

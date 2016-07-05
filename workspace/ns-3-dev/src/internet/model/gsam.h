@@ -498,6 +498,8 @@ public:	//non-const
 	void SetProtocolIdAndSPISize (IPsec::PROTOCOL_ID protocol_id);
 	void SetSPI (Spi spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
+public:	//const
+	Spi GetSpi (void) const;
 private:
 	uint8_t GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id);
 	/*
