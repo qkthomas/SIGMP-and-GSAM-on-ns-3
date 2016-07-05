@@ -204,8 +204,6 @@ GsamInfo::GetLocalAvailableIpsecSpi (void) const
 
 	uint32_t spi = 0;
 
-	std::set<uint32_t>::const_iterator const_it = this->m_set_occupied_ipsec_spis.find(spi);
-
 	do {
 		spi = rand();
 	} while (	(0 != spi) &&
@@ -220,8 +218,6 @@ GsamInfo::GetLocalAvailableGsamSpi (void) const
 	NS_LOG_FUNCTION (this);
 
 	uint64_t spi = 0;
-
-	std::set<uint64_t>::const_iterator const_it = this->m_set_occupied_gsam_spis.find(spi);
 
 	do {
 		spi = rand();
@@ -311,6 +307,26 @@ GsamInfo::FreeIpsecSpi (uint32_t spi)
 	deleted_num_spis = this->m_set_occupied_ipsec_spis.erase(spi);
 
 	NS_ASSERT (deleted_num_spis == 1);
+}
+
+uint32_t
+GsamInfo::GenerateIpsecSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t spi = 0;
+
+	spi = rand();
+
+	return spi;
+}
+
+bool
+GsamInfo::IsIpsecSpiOccupied (uint32_t spi) const
+{
+	bool retval = (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_gsam_spis.end());
+
+	return retval;
 }
 
 void
@@ -481,7 +497,26 @@ GsamSa::FreeLocalSpi (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	uint64_t local_spi = this->m_ptr_session->GetLocalSpi();
+	uint64_t local_spi = 0;
+	GsamSession::ROLE role = GsamSession::UNINITIALIZED;
+
+	if (this->m_type == GsamSa::GSAM_INIT_SA)
+	{
+		role = this->m_ptr_session->GetPhaseOneRole();
+	}
+	else if (this->m_type == GsamSa::GSAM_KEK_SA)
+	{
+		role = this->m_ptr_session->GetPhaseTwoRole();
+	}
+
+	if (role == GsamSession::INITIATOR)
+	{
+		local_spi = this->m_initiator_spi;
+	}
+	else if (role == GsamSession::RESPONDER)
+	{
+		local_spi = this->m_responder_spi;
+	}
 
 	this->m_ptr_session->GetInfo()->FreeGsamSpi(local_spi);
 }
@@ -553,7 +588,8 @@ GsamSession::GsamSession ()
   :  m_current_message_id (0),
 	 m_peer_address (Ipv4Address ("0.0.0.0")),
 	 m_group_address (Ipv4Address ("0.0.0.0")),
-	 m_role (GsamSession::UNINITIALIZED),
+	 m_p1_role (GsamSession::UNINITIALIZED),
+	 m_p2_role (GsamSession::UNINITIALIZED),
 	 m_ptr_init_sa (0),
 	 m_ptr_kek_sa (0),
 	 m_ptr_database (0)
@@ -654,7 +690,7 @@ operator == (GsamSession const& lhs, GsamSession const& rhs)
 		retval = false;
 	}
 
-	if (lhs.m_role != rhs.m_role)
+	if (lhs.m_p1_role != rhs.m_p1_role)
 	{
 		retval = false;
 	}
@@ -667,51 +703,42 @@ operator == (GsamSession const& lhs, GsamSession const& rhs)
 	return retval;
 }
 
-uint64_t
-GsamSession::GetLocalSpi (void) const
+GsamSession::ROLE
+GsamSession::GetPhaseOneRole (void) const
 {
 	NS_LOG_FUNCTION (this);
-
-	if (0 == this->m_ptr_init_sa)
-	{
-		NS_ASSERT (false);
-	}
-
-	uint64_t spi = 0;
-
-	if (GsamSession::UNINITIALIZED == this->m_role)
-	{
-		NS_ASSERT (false);
-	}
-	else if (GsamSession::INITIATOR == this->m_role)
-	{
-		spi = this->m_ptr_init_sa->GetInitiatorSpi();
-	}
-	else if (GsamSession::RESPONDER == this->m_role)
-	{
-		spi = this->m_ptr_init_sa->GetResponderSpi();
-	}
-
-	return spi;
+	return this->m_p1_role;
 }
 
 GsamSession::ROLE
-GsamSession::GetRole (void) const
+GsamSession::GetPhaseTwoRole (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_role;
+	return this->m_p2_role;
 }
 
 void
-GsamSession::SetRole (GsamSession::ROLE role)
+GsamSession::SetPhaseOneRole (GsamSession::ROLE role)
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_role != GsamSession::UNINITIALIZED)
+	if (this->m_p1_role != GsamSession::UNINITIALIZED)
 	{
 		NS_ASSERT (false);
 	}
 
-	this->m_role = role;
+	this->m_p1_role = role;
+}
+
+void
+GsamSession::SetPhaseTwoRole (GsamSession::ROLE role)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_p2_role != GsamSession::UNINITIALIZED)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_p2_role = role;
 }
 
 uint64_t
@@ -849,7 +876,7 @@ GsamSession::SetMessageId (uint32_t message_id)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_role == GsamSession::RESPONDER)
+	if (this->m_p1_role == GsamSession::RESPONDER)
 	{
 		if (message_id > this->m_current_message_id)
 		{
@@ -889,11 +916,11 @@ GsamSession::IsRetransmit (void)
 
 	bool retval = false;
 
-	if (GsamSession::INITIATOR == this->m_role)
+	if (GsamSession::INITIATOR == this->m_p1_role)
 	{
 		retval = false;
 	}
-	else if (GsamSession::RESPONDER == this->m_role)
+	else if (GsamSession::RESPONDER == this->m_p1_role)
 	{
 		retval = false;
 	}
@@ -970,6 +997,14 @@ GsamSession::HaveKekSa (void) const
 	return (this->m_ptr_kek_sa != 0);
 }
 
+Spi
+GsamSession::GetGsaSpi (void) const
+{
+	Spi retval;
+	retval.SetValueFromUint32(this->GetInfo()->RegisterIpsecSpi());
+	return retval;
+}
+
 /********************************************************
  *        IpSecSAEntry
  ********************************************************/
@@ -988,8 +1023,7 @@ IpSecSAEntry::GetTypeId (void)
 }
 
 IpSecSAEntry::IpSecSAEntry ()
-  :  m_id (0),
-	 m_spi (0),
+  :  m_spi (0),
 	 m_dest_address (Ipv4Address("0.0.0.0")),
 	 m_ipsec_protocol (IPsec::RESERVED),
 	 m_ipsec_mode (IPsec::NONE),
@@ -1001,7 +1035,9 @@ IpSecSAEntry::IpSecSAEntry ()
 IpSecSAEntry::~IpSecSAEntry()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_ptr_database->RemoveEntry(this);
 	this->m_ptr_encrypt_fn = 0;
+	this->m_ptr_database = 0;
 }
 
 TypeId
@@ -1026,13 +1062,30 @@ IpSecSAEntry::DoDispose (void)
 bool
 operator == (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs)
 {
-	return lhs.m_id == rhs.m_id;
+	return lhs.m_spi == rhs.m_spi;
 }
 
 bool
 operator < (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs)
 {
-	return lhs.m_id < rhs.m_id;
+	return lhs.m_spi < rhs.m_spi;
+}
+
+void
+IpSecSAEntry::SetSpi (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_spi = spi;
+}
+
+uint32_t
+IpSecSAEntry::GetSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	NS_ASSERT (this->m_spi != 0);
+
+	return this->m_spi;
 }
 
 /********************************************************
@@ -1062,6 +1115,7 @@ IpSecSADatabase::~IpSecSADatabase()
 {
 	NS_LOG_FUNCTION (this);
 	this->m_ptr_info = 0;
+	this->m_lst_entries.clear();
 }
 
 TypeId
@@ -1081,6 +1135,20 @@ void
 IpSecSADatabase::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
+}
+
+void
+IpSecSADatabase::PushBackEntry (Ptr<IpSecSAEntry> entry)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_entries.push_back(entry);
+}
+
+void
+IpSecSADatabase::RemoveEntry (Ptr<IpSecSAEntry> entry)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_entries.remove(entry);
 }
 
 /********************************************************
@@ -1120,6 +1188,7 @@ IpSecPolicyEntry::IpSecPolicyEntry ()
 IpSecPolicyEntry::~IpSecPolicyEntry()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_ptr_sad->RemoveEntry(this);
 	this->m_ptr_sad = 0;
 }
 
@@ -1344,6 +1413,73 @@ IpSecPolicyEntry::GetDestAddress (Ipv4Address address) const
 	return this->m_dest_starting_address;
 }
 
+bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
+{
+	bool retval = true;
+
+	if (lhs.m_direction != rhs.m_direction)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_src_starting_address != rhs.m_src_starting_address)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_src_ending_address != rhs.m_src_ending_address)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_dest_starting_address != rhs.m_dest_starting_address)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_dest_ending_address != rhs.m_dest_ending_address)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_ip_protocol_num != rhs.m_ip_protocol_num)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_src_transport_protocol_starting_num != rhs.m_src_transport_protocol_starting_num)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_src_transport_protocol_ending_num != rhs.m_src_transport_protocol_ending_num)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_dest_transport_protocol_starting_num != rhs.m_dest_transport_protocol_starting_num)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_dest_transport_protocol_ending_num != rhs.m_dest_transport_protocol_ending_num)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_process_choise != rhs.m_process_choise)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_ptr_sad != rhs.m_ptr_sad)
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
 /********************************************************
  *        IpSecPolicyDatabase
  ********************************************************/
@@ -1396,6 +1532,13 @@ IpSecPolicyDatabase::PushBackEntry (Ptr<IpSecPolicyEntry> entry)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_lst_entries.push_back(entry);
+}
+
+void
+IpSecPolicyDatabase::RemoveEntry (Ptr<IpSecPolicyEntry> entry)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_entries.remove(entry);
 }
 
 /********************************************************
@@ -1454,7 +1597,7 @@ IpSecDatabase::DoDispose (void)
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
+IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1465,7 +1608,7 @@ IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi,
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetRole() == local_role) &&
+		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
 				(session_it->GetInitSaResponderSpi() == responder_spi) &&
 				 session_it->GetCurrentMessageId() == message_id &&
@@ -1480,7 +1623,7 @@ IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi,
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const
+IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1491,9 +1634,35 @@ IpSecDatabase::GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi,
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetRole() == local_role) &&
+		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
 				 session_it->GetCurrentMessageId() <= message_id &&
+				 session_it->GetPeerAddress() == peer_address)
+			)
+		{
+			session = session_it;
+		}
+	}
+
+	return session;
+}
+
+Ptr<GsamSession>
+IpSecDatabase::GetPhaseTwoSession (GsamSession::ROLE local_p2_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> session = 0;
+
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_sessions.begin();
+			const_it != this->m_lst_ptr_sessions.end();
+			const_it++)
+	{
+		Ptr<GsamSession> session_it = (*const_it);
+		if (	(session_it->GetPhaseTwoRole() == local_p2_role) &&
+				(session_it->GetKekSaInitiatorSpi() == initiator_spi &&
+				(session_it->GetKekSaResponderSpi() == responder_spi) &&
+				 session_it->GetCurrentMessageId() == message_id &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
 		{
@@ -1515,16 +1684,18 @@ IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address) co
 	switch (header_message_id)
 	{
 	case 0:
-		retval = this->GetSession(local_role, header.GetInitiatorSpi(), header_message_id, peer_address);
+		retval = this->GetPhaseOneSession(local_role, header.GetInitiatorSpi(), header_message_id, peer_address);
 		break;
 	case 1:
-		retval = this->GetSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
-		break;
-	case 2:
-		retval = this->GetSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
+		retval = this->GetPhaseOneSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
 		break;
 	default:
-		if (header_message_id < 0)
+		if (header_message_id >= 2)
+		{
+			retval = this->GetPhaseTwoSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
+			break;
+		}
+		else if (header_message_id < 0)
 		{
 			//something went wrong
 			NS_ASSERT (false);

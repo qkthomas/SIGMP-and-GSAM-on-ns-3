@@ -200,7 +200,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session, Ipv4Address dest)
 	ikeheader.SetExchangeType(IkeHeader::IKE_SA_INIT);
 	ikeheader.SetAsInitiator();
 	//pause setting up HDR, start setting up a new session
-	session->SetRole(GsamSession::INITIATOR);
+	session->SetPhaseOneRole(GsamSession::INITIATOR);
 	session->EtablishGsamInitSa();
 	session->SetInitSaInitiatorSpi(initiator_spi);
 	session->SetPeerAddress(dest);
@@ -219,15 +219,10 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session, Ipv4Address dest)
 	packet->AddHeader(ikeheader);
 
 	this->SendMessage(session, packet, true);
-
-	session->GetRetransmitTimer().Cancel();
-	session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
-	session->GetRetransmitTimer().SetArguments(session, packet, true);
-	session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
 }
 
 void
-GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest)
+GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -279,11 +274,50 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session, Ipv4Address dest)
 	packet->AddHeader(ikeheader);
 
 	this->SendMessage(session, packet, true);
+}
 
-	session->GetRetransmitTimer().Cancel();
-	session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
-	session->GetRetransmitTimer().SetArguments(session, packet, true);
-	session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+void
+GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	session->SetPhaseTwoRole(GsamSession::INITIATOR);
+
+	Spi gsa_spi = session->GetGsaSpi();
+
+	//setting up remote spi notification (remote to peer which is local for this host)
+	IkePayload remote_spi_notification;
+	remote_spi_notification.SetPayload(IkeNotifySubstructure::GenerateGsaRemoteSpiNotification(gsa_spi));
+
+	//setting up local spi notification (the one that may be rejected)
+	IkePayload local_spi_notification;
+	local_spi_notification.SetPayload(IkeNotifySubstructure::GenerateGsaLocalSpiNotification(session->GetInfo()->GenerateIpsecSpi()));
+	local_spi_notification.SetNextPayloadType(remote_spi_notification.GetPayloadType());
+
+	//setting up HDR
+	IkeHeader ikeheader;
+	ikeheader.SetInitiatorSpi(session->GetKekSaInitiatorSpi());
+	ikeheader.SetResponderSpi(session->GetKekSaResponderSpi());
+	ikeheader.SetIkev2Version();
+	ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
+	ikeheader.SetAsResponder();
+
+	ikeheader.SetMessageId(session->GetCurrentMessageId());
+	ikeheader.SetNextPayloadType(remote_spi_notification.GetPayloadType());
+	ikeheader.SetLength(ikeheader.GetSerializedSize() +
+			local_spi_notification.GetSerializedSize() +
+			remote_spi_notification.GetSerializedSize());
+
+	Ptr<Packet> packet = Create<Packet>();
+	packet->AddHeader(remote_spi_notification);
+	packet->AddHeader(local_spi_notification);
+	packet->AddHeader(ikeheader);
+}
+
+void
+GsamL4Protocol::Send_GSA_Acknowledgedment (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
 }
 
 void
@@ -302,7 +336,7 @@ GsamL4Protocol::SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool 
 		session->GetRetransmitTimer().SetArguments(session, packet, session_retransmit);
 		session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
 	}
-	else if (session->GetRole() == GsamSession::INITIATOR)
+	else
 	{
 		session->SceduleTimeout(GsamConfig::GetDefaultSessionTimeout());
 	}
@@ -379,7 +413,7 @@ GsamL4Protocol::HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& 
 	if (session == 0)
 	{
 		session = this->m_ptr_database->CreateSession();
-		session->SetRole(GsamSession::RESPONDER);
+		session->SetPhaseOneRole(GsamSession::RESPONDER);
 		session->SetPeerAddress(peer_address);
 		session->EtablishGsamInitSa();
 		session->SetInitSaInitiatorSpi(initiator_spi);
@@ -542,63 +576,63 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 {
 	NS_LOG_FUNCTION (this);
 
+	uint32_t message_id = ikeheader.GetMessageId();
+
+	NS_ASSERT (message_id == 1);
+
+	//picking up id payload
+	IkePayloadHeader::PAYLOAD_TYPE id_payload_type = ikeheader.GetNextPayloadType();
+	if (id_payload_type != IkePayloadHeader::IDENTIFICATION_INITIATOR)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload id = IkePayload::GetEmptyPayloadFromPayloadType(id_payload_type);
+	packet->RemoveHeader(id);
+
+	//picking up auth payload
+	IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
+	if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
+	packet->RemoveHeader(auth);
+
+	//picking up SAi2 payload
+	IkePayloadHeader::PAYLOAD_TYPE sai2_payload_type = auth.GetNextPayloadType();
+	if (sai2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload sai2 = IkePayload::GetEmptyPayloadFromPayloadType(sai2_payload_type);
+	packet->RemoveHeader(sai2);
+
+	//picking up TSi payload
+	IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sai2.GetNextPayloadType();
+	if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
+	packet->RemoveHeader(tsi);
+
+	//picking up TSr payload
+	IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
+	if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
+	{
+		NS_ASSERT (false);
+	}
+	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
+	packet->RemoveHeader(tsr);
+
 	if (!session->HaveKekSa())
 	{
-		uint32_t message_id = ikeheader.GetMessageId();
-
-		NS_ASSERT (message_id == 1);
-
-		//picking up id payload
-		IkePayloadHeader::PAYLOAD_TYPE id_payload_type = ikeheader.GetNextPayloadType();
-		if (id_payload_type != IkePayloadHeader::IDENTIFICATION_INITIATOR)
-		{
-			NS_ASSERT (false);
-		}
-		IkePayload id = IkePayload::GetEmptyPayloadFromPayloadType(id_payload_type);
-		packet->RemoveHeader(id);
-
-		//picking up auth payload
-		IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
-		if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
-		{
-			NS_ASSERT (false);
-		}
-		IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
-		packet->RemoveHeader(auth);
-
-		//picking up SAi2 payload
-		IkePayloadHeader::PAYLOAD_TYPE sai2_payload_type = auth.GetNextPayloadType();
-		if (sai2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
-		{
-			NS_ASSERT (false);
-		}
-		IkePayload sai2 = IkePayload::GetEmptyPayloadFromPayloadType(sai2_payload_type);
-		packet->RemoveHeader(sai2);
-
-		//picking up TSi payload
-		IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sai2.GetNextPayloadType();
-		if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
-		{
-			NS_ASSERT (false);
-		}
-		IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
-		packet->RemoveHeader(tsi);
-
-		//picking up TSr payload
-		IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
-		if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
-		{
-			NS_ASSERT (false);
-		}
-		IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
-		packet->RemoveHeader(tsr);
-
 		this->ProcessIkeSaAuthInvitation(session, id, sai2, tsi, tsr);
-
-		session->SetMessageId(message_id);
-
-		this->RespondIkeSaAuth(session);
 	}
+
+	session->SetMessageId(message_id);
+
+	this->RespondIkeSaAuth(session);
 
 }
 

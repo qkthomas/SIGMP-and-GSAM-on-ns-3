@@ -2634,7 +2634,7 @@ IkeNotifySubstructure::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_protocol_id);
 
-	i.WriteU8(this->m_spi_size);
+	i.WriteU8(this->m_spi.GetSerializedSize());
 
 	i.WriteHtonU16(this->m_notify_message_type);
 
@@ -2698,6 +2698,51 @@ IkeNotifySubstructure::Print (std::ostream &os) const
 	NS_LOG_FUNCTION (this << &os);
 	IkePayloadSubstructure::Print(os);
 	os << "IkeNotifySubstructure: " << this << std::endl;
+}
+
+uint8_t
+IkeNotifySubstructure::GetNotifyMessageType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_notify_message_type;
+}
+
+Spi
+IkeNotifySubstructure::GetSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_spi;
+}
+
+IkeNotifySubstructure*
+IkeNotifySubstructure::GenerateGsaRemoteSpiNotification (Spi spi)
+{
+	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
+	retval->m_protocol_id = IPsec::AH;
+	retval->m_spi = spi;
+	retval->m_notify_message_type = IkeNotifySubstructure::GSA_REMOTE_SPI_NOTIFICATION;
+	return retval;
+}
+
+IkeNotifySubstructure*
+IkeNotifySubstructure::GenerateGsaLocalSpiNotification (uint32_t int_spi)
+{
+	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
+	retval->m_protocol_id = IPsec::AH;
+	Spi spi;
+	spi.SetValueFromUint32(int_spi);
+	retval->m_spi = spi;
+	retval->m_notify_message_type = IkeNotifySubstructure::GSA_LOCAL_SPI_NOTIFICATION;
+	return retval;
+}
+
+IkeNotifySubstructure*
+IkeNotifySubstructure::GenerateGsaAcknowledgedment (void)
+{
+	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
+	retval->m_protocol_id = IPsec::AH;
+	retval->m_notify_message_type = IkeNotifySubstructure::GSA_ACKNOWLEDGEDMENT;
+	return retval;
 }
 
 /********************************************************

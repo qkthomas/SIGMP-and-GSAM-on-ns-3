@@ -62,12 +62,15 @@ private:
 public:	//self-defined
 	uint64_t RegisterGsamSpi (void);
 	uint32_t RegisterIpsecSpi (void);
-	Time GetRetransmissionDelay (void) const;
 	void SetRetransmissionDelay (Time time);
 	void FreeGsamSpi (uint64_t spi);
 	void FreeIpsecSpi (uint32_t spi);
 	void SetSecGrpStart (Ipv4Address address);
 	void SetSecGrpEnd (Ipv4Address address);
+public: //const
+	Time GetRetransmissionDelay (void) const;
+	uint32_t GenerateIpsecSpi (void) const;
+	bool IsIpsecSpiOccupied (uint32_t spi) const;
 private:
 	uint64_t GetLocalAvailableGsamSpi (void) const;
 	uint32_t GetLocalAvailableIpsecSpi (void) const;
@@ -169,8 +172,8 @@ public:	//static
 public:	//operator
 	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
 public:	//self defined
-	uint64_t GetLocalSpi (void) const;
-	void SetRole (GsamSession::ROLE role);
+	void SetPhaseOneRole (GsamSession::ROLE role);
+	void SetPhaseTwoRole (GsamSession::ROLE role);
 	//init sa
 	void SetInitSaInitiatorSpi (uint64_t spi);
 	void SetInitSaResponderSpi (uint64_t spi);
@@ -197,17 +200,20 @@ public: //const
 	uint64_t GetKekSaInitiatorSpi (void) const;
 	uint64_t GetInitSaResponderSpi (void) const;
 	uint64_t GetInitSaInitiatorSpi (void) const;
-	GsamSession::ROLE GetRole (void) const;
+	GsamSession::ROLE GetPhaseOneRole (void) const;
+	GsamSession::ROLE GetPhaseTwoRole (void) const;
 	uint32_t GetCurrentMessageId (void) const;
 	Ipv4Address GetPeerAddress (void) const;
 	Ipv4Address GetGroupAddress (void) const;
+	Spi GetGsaSpi (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
 	Ipv4Address m_group_address;
-	GsamSession::ROLE m_role;
+	GsamSession::ROLE m_p1_role;
+	GsamSession::ROLE m_p2_role;
 	Ptr<GsamSa> m_ptr_init_sa;
 	Ptr<GsamSa> m_ptr_kek_sa;
 	Ptr<IpSecDatabase> m_ptr_database;
@@ -232,13 +238,17 @@ private:
 public:	//self-defined, operators
 	friend bool operator == (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs);
 	friend bool operator < (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs);
+public:
+	void SetSpi (uint32_t spi);
+public:	//const
+	uint32_t GetSpi (void) const;
 private:	//fields
-	uint16_t m_id;
 	uint32_t m_spi;
 	Ipv4Address m_dest_address;
 	IPsec::PROTOCOL_ID m_ipsec_protocol;
 	IPsec::MODE m_ipsec_mode;
 	Ptr<EncryptionFunction> m_ptr_encrypt_fn;
+	Ptr<IpSecSADatabase> m_ptr_database;
 };
 
 class IpSecSADatabase : public Object {
@@ -257,9 +267,11 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//self-defined
-
+	void PushBackEntry (Ptr<IpSecSAEntry> entry);
+	void RemoveEntry (Ptr<IpSecSAEntry> entry);
 private:	//fields
 	Ptr<GsamInfo> m_ptr_info;
+	std::list<Ptr<IpSecSAEntry> > m_lst_entries;
 };
 
 class IpSecPolicyEntry : public Object {
@@ -324,6 +336,8 @@ public:
 	void SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end);
 	void SetSingleSrcAddress (Ipv4Address address);
 	void SetSingleDestAddress (Ipv4Address address);
+public:	//operator
+	friend bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
 private:
 	IpSecPolicyEntry::DIRECTION m_direction;
 	Ipv4Address m_src_starting_address;
@@ -357,6 +371,7 @@ private:
 	virtual void DoDispose (void);
 public:
 	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
+	void RemoveEntry (Ptr<IpSecPolicyEntry> entry);
 private:	//fields
 	std::list<Ptr<IpSecPolicyEntry> > m_lst_entries;
 };
@@ -379,8 +394,9 @@ private:
 	virtual void DoDispose (void);
 
 public:	//self defined
-	Ptr<GsamSession> GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
-	Ptr<GsamSession> GetSession (GsamSession::ROLE local_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetPhaseTwoSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
 	Ptr<GsamInfo> GetInfo () const;
 	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;

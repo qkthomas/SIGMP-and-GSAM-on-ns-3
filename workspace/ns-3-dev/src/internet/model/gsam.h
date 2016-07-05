@@ -778,7 +778,12 @@ class IkeNotifySubstructure : public IkePayloadSubstructure {
 		COOKIE = 16390,
 		USE_TRANSPORT_MODE = 16391,
 		HTTP_CERT_LOOKUP_SURRPOTED = 16392,
-		REKEY_SA = 16393
+		REKEY_SA = 16393,
+		//GSAM
+		SPI_REJECTION = 200001,
+		GSA_REMOTE_SPI_NOTIFICATION = 20002,
+		GSA_LOCAL_SPI_NOTIFICATION = 20003,
+		GSA_ACKNOWLEDGEDMENT = 20004
 	};
 
 public:
@@ -791,8 +796,15 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//const
+	uint8_t GetNotifyMessageType (void) const;
+	Spi GetSpi (void) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//
+	static IkeNotifySubstructure* GenerateGsaRemoteSpiNotification (Spi spi);
+	static IkeNotifySubstructure* GenerateGsaLocalSpiNotification (uint32_t int_spi);
+	static IkeNotifySubstructure* GenerateGsaAcknowledgedment (void);
 private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;
