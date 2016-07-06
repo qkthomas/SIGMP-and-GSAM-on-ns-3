@@ -240,6 +240,12 @@ public:	//self-defined, operators
 	friend bool operator < (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs);
 public:
 	void SetSpi (uint32_t spi);
+	void SetSAD (Ptr<IpSecSADatabase> sad);
+	void AssociatePolicy (Ptr<IpSecPolicyEntry> policy);
+public:	//const
+	uint32_t GetSpi (void) const;
+	Ipv4Address GetDestAddress (void) const;
+	Ptr<IpSecPolicyEntry> GetPolicyEntry (void) const;
 public:	//const
 	uint32_t GetSpi (void) const;
 private:	//fields
@@ -248,7 +254,8 @@ private:	//fields
 	IPsec::PROTOCOL_ID m_ipsec_protocol;
 	IPsec::MODE m_ipsec_mode;
 	Ptr<EncryptionFunction> m_ptr_encrypt_fn;
-	Ptr<IpSecSADatabase> m_ptr_database;
+	Ptr<IpSecSADatabase> m_ptr_sad;
+	Ptr<IpSecPolicyEntry> m_ptr_policy;
 };
 
 class IpSecSADatabase : public Object {
@@ -267,8 +274,10 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//self-defined
-	void PushBackEntry (Ptr<IpSecSAEntry> entry);
+	Ptr<IpSecSAEntry> CreateIpSecSAEntry (void);
 	void RemoveEntry (Ptr<IpSecSAEntry> entry);
+private:
+	void PushBackEntry (Ptr<IpSecSAEntry> entry);
 private:	//fields
 	Ptr<GsamInfo> m_ptr_info;
 	std::list<Ptr<IpSecSAEntry> > m_lst_entries;
@@ -322,6 +331,8 @@ public:	//const
 	Ipv4Address GetDestAddressRangeEnd (void) const;
 	Ipv4Address GetSrcAddress (void) const;
 	Ipv4Address GetDestAddress (Ipv4Address address) const;
+	Ptr<IpSecSAEntry> GetInboundSa (void) const;
+	Ptr<IpSecSAEntry> GetOutboundSa (void) const;
 public:
 	void SetDirection (IpSecPolicyEntry::DIRECTION direction);
 	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
@@ -336,6 +347,9 @@ public:
 	void SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end);
 	void SetSingleSrcAddress (Ipv4Address address);
 	void SetSingleDestAddress (Ipv4Address address);
+	void SetSPD (Ptr<IpSecPolicyDatabase> spd);
+	void SetInboundSa (Ptr<IpSecSAEntry> entry);
+	void SetOutboundSa (Ptr<IpSecSAEntry> entry);
 public:	//operator
 	friend bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
 private:
@@ -350,7 +364,9 @@ private:
 	uint16_t m_dest_transport_protocol_starting_num;
 	uint16_t m_dest_transport_protocol_ending_num;
 	IpSecPolicyEntry::PROCESS_CHOICE m_process_choise;
-	Ptr<IpSecPolicyDatabase> m_ptr_sad;
+	Ptr<IpSecPolicyDatabase> m_ptr_spd;
+	Ptr<IpSecSAEntry> m_ptr_outbound_sa;
+	Ptr<IpSecSAEntry> m_ptr_inbound_sa;
 };
 
 class IpSecPolicyDatabase : public Object {
@@ -372,6 +388,7 @@ private:
 public:
 	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
 	void RemoveEntry (Ptr<IpSecPolicyEntry> entry);
+	Ptr<IpSecPolicyEntry> CreatePolicyEntry (void);
 private:	//fields
 	std::list<Ptr<IpSecPolicyEntry> > m_lst_entries;
 };

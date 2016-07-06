@@ -283,6 +283,13 @@ GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
 
 	session->SetPhaseTwoRole(GsamSession::INITIATOR);
 
+	Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
+	Ptr<IpSecSADatabase> sad = session->GetDatabase()->GetIpSecSaDatabase();
+
+	Ptr<IpSecPolicyEntry> policy = spd->CreatePolicyEntry();
+
+	policy->SetSingleDestAddress(session->GetGroupAddress());
+
 	Spi gsa_spi = session->GetGsaSpi();
 
 	//setting up remote spi notification (remote to peer which is local for this host)

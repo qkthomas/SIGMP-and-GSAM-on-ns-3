@@ -1027,7 +1027,9 @@ IpSecSAEntry::IpSecSAEntry ()
 	 m_dest_address (Ipv4Address("0.0.0.0")),
 	 m_ipsec_protocol (IPsec::RESERVED),
 	 m_ipsec_mode (IPsec::NONE),
-	 m_ptr_encrypt_fn (0)
+	 m_ptr_encrypt_fn (0),
+	 m_ptr_sad (0),
+     m_ptr_policy (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1035,9 +1037,9 @@ IpSecSAEntry::IpSecSAEntry ()
 IpSecSAEntry::~IpSecSAEntry()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_ptr_database->RemoveEntry(this);
+	this->m_ptr_sad->RemoveEntry(this);
 	this->m_ptr_encrypt_fn = 0;
-	this->m_ptr_database = 0;
+	this->m_ptr_sad = 0;
 }
 
 TypeId
@@ -1086,6 +1088,61 @@ IpSecSAEntry::GetSpi (void) const
 	NS_ASSERT (this->m_spi != 0);
 
 	return this->m_spi;
+}
+
+void
+IpSecSAEntry::SetSAD (Ptr<IpSecSADatabase> sad)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_sad != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_sad = sad;
+}
+
+void
+IpSecSAEntry::AssociatePolicy (Ptr<IpSecPolicyEntry> policy)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_policy != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_policy = policy;
+}
+
+uint32_t
+IpSecSAEntry::GetSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_spi)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_spi;
+}
+
+Ipv4Address
+IpSecSAEntry::GetDestAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_dest_address;
+}
+
+Ptr<IpSecPolicyEntry>
+IpSecSAEntry::GetPolicyEntry (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_policy == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_policy;
 }
 
 /********************************************************
@@ -1151,6 +1208,14 @@ IpSecSADatabase::RemoveEntry (Ptr<IpSecSAEntry> entry)
 	this->m_lst_entries.remove(entry);
 }
 
+Ptr<IpSecSAEntry>
+IpSecSADatabase::CreateIpSecSAEntry (void)
+{
+	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
+	this->PushBackEntry(retval;)
+	return retval;
+}
+
 /********************************************************
  *        IpSecPolicyEntry
  ********************************************************/
@@ -1180,7 +1245,9 @@ IpSecPolicyEntry::IpSecPolicyEntry ()
 	 m_dest_transport_protocol_starting_num (0),
 	 m_dest_transport_protocol_ending_num (0),
 	 m_process_choise (IpSecPolicyEntry::BYPASS),
-	 m_ptr_sad (0)
+	 m_ptr_spd (0),
+	 m_ptr_outbound_sa (0),
+	 m_ptr_inbound_sa (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1188,8 +1255,8 @@ IpSecPolicyEntry::IpSecPolicyEntry ()
 IpSecPolicyEntry::~IpSecPolicyEntry()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_ptr_sad->RemoveEntry(this);
-	this->m_ptr_sad = 0;
+	this->m_ptr_spd->RemoveEntry(this);
+	this->m_ptr_spd = 0;
 }
 
 TypeId
@@ -1413,6 +1480,69 @@ IpSecPolicyEntry::GetDestAddress (Ipv4Address address) const
 	return this->m_dest_starting_address;
 }
 
+Ptr<IpSecSAEntry>
+IpSecPolicyEntry::GetInboundSa (void) const
+{
+	if (this->m_ptr_inbound_sa == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_inbound_sa;
+}
+
+Ptr<IpSecSAEntry>
+IpSecPolicyEntry::GetOutboundSa (void) const
+{
+	if (this->m_ptr_outbound_sa == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_outbound_sa;
+}
+
+void
+IpSecPolicyEntry::SetSPD (Ptr<IpSecPolicyDatabase> spd)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_spd != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_spd = spd;
+}
+
+void
+IpSecPolicyEntry::SetOutboundSa (Ptr<IpSecSAEntry> entry)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_outbound_sa != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_outbound_sa = entry;
+	entry->AssociatePolicy(this);
+}
+
+void
+IpSecPolicyEntry::SetInboundSa (Ptr<IpSecSAEntry> entry)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_inbound_sa != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_inbound_sa = entry;
+	entry->AssociatePolicy(this);
+}
+
 bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
 {
 	bool retval = true;
@@ -1472,7 +1602,7 @@ bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
 		retval = false;
 	}
 
-	if (lhs.m_ptr_sad != rhs.m_ptr_sad)
+	if (lhs.m_ptr_spd != rhs.m_ptr_spd)
 	{
 		retval = false;
 	}
@@ -1539,6 +1669,17 @@ IpSecPolicyDatabase::RemoveEntry (Ptr<IpSecPolicyEntry> entry)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_lst_entries.remove(entry);
+}
+
+Ptr<IpSecPolicyEntry>
+IpSecPolicyDatabase::CreatePolicyEntry (void)
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IpSecPolicyEntry> retval = Create<IpSecPolicyEntry>();
+
+	retval->SetSPD(this);
+
+	return retval;
 }
 
 /********************************************************
