@@ -891,6 +891,7 @@ public:	//const
 	Ipv4Address GetEndingAddress (void) const;
 public:	//static
 	static IkeTrafficSelector GenerateDefaultSigmpTs(void);
+	static IkeTrafficSelector GenerateDestSecureGroupTs(Ipv4Address grpup_adress);
 private:
 	uint8_t m_ts_type;
 	uint8_t m_ip_protocol_id;
@@ -929,6 +930,7 @@ public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
 	static IkeTrafficSelectorSubstructure* GenerateEmptySubstructure (void);
+	static IkeTrafficSelectorSubstructure* GetSecureGroupSubstructure (Ipv4Address group_address);
 	static IkeTrafficSelectorSubstructure* GenerateDefaultSubstructure (void);
 public:	//const
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;

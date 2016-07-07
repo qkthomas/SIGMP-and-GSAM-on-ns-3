@@ -146,6 +146,18 @@ GsamConfig::GetDefaultSessionTimeout (void)
 	return Seconds(2.0);
 }
 
+IPsec::MODE
+GsamConfig::GetDefaultIpsecMode (void)
+{
+	return IPsec::MODE;
+}
+
+uint8_t
+GsamConfig::GetDefaultIpsecProtocolId (void)
+{
+	return IpSecPolicyEntry::AH;
+}
+
 /********************************************************
  *        GsamInfo
  ********************************************************/
@@ -588,6 +600,8 @@ GsamSession::GsamSession ()
   :  m_current_message_id (0),
 	 m_peer_address (Ipv4Address ("0.0.0.0")),
 	 m_group_address (Ipv4Address ("0.0.0.0")),
+	 m_ip_protocol_num (0),
+	 m_ipsec_mode (IPsec::NONE),
 	 m_p1_role (GsamSession::UNINITIALIZED),
 	 m_p2_role (GsamSession::UNINITIALIZED),
 	 m_ptr_init_sa (0),
@@ -972,6 +986,24 @@ GsamSession::SetGroupAddress (Ipv4Address group_address)
 	this->m_group_address = group_address;
 }
 
+void
+GsamSession::SetIpProtocolNum (uint8_t protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+	if (protocol_id > 3)
+	{
+		NS_ASSERT(false);
+	}
+	this->m_ip_protocol_num = protocol_id;
+}
+
+void
+GsamSession::SetIpsecMode (IPsec::MODE mode)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ipsec_mode = mode;
+}
+
 Ptr<GsamInfo>
 GsamSession::GetInfo (void) const
 {
@@ -989,20 +1021,39 @@ GsamSession::GetDatabase (void) const
 bool
 GsamSession::HaveInitSa (void) const
 {
+	NS_LOG_FUNCTION (this);
 	return (this->m_ptr_init_sa != 0);
 }
 bool
 GsamSession::HaveKekSa (void) const
 {
+	NS_LOG_FUNCTION (this);
 	return (this->m_ptr_kek_sa != 0);
 }
 
 Spi
 GsamSession::GetGsaSpi (void) const
 {
+	NS_LOG_FUNCTION (this);
 	Spi retval;
 	retval.SetValueFromUint32(this->GetInfo()->RegisterIpsecSpi());
 	return retval;
+}
+
+uint8_t
+GsamSession::GetIpProtocolNum (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_ip_protocol_num;
+}
+
+IPsec::MODE
+GsamSession::GetIpsecMode (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_ipsec_mode;
 }
 
 /********************************************************
@@ -1024,9 +1075,6 @@ IpSecSAEntry::GetTypeId (void)
 
 IpSecSAEntry::IpSecSAEntry ()
   :  m_spi (0),
-	 m_dest_address (Ipv4Address("0.0.0.0")),
-	 m_ipsec_protocol (IPsec::RESERVED),
-	 m_ipsec_mode (IPsec::NONE),
 	 m_ptr_encrypt_fn (0),
 	 m_ptr_sad (0),
      m_ptr_policy (0)
@@ -1163,7 +1211,8 @@ IpSecSADatabase::GetTypeId (void)
 }
 
 IpSecSADatabase::IpSecSADatabase ()
-  :  m_ptr_info (0)
+  :  m_ptr_info (0),
+	 m_ptr_policy_entry (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1172,6 +1221,7 @@ IpSecSADatabase::~IpSecSADatabase()
 {
 	NS_LOG_FUNCTION (this);
 	this->m_ptr_info = 0;
+	this->m_ptr_policy_entry = 0;
 	this->m_lst_entries.clear();
 }
 
@@ -1208,11 +1258,22 @@ IpSecSADatabase::RemoveEntry (Ptr<IpSecSAEntry> entry)
 	this->m_lst_entries.remove(entry);
 }
 
+void
+IpSecSADatabase::AssociatePolicyEntry (Ptr<IpSecPolicyEntry> policy)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_policy_entry != 0)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_ptr_policy_entry = policy;
+}
+
 Ptr<IpSecSAEntry>
 IpSecSADatabase::CreateIpSecSAEntry (void)
 {
 	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
-	this->PushBackEntry(retval;)
+	this->PushBackEntry(retval);
 	return retval;
 }
 
@@ -1234,20 +1295,19 @@ IpSecPolicyEntry::GetTypeId (void)
 }
 
 IpSecPolicyEntry::IpSecPolicyEntry ()
-  :  m_direction (IpSecPolicyEntry::BOTH),
-	 m_src_starting_address (Ipv4Address ("0.0.0.0")),
+  :  m_src_starting_address (Ipv4Address ("0.0.0.0")),
 	 m_src_ending_address (Ipv4Address ("0.0.0.0")),
 	 m_dest_starting_address (Ipv4Address ("0.0.0.0")),
 	 m_dest_ending_address (Ipv4Address ("0.0.0.0")),
 	 m_ip_protocol_num (0),
+	 m_ipsec_mode (IPsec::NONE),
 	 m_src_transport_protocol_starting_num (0),
 	 m_src_transport_protocol_ending_num (0),
 	 m_dest_transport_protocol_starting_num (0),
 	 m_dest_transport_protocol_ending_num (0),
 	 m_process_choise (IpSecPolicyEntry::BYPASS),
 	 m_ptr_spd (0),
-	 m_ptr_outbound_sa (0),
-	 m_ptr_inbound_sa (0)
+	 m_ptr_outbound_sad (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1257,6 +1317,7 @@ IpSecPolicyEntry::~IpSecPolicyEntry()
 	NS_LOG_FUNCTION (this);
 	this->m_ptr_spd->RemoveEntry(this);
 	this->m_ptr_spd = 0;
+	this->m_ptr_outbound_sad = 0;
 }
 
 TypeId
@@ -1279,20 +1340,6 @@ IpSecPolicyEntry::DoDispose (void)
 }
 
 void
-IpSecPolicyEntry::SetDirection (IpSecPolicyEntry::DIRECTION direction)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_direction = direction;
-}
-
-IpSecPolicyEntry::DIRECTION
-IpSecPolicyEntry::GetDirection (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_direction;
-}
-
-void
 IpSecPolicyEntry::SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice)
 {
 	NS_LOG_FUNCTION (this);
@@ -1307,17 +1354,31 @@ IpSecPolicyEntry::GetProcessChoice (void) const
 }
 
 void
-IpSecPolicyEntry::SetProtocolId (uint8_t protocol_id)
+IpSecPolicyEntry::SetProtocolNum (uint8_t protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_ip_protocol_num = protocol_id;
 }
 
+void
+IpSecPolicyEntry::SetIpsecMode (IPsec::MODE mode)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ipsec_mode = mode;
+}
+
 uint8_t
-IpSecPolicyEntry::GetProtocolId () const
+IpSecPolicyEntry::GetProtocolNum () const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ip_protocol_num;
+}
+
+IPsec::MODE
+IpSecPolicyEntry::GetIpsecMode (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ipsec_mode;
 }
 
 void
@@ -1480,28 +1541,6 @@ IpSecPolicyEntry::GetDestAddress (Ipv4Address address) const
 	return this->m_dest_starting_address;
 }
 
-Ptr<IpSecSAEntry>
-IpSecPolicyEntry::GetInboundSa (void) const
-{
-	if (this->m_ptr_inbound_sa == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	return this->m_ptr_inbound_sa;
-}
-
-Ptr<IpSecSAEntry>
-IpSecPolicyEntry::GetOutboundSa (void) const
-{
-	if (this->m_ptr_outbound_sa == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	return this->m_ptr_outbound_sa;
-}
-
 void
 IpSecPolicyEntry::SetSPD (Ptr<IpSecPolicyDatabase> spd)
 {
@@ -1515,32 +1554,32 @@ IpSecPolicyEntry::SetSPD (Ptr<IpSecPolicyDatabase> spd)
 	this->m_ptr_spd = spd;
 }
 
-void
-IpSecPolicyEntry::SetOutboundSa (Ptr<IpSecSAEntry> entry)
+Ptr<IpSecSADatabase>
+IpSecPolicyEntry::GetOutboundSAD (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_ptr_outbound_sa != 0)
+	if (this->m_ptr_outbound_sad == 0)
 	{
-		NS_ASSERT (false);
+		this->m_ptr_outbound_sad = Create<IpSecSADatabase>();
+		this->m_ptr_outbound_sad->AssociatePolicyEntry(this);
 	}
 
-	this->m_ptr_outbound_sa = entry;
-	entry->AssociatePolicy(this);
+	return this->m_ptr_outbound_sad;
 }
 
-void
-IpSecPolicyEntry::SetInboundSa (Ptr<IpSecSAEntry> entry)
+Ptr<IpSecSADatabase>
+IpSecPolicyEntry::GetInboundSAD (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_ptr_inbound_sa != 0)
+	if (this->m_ptr_inbound_sad == 0)
 	{
-		NS_ASSERT (false);
+		this->m_ptr_inbound_sad = Create<IpSecSADatabase>();
+		this->m_ptr_inbound_sad->AssociatePolicyEntry(this);
 	}
 
-	this->m_ptr_inbound_sa = entry;
-	entry->AssociatePolicy(this);
+	return this->m_ptr_inbound_sad;
 }
 
 bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
@@ -1851,9 +1890,15 @@ IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address) co
 }
 
 Ptr<GsamInfo>
-IpSecDatabase::GetInfo () const
+IpSecDatabase::GetInfo ()
 {
 	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_info == 0)
+	{
+		this->m_ptr_info = Create<GsamInfo>();
+	}
+
 	return this->m_ptr_info;
 }
 

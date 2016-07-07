@@ -25,6 +25,7 @@ class Ipv4Route;
 class GsamSession;
 class IpSecDatabase;
 class IpSecSADatabase;
+class IpSecPolicyEntry;
 class IpSecPolicyDatabase;
 class EncryptionFunction;
 
@@ -41,6 +42,8 @@ public:
 	static Ipv4Address GetSecGrpAddressStart (void);
 	static Ipv4Address GetSecGrpAddressEnd (void);
 	static Time GetDefaultSessionTimeout (void);
+	static IPsec::MODE GetDefaultIpsecMode (void);
+	static uint8_t GetDefaultIpsecProtocolId (void);
 };
 
 class GsamInfo : public Object {
@@ -191,6 +194,8 @@ public:	//self defined
 	bool IsRetransmit (void);
 	void SetPeerAddress (Ipv4Address peer_address);
 	void SetGroupAddress (Ipv4Address group_address);
+	void SetIpProtocolNum (uint8_t protocol_id);
+	void SetIpsecMode (IPsec::MODE mode);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -206,12 +211,16 @@ public: //const
 	Ipv4Address GetPeerAddress (void) const;
 	Ipv4Address GetGroupAddress (void) const;
 	Spi GetGsaSpi (void) const;
+	uint8_t GetIpProtocolNum (void) const;
+	IPsec::MODE GetIpsecMode (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
 	Ipv4Address m_group_address;
+	uint8_t m_ip_protocol_num;
+	IPsec::MODE m_ipsec_mode;
 	GsamSession::ROLE m_p1_role;
 	GsamSession::ROLE m_p2_role;
 	Ptr<GsamSa> m_ptr_init_sa;
@@ -250,9 +259,6 @@ public:	//const
 	uint32_t GetSpi (void) const;
 private:	//fields
 	uint32_t m_spi;
-	Ipv4Address m_dest_address;
-	IPsec::PROTOCOL_ID m_ipsec_protocol;
-	IPsec::MODE m_ipsec_mode;
 	Ptr<EncryptionFunction> m_ptr_encrypt_fn;
 	Ptr<IpSecSADatabase> m_ptr_sad;
 	Ptr<IpSecPolicyEntry> m_ptr_policy;
@@ -276,21 +282,17 @@ private:
 public:	//self-defined
 	Ptr<IpSecSAEntry> CreateIpSecSAEntry (void);
 	void RemoveEntry (Ptr<IpSecSAEntry> entry);
+	void AssociatePolicyEntry (Ptr<IpSecPolicyEntry> policy);
 private:
 	void PushBackEntry (Ptr<IpSecSAEntry> entry);
 private:	//fields
 	Ptr<GsamInfo> m_ptr_info;
+	Ptr<IpSecPolicyEntry> m_ptr_policy_entry;
 	std::list<Ptr<IpSecSAEntry> > m_lst_entries;
 };
 
 class IpSecPolicyEntry : public Object {
 public:
-	enum DIRECTION {
-		IN = 0,
-		OUT = 1,
-		BOTH = 2
-	};
-
 	enum PROCESS_CHOICE {
 		DISCARD = 0,
 		BYPASS = 1,
@@ -318,9 +320,9 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//const
-	IpSecPolicyEntry::DIRECTION GetDirection (void) const;
 	IpSecPolicyEntry::PROCESS_CHOICE GetProcessChoice (void) const;
-	uint8_t GetProtocolId () const;
+	uint8_t GetProtocolNum (void) const;
+	IPsec::MODE GetIpsecMode (void) const;
 	uint16_t GetTranSrcStartingPort (void) const;
 	uint16_t GetTranSrcEndingPort (void) const;
 	uint16_t GetTranDestStartingPort (void) const;
@@ -331,12 +333,10 @@ public:	//const
 	Ipv4Address GetDestAddressRangeEnd (void) const;
 	Ipv4Address GetSrcAddress (void) const;
 	Ipv4Address GetDestAddress (Ipv4Address address) const;
-	Ptr<IpSecSAEntry> GetInboundSa (void) const;
-	Ptr<IpSecSAEntry> GetOutboundSa (void) const;
 public:
-	void SetDirection (IpSecPolicyEntry::DIRECTION direction);
 	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
-	void SetProtocolId (uint8_t protocol_id);
+	void SetProtocolNum (uint8_t protocol_id);
+	void SetIpsecMode (IPsec::MODE mode);
 	void SetTranSrcStartingPort (uint16_t port_num);
 	void SetTranSrcEndingPort (uint16_t port_num);
 	void SetTranDestStartingPort (uint16_t port_num);
@@ -348,25 +348,25 @@ public:
 	void SetSingleSrcAddress (Ipv4Address address);
 	void SetSingleDestAddress (Ipv4Address address);
 	void SetSPD (Ptr<IpSecPolicyDatabase> spd);
-	void SetInboundSa (Ptr<IpSecSAEntry> entry);
-	void SetOutboundSa (Ptr<IpSecSAEntry> entry);
+	Ptr<IpSecSADatabase> GetOutboundSAD (void);
+	Ptr<IpSecSADatabase> GetInboundSAD (void);
 public:	//operator
 	friend bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs);
 private:
-	IpSecPolicyEntry::DIRECTION m_direction;
 	Ipv4Address m_src_starting_address;
 	Ipv4Address m_src_ending_address;
 	Ipv4Address m_dest_starting_address;
 	Ipv4Address m_dest_ending_address;
 	uint8_t m_ip_protocol_num;
+	IPsec::MODE m_ipsec_mode;
 	uint16_t m_src_transport_protocol_starting_num;
 	uint16_t m_src_transport_protocol_ending_num;
 	uint16_t m_dest_transport_protocol_starting_num;
 	uint16_t m_dest_transport_protocol_ending_num;
 	IpSecPolicyEntry::PROCESS_CHOICE m_process_choise;
 	Ptr<IpSecPolicyDatabase> m_ptr_spd;
-	Ptr<IpSecSAEntry> m_ptr_outbound_sa;
-	Ptr<IpSecSAEntry> m_ptr_inbound_sa;
+	Ptr<IpSecSADatabase> m_ptr_outbound_sad;
+	Ptr<IpSecSADatabase> m_ptr_inbound_sad;
 };
 
 class IpSecPolicyDatabase : public Object {
@@ -415,7 +415,7 @@ public:	//self defined
 	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetPhaseTwoSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
-	Ptr<GsamInfo> GetInfo () const;
+	Ptr<GsamInfo> GetInfo ();
 	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
 	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
 	Ptr<GsamSession> CreateSession (void);

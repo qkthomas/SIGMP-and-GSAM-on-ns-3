@@ -75,6 +75,9 @@ private:	//responing, added by Lin Chen
 	void ProcessIkeSaAuthResponse (Ptr<GsamSession> session, const IkePayload& sar2, const IkePayload& tsi, const IkePayload& tsr);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void RespondIkeSaAuth (Ptr<GsamSession> session);
+private:	//database operation
+	Ptr<IpSecDatabase> GetIpSecDatabase (void);
+	void CreateIpsecPolicy (Ptr<GsamSession> session);
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;

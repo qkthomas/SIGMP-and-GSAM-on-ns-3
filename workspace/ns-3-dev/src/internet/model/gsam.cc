@@ -2922,7 +2922,7 @@ IkeTrafficSelector::GetSerializedSize (void) const
 
 	size += sizeof (this->m_starting_address.Get());
 
-	size += sizeof (m_ending_address.Get());
+	size += sizeof (this->m_ending_address.Get());
 
 	return size;
 }
@@ -3049,6 +3049,24 @@ IkeTrafficSelector::GenerateDefaultSigmpTs(void)
 	retval.m_end_port = 0;
 	retval.m_starting_address = GsamConfig::GetSecGrpAddressStart();
 	retval.m_ending_address = GsamConfig::GetSecGrpAddressEnd();
+
+	//header = 4; 2 ports = 4; 2 ipv4 address = 8
+	retval.m_length = 16;	//16 bytes
+
+	return retval;
+
+}
+
+IkeTrafficSelector
+IkeTrafficSelector::GenerateDestSecureGroupTs(Ipv4Address grpup_adress)
+{
+	IkeTrafficSelector retval;
+	retval.m_ts_type = IkeTrafficSelector::TS_IPV4_ADDR_RANGE;
+	retval.m_ip_protocol_id = GsamConfig::GetDefaultIpsecProtocolId();
+	retval.m_start_port = 0;
+	retval.m_end_port = 0;
+	retval.m_starting_address = grpup_adress;
+	retval.m_ending_address = grpup_adress;
 
 	//header = 4; 2 ports = 4; 2 ipv4 address = 8
 	retval.m_length = 16;	//16 bytes
@@ -3187,6 +3205,25 @@ IkeTrafficSelectorSubstructure*
 IkeTrafficSelectorSubstructure::GenerateEmptySubstructure (void)
 {
 	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+
+	return retval;
+}
+
+IkeTrafficSelectorSubstructure*
+IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_address)
+{
+	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+
+	retval->m_num_of_tss = 1;
+	retval->m_lst_traffic_selectors.push_back(IkeTrafficSelector::GenerateDestSecureGroupTs(group_address));
+	retval->m_length = 4;
+
+	for (	std::list<IkeTrafficSelector>::const_iterator const_it = retval->m_lst_traffic_selectors.begin();
+			const_it != retval->m_lst_traffic_selectors.end();
+			const_it++)
+	{
+		retval->m_length += const_it->GetSerializedSize();
+	}
 
 	return retval;
 }

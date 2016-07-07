@@ -193,7 +193,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session, Ipv4Address dest)
 	sa_payload_init.SetNextPayloadType(key_payload_init.GetPayloadType());
 	//setting up HDR
 	IkeHeader ikeheader;
-	uint64_t initiator_spi = this->m_ptr_database->GetInfo()->RegisterGsamSpi();
+	uint64_t initiator_spi = this->GetIpSecDatabase()->GetInfo()->RegisterGsamSpi();
 	ikeheader.SetInitiatorSpi(initiator_spi);
 	ikeheader.SetResponderSpi(0);
 	ikeheader.SetIkev2Version();
@@ -229,6 +229,8 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 	//Setting up TSr
 	IkePayload tsr;
 	tsr.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	//Creating policy of tsi
+	this->CreateIpsecPolicy(session);
 	//settuping up tsi
 	IkePayload tsi;
 	tsi.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
@@ -282,13 +284,6 @@ GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
 	NS_LOG_FUNCTION (this);
 
 	session->SetPhaseTwoRole(GsamSession::INITIATOR);
-
-	Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
-	Ptr<IpSecSADatabase> sad = session->GetDatabase()->GetIpSecSaDatabase();
-
-	Ptr<IpSecPolicyEntry> policy = spd->CreatePolicyEntry();
-
-	policy->SetSingleDestAddress(session->GetGroupAddress());
 
 	Spi gsa_spi = session->GetGsaSpi();
 
@@ -415,16 +410,16 @@ GsamL4Protocol::HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& 
 	IkePayload n_i = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
 	packet->RemoveHeader(n_i);
 
-	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader, peer_address);
+	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
 
 	if (session == 0)
 	{
-		session = this->m_ptr_database->CreateSession();
+		session = this->GetIpSecDatabase()->CreateSession();
 		session->SetPhaseOneRole(GsamSession::RESPONDER);
 		session->SetPeerAddress(peer_address);
 		session->EtablishGsamInitSa();
 		session->SetInitSaInitiatorSpi(initiator_spi);
-		uint64_t responder_spi = this->m_ptr_database->GetInfo()->RegisterGsamSpi();
+		uint64_t responder_spi = this->GetIpSecDatabase()->GetInfo()->RegisterGsamSpi();
 		session->SetInitSaResponderSpi(responder_spi);
 	}
 	session->SetMessageId(message_id);
@@ -468,7 +463,7 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 	IkePayload n_r = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
 	packet->RemoveHeader(n_r);
 
-	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader, peer_address);
+	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
 
 	if (0 == session)
 	{
@@ -548,7 +543,7 @@ GsamL4Protocol::HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader,
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<GsamSession> session = this->m_ptr_database->GetSession(ikeheader, peer_address);
+	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
 
 	if (session == 0)
 	{
@@ -649,6 +644,7 @@ GsamL4Protocol::ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkeP
 	NS_LOG_FUNCTION (this);
 
 	session->SetGroupAddress(id.GetIpv4AddressId());
+	this->CreateIpsecPolicy(session);
 
 	const std::list<IkeSAProposal> proposals = sai2.GetSAProposals();
 
@@ -662,7 +658,6 @@ GsamL4Protocol::ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkeP
 	session->EtablishGsamKekSa();
 	session->SetKekSaInitiatorSpi(proposal.GetSpi().ToUint64());
 	session->SetKekSaResponderSpi(session->GetInfo()->RegisterGsamSpi());
-
 }
 
 void
@@ -781,6 +776,32 @@ GsamL4Protocol::RespondIkeSaAuth (Ptr<GsamSession> session)
 	packet->AddHeader(ikeheader);
 
 	this->SendMessage(session, packet, true);
+}
+
+Ptr<IpSecDatabase>
+GsamL4Protocol::GetIpSecDatabase (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database == 0)
+	{
+		this->m_ptr_database = Create<IpSecDatabase>();
+	}
+
+	return this->m_ptr_database;
+}
+
+void
+GsamL4Protocol::CreateIpsecPolicy (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	//Creating policy
+	Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
+	Ptr<IpSecPolicyEntry> policy_entry = spd->CreatePolicyEntry();
+	policy_entry->SetProcessChoice(IpSecPolicyEntry::PROTECT);
+	policy_entry->SetProtocolNum(GsamConfig::GetDefaultIpsecProtocolId());
+	policy_entry->SetIpsecMode(GsamConfig::GetDefaultIpsecMode());
+	policy_entry->SetSingleDestAddress(session->GetGroupAddress());
 }
 
 } /* namespace ns3 */
