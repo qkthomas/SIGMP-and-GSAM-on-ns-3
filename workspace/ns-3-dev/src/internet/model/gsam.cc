@@ -1066,6 +1066,59 @@ IkePayload::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 	this->m_header.SetNextPayloadType(payload_type);
 }
 
+void
+IkePayload::PushBackProposal (IkeSAProposal proposal)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
+	{
+		NS_ASSERT (false);
+	}
+	IkeSAPayloadSubstructure* ptr_derived = dynamic_cast<IkeSAPayloadSubstructure*>(this->m_ptr_substructure);
+	ptr_derived->PushBackProposal(proposal);
+}
+void
+IkePayload::PushBackProposals (const std::list<IkeSAProposal>& proposals)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
+	{
+		NS_ASSERT (false);
+	}
+	IkeSAPayloadSubstructure* ptr_derived = dynamic_cast<IkeSAPayloadSubstructure*>(this->m_ptr_substructure);
+	ptr_derived->PushBackProposals(proposals);
+}
+
+void
+IkePayload::PushBackTrafficSelector (IkeTrafficSelector ts)
+{
+	NS_LOG_FUNCTION (this);
+
+		if ((this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR) &&
+				(this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER))
+		{
+			NS_ASSERT (false);
+		}
+
+		IkeTrafficSelectorSubstructure* ptr_derived = dynamic_cast<IkeTrafficSelectorSubstructure*>(this->m_ptr_substructure);
+		ptr_derived->PushBackTrafficSelector(ts);
+}
+
+void
+IkePayload::PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss)
+{
+	NS_LOG_FUNCTION (this);
+
+		if ((this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR) &&
+				(this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER))
+		{
+			NS_ASSERT (false);
+		}
+
+		IkeTrafficSelectorSubstructure* ptr_derived = dynamic_cast<IkeTrafficSelectorSubstructure*>(this->m_ptr_substructure);
+		ptr_derived->PushBackTrafficSelectors(tss);
+}
+
 IkePayload
 IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 {
@@ -1965,6 +2018,18 @@ IkeSAPayloadSubstructure::PushBackProposal (IkeSAProposal proposal)
 	NS_LOG_FUNCTION (this);
 	this->m_lst_proposal.push_back(proposal);
 	this->m_length += proposal.GetSerializedSize();
+}
+
+void
+IkeSAPayloadSubstructure::PushBackProposals (const std::list<IkeSAProposal>& proposals)
+{
+	NS_LOG_FUNCTION (this);
+	for (	std::list<IkeSAProposal>::const_iterator const_it = proposals.begin();
+			const_it != proposals.end();
+			const_it++)
+	{
+		this->m_lst_proposal.push_back(*const_it);
+	}
 }
 
 const std::list<IkeSAProposal>&
@@ -3253,6 +3318,25 @@ IkeTrafficSelectorSubstructure::GetTrafficSelectors (void) const
 	NS_LOG_FUNCTION (this);
 
 	return this->m_lst_traffic_selectors;
+}
+
+void
+IkeTrafficSelectorSubstructure::PushBackTrafficSelector (IkeTrafficSelector ts)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_traffic_selectors.push_back(ts);
+}
+
+void
+IkeTrafficSelectorSubstructure::PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss)
+{
+	NS_LOG_FUNCTION (this);
+	for (	std::list<IkeTrafficSelector>::const_iterator const_it = tss.begin();
+			const_it != tss.end();
+			const_it++)
+	{
+		this->PushBackTrafficSelector(*const_it);
+	}
 }
 
 /********************************************************

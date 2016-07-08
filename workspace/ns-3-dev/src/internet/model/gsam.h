@@ -306,6 +306,10 @@ public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
 	void SetPayload (IkePayloadSubstructure* substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
+	void PushBackProposal (IkeSAProposal proposal);
+	void PushBackProposals (const std::list<IkeSAProposal>& proposals);
+	void PushBackTrafficSelector (IkeTrafficSelector ts);
+	void PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss);
 public:	//static
 	/*
 	 * For Deserilization Only
@@ -549,6 +553,7 @@ public:	//static
 	static IkeSAPayloadSubstructure* GenerateAuthIkeProposal (Spi spi);
 public:	//self-defined
 	void PushBackProposal (IkeSAProposal proposal);
+	void PushBackProposals (const std::list<IkeSAProposal>& proposals);
 public:	//const
 	const std::list<IkeSAProposal>& GetProposals (void) const;
 private:
@@ -934,6 +939,9 @@ public:	//static
 	static IkeTrafficSelectorSubstructure* GenerateDefaultSubstructure (void);
 public:	//const
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
+public:
+	void PushBackTrafficSelector (IkeTrafficSelector ts);
+	void PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss);
 private:
 	uint8_t m_num_of_tss;	//for deserilization
 	std::list<IkeTrafficSelector> m_lst_traffic_selectors;

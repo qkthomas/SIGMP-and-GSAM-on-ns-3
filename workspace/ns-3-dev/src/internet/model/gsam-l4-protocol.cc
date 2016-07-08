@@ -625,39 +625,43 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
 	packet->RemoveHeader(tsr);
 
+	IkeSAProposal chosen_proposal;
+	GsamL4Protocol::ChooseSAProposalOffer(sai2.GetSAProposals(), chosen_proposal);
+
+	std::list<IkeTrafficSelector> narrowed_tssi;
+	GsamL4Protocol::NarrowTrafficSelectors(tsi.GetTrafficSelectors(), narrowed_tssi);
+	std::list<IkeTrafficSelector> narrowed_tssr;
+	GsamL4Protocol::NarrowTrafficSelectors(tsr.GetTrafficSelectors(), narrowed_tssr);
+
 	if (!session->HaveKekSa())
 	{
 		this->ProcessIkeSaAuthInvitation(	session,
 											id.GetIpv4AddressId(),
-											sai2.GetSAProposals(),
-											tsi.GetTrafficSelectors(),
-											tsr.GetTrafficSelectors());
+											chosen_proposal,
+											narrowed_tssi,
+											narrowed_tssr);
+	}
+	else
+	{
+		//it has already receive a same auth invitation for the same session before
 	}
 
 	session->SetMessageId(message_id);
 
-	this->RespondIkeSaAuth(session);
+	this->RespondIkeSaAuth(session, chosen_proposal, narrowed_tssi, narrowed_tssr);
 
 }
 
 void
 GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamSession> session,
 											Ipv4Address group_address,
-											const std::list<IkeSAProposal>& sai2_proposals,
+											const IkeSAProposal& proposal,
 											const std::list<IkeTrafficSelector>& tsi_selectors,
 											const std::list<IkeTrafficSelector>& tsr_selectors)
 {
 	NS_LOG_FUNCTION (this);
 
 	session->SetGroupAddress(group_address);
-
-	if (sai2_proposals.size() == 1)
-	{
-		//there should be only 1 proposal in the experiment
-		NS_ASSERT (false);
-	}
-
-	IkeSAProposal proposal = sai2_proposals.front();
 
 	session->EtablishGsamKekSa();
 	session->SetKekSaInitiatorSpi(proposal.GetSpi().ToUint64());
@@ -711,47 +715,54 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
 	packet->RemoveHeader(tsr);
 
-	this->ProcessIkeSaAuthResponse(session, sar2, tsi, tsr);
+	this->ProcessIkeSaAuthResponse(session, sar2.GetSAProposals(), tsi.GetTrafficSelectors(), tsr.GetTrafficSelectors());
 
 	session->IncrementMessageId();
 }
 
 void
-GsamL4Protocol::ProcessIkeSaAuthResponse (Ptr<GsamSession> session, const IkePayload& sar2, const IkePayload& tsi, const IkePayload& tsr)
+GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
+											const std::list<IkeSAProposal>& sar2_proposals,
+											const std::list<IkeTrafficSelector>& tsi_selectors,
+											const std::list<IkeTrafficSelector>& tsr_selectors)
 {
 	NS_LOG_FUNCTION (this);
 
-	const std::list<IkeSAProposal> proposals = sar2.GetSAProposals();
-
-	if (proposals.size() == 0)
+	if (sar2_proposals.size() != 1)
 	{
 		NS_ASSERT (false);
 	}
 
-	IkeSAProposal proposal = proposals.front();
+	IkeSAProposal proposal = sar2_proposals.front();
 
 	Spi spi_responder = proposal.GetSpi();
 
 	session->SetKekSaResponderSpi(spi_responder.ToUint64());
+
+	this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
 }
 
 void
-GsamL4Protocol::RespondIkeSaAuth (Ptr<GsamSession> session)
+GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
+									IkeSAProposal chosen_proposal,
+									const std::list<IkeTrafficSelector>& narrowed_tssi,
+									const std::list<IkeTrafficSelector>& narrowed_tssr)
 {
 	NS_LOG_FUNCTION (this);
 
 	//Setting up TSr
 	IkePayload tsr;
-	tsr.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	tsr.GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER);
+	tsr.PushBackTrafficSelectors(narrowed_tssr);
 	//settuping up tsi
 	IkePayload tsi;
-	tsi.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	tsi.GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR);
+	tsi.PushBackTrafficSelectors(narrowed_tssi);
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sar2
 	IkePayload sar2;
-	Spi kek_sa_spi;
-	kek_sa_spi.SetValueFromUint64(session->GetKekSaResponderSpi());
-	sar2.SetPayload(IkeSAPayloadSubstructure::GenerateAuthIkeProposal(kek_sa_spi));
+	sar2.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+	sar2.PushBackProposal(chosen_proposal);
 	sar2.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up auth
 	IkePayload auth;
@@ -834,6 +845,25 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 			this->CreateIpSecPolicy(session, (*const_it_tsi_selectors), (*const_it_tsr_selectors));
 		}
 	}
+}
+
+void
+GsamL4Protocol::ChooseSAProposalOffer (	const std::list<IkeSAProposal> proposals,
+										IkeSAProposal& retval_chosen_proposal)
+{
+	if (proposals.size() == 0)
+	{
+		NS_ASSERT(false);
+	}
+
+	retval_chosen_proposal = proposals.front();
+}
+
+void
+GsamL4Protocol::NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
+												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors)
+{
+	retval_narrowed_tsi_selectors = tsi_selectors;
 }
 
 } /* namespace ns3 */

@@ -73,12 +73,23 @@ private:	//responing, added by Lin Chen
 	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessIkeSaAuthInvitation (	Ptr<GsamSession> session,
 										Ipv4Address group_address,
-										const std::list<IkeSAProposal>& sai2_proposals,
+										const IkeSAProposal& proposal,
 										const std::list<IkeTrafficSelector>& tsi_selectors,
 										const std::list<IkeTrafficSelector>& tsr_selectors);
-	void ProcessIkeSaAuthResponse (Ptr<GsamSession> session, const IkePayload& sar2, const IkePayload& tsi, const IkePayload& tsr);
+	void ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
+									const std::list<IkeSAProposal>& sar2_proposals,
+									const std::list<IkeTrafficSelector>& tsi_selectors,
+									const std::list<IkeTrafficSelector>& tsr_selectors);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void RespondIkeSaAuth (Ptr<GsamSession> session);
+	void RespondIkeSaAuth (	Ptr<GsamSession> session,
+							IkeSAProposal chosen_proposal,
+							const std::list<IkeTrafficSelector>& narrowed_tssi,
+							const std::list<IkeTrafficSelector>& narrowed_tssr);
+private:	//private staitc
+	static void ChooseSAProposalOffer (	const std::list<IkeSAProposal> proposals,
+										IkeSAProposal& retval_chosen_proposal);
+	static void NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
+												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);
 	void CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSelector& tsi, const IkeTrafficSelector& tsr);
