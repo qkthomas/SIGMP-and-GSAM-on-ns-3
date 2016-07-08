@@ -253,10 +253,7 @@ public:
 	void AssociatePolicy (Ptr<IpSecPolicyEntry> policy);
 public:	//const
 	uint32_t GetSpi (void) const;
-	Ipv4Address GetDestAddress (void) const;
 	Ptr<IpSecPolicyEntry> GetPolicyEntry (void) const;
-public:	//const
-	uint32_t GetSpi (void) const;
 private:	//fields
 	uint32_t m_spi;
 	Ptr<EncryptionFunction> m_ptr_encrypt_fn;

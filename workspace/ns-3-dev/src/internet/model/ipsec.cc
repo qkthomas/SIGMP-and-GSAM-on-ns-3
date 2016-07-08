@@ -149,7 +149,7 @@ GsamConfig::GetDefaultSessionTimeout (void)
 IPsec::MODE
 GsamConfig::GetDefaultIpsecMode (void)
 {
-	return IPsec::MODE;
+	return IPsec::TRANSPORT;
 }
 
 uint8_t
@@ -336,7 +336,7 @@ GsamInfo::GenerateIpsecSpi (void) const
 bool
 GsamInfo::IsIpsecSpiOccupied (uint32_t spi) const
 {
-	bool retval = (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_gsam_spis.end());
+	bool retval = (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end());
 
 	return retval;
 }
@@ -1056,6 +1056,12 @@ GsamSession::GetIpsecMode (void) const
 	return this->m_ipsec_mode;
 }
 
+void
+GsamSession::TimeoutAction (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
 /********************************************************
  *        IpSecSAEntry
  ********************************************************/
@@ -1128,16 +1134,6 @@ IpSecSAEntry::SetSpi (uint32_t spi)
 	this->m_spi = spi;
 }
 
-uint32_t
-IpSecSAEntry::GetSpi (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	NS_ASSERT (this->m_spi != 0);
-
-	return this->m_spi;
-}
-
 void
 IpSecSAEntry::SetSAD (Ptr<IpSecSADatabase> sad)
 {
@@ -1172,13 +1168,6 @@ IpSecSAEntry::GetSpi (void) const
 	}
 
 	return this->m_spi;
-}
-
-Ipv4Address
-IpSecSAEntry::GetDestAddress (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_dest_address;
 }
 
 Ptr<IpSecPolicyEntry>
@@ -1585,11 +1574,6 @@ IpSecPolicyEntry::GetInboundSAD (void)
 bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
 {
 	bool retval = true;
-
-	if (lhs.m_direction != rhs.m_direction)
-	{
-		retval = false;
-	}
 
 	if (lhs.m_src_starting_address != rhs.m_src_starting_address)
 	{

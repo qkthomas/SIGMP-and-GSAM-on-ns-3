@@ -36,7 +36,7 @@ class IkeTrafficSelector;
 
 class IPsec {
 public:
-	enum PROTOCOL_ID {
+	enum SA_Proposal_PROTOCOL_ID {
 		RESERVED = 0,
 		IKE = 1,
 		AH = 2,
@@ -495,14 +495,14 @@ public:	//non-const
 	void SetLast (void);
 	void ClearLast (void);
 	void SetProposalNumber (uint16_t proposal_num);
-	void SetProtocolId (IPsec::PROTOCOL_ID protocol_id);
-	void SetProtocolIdAndSPISize (IPsec::PROTOCOL_ID protocol_id);
+	void SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
+	void SetProtocolIdAndSPISize (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	void SetSPI (Spi spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
 public:	//const
 	Spi GetSpi (void) const;
 private:
-	uint8_t GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id);
+	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	/*
 	 * Iterate the list of transform and set the last one's "field last"
 	 */

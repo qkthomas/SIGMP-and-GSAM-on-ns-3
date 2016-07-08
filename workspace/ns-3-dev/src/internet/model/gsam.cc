@@ -1729,14 +1729,14 @@ IkeSAProposal::SetProposalNumber (uint16_t proposal_num)
 }
 
 void
-IkeSAProposal::SetProtocolId (IPsec::PROTOCOL_ID protocol_id)
+IkeSAProposal::SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_protocol_id = protocol_id;
 }
 
 void
-IkeSAProposal::SetProtocolIdAndSPISize (IPsec::PROTOCOL_ID protocol_id)
+IkeSAProposal::SetProtocolIdAndSPISize (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1771,7 +1771,7 @@ IkeSAProposal::GetSpi (void) const
 }
 
 uint8_t
-IkeSAProposal::GetSPISizeByProtocolId (IPsec::PROTOCOL_ID protocol_id)
+IkeSAProposal::GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 

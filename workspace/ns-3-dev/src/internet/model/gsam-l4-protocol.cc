@@ -228,12 +228,10 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 
 	//Setting up TSr
 	IkePayload tsr;
-	tsr.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
-	//Creating policy of tsi
-	this->CreateIpsecPolicy(session);
+	tsr.SetPayload(IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure(session->GetGroupAddress()));
 	//settuping up tsi
 	IkePayload tsi;
-	tsi.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure());
+	tsi.SetPayload(IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure(Ipv4Address("0.0.0.0")));
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sai2
 	IkePayload sai2;
@@ -486,7 +484,7 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 		session->SetInitSaResponderSpi(responder_spi);
 		session->IncrementMessageId();
 
-		this->Send_IKE_SA_AUTH(session, peer_address);
+		this->Send_IKE_SA_AUTH(session);
 	}
 }
 
@@ -629,7 +627,11 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 
 	if (!session->HaveKekSa())
 	{
-		this->ProcessIkeSaAuthInvitation(session, id, sai2, tsi, tsr);
+		this->ProcessIkeSaAuthInvitation(	session,
+											id.GetIpv4AddressId(),
+											sai2.GetSAProposals(),
+											tsi.GetTrafficSelectors(),
+											tsr.GetTrafficSelectors());
 	}
 
 	session->SetMessageId(message_id);
@@ -639,25 +641,29 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 }
 
 void
-GsamL4Protocol::ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& id, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr)
+GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamSession> session,
+											Ipv4Address group_address,
+											const std::list<IkeSAProposal>& sai2_proposals,
+											const std::list<IkeTrafficSelector>& tsi_selectors,
+											const std::list<IkeTrafficSelector>& tsr_selectors)
 {
 	NS_LOG_FUNCTION (this);
 
-	session->SetGroupAddress(id.GetIpv4AddressId());
-	this->CreateIpsecPolicy(session);
+	session->SetGroupAddress(group_address);
 
-	const std::list<IkeSAProposal> proposals = sai2.GetSAProposals();
-
-	if (proposals.size() == 0)
+	if (sai2_proposals.size() == 1)
 	{
+		//there should be only 1 proposal in the experiment
 		NS_ASSERT (false);
 	}
 
-	IkeSAProposal proposal = proposals.front();
+	IkeSAProposal proposal = sai2_proposals.front();
 
 	session->EtablishGsamKekSa();
 	session->SetKekSaInitiatorSpi(proposal.GetSpi().ToUint64());
 	session->SetKekSaResponderSpi(session->GetInfo()->RegisterGsamSpi());
+
+	this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
 }
 
 void
@@ -792,16 +798,42 @@ GsamL4Protocol::GetIpSecDatabase (void)
 }
 
 void
-GsamL4Protocol::CreateIpsecPolicy (Ptr<GsamSession> session)
+GsamL4Protocol::CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSelector& tsi, const IkeTrafficSelector& tsr)
 {
 	NS_LOG_FUNCTION (this);
-	//Creating policy
+
+	if (tsi.GetProtocolId() != tsr.GetProtocolId())
+	{
+		NS_ASSERT (false);
+	}
+
 	Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
 	Ptr<IpSecPolicyEntry> policy_entry = spd->CreatePolicyEntry();
 	policy_entry->SetProcessChoice(IpSecPolicyEntry::PROTECT);
-	policy_entry->SetProtocolNum(GsamConfig::GetDefaultIpsecProtocolId());
 	policy_entry->SetIpsecMode(GsamConfig::GetDefaultIpsecMode());
-	policy_entry->SetSingleDestAddress(session->GetGroupAddress());
+	policy_entry->SetSrcAddressRange(tsi.GetStartingAddress(), tsi.GetEndingAddress());
+	policy_entry->SetTranSrcPortRange(tsi.GetStartPort(), tsi.GetEndPort());
+	policy_entry->SetProtocolNum(tsr.GetProtocolId());
+	policy_entry->SetDestAddressRange(tsr.GetStartingAddress(), tsr.GetStartingAddress());
+	policy_entry->SetTranSrcPortRange(tsr.GetStartPort(), tsr.GetEndPort());
+}
+
+void
+GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
+									const std::list<IkeTrafficSelector>& tsi_selectors,
+									const std::list<IkeTrafficSelector>& tsr_selectors)
+{
+	for (	std::list<IkeTrafficSelector>::const_iterator const_it_tsi_selectors = tsi_selectors.begin();
+			const_it_tsi_selectors != tsi_selectors.end();
+			const_it_tsi_selectors++)
+	{
+		for (	std::list<IkeTrafficSelector>::const_iterator const_it_tsr_selectors = tsr_selectors.begin();
+				const_it_tsr_selectors != tsr_selectors.end();
+				const_it_tsr_selectors++)
+		{
+			this->CreateIpSecPolicy(session, (*const_it_tsi_selectors), (*const_it_tsr_selectors));
+		}
+	}
 }
 
 } /* namespace ns3 */

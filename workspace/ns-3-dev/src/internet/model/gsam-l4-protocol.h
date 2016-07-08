@@ -71,13 +71,20 @@ private:	//responing, added by Lin Chen
 	//HandleIkeSaAuth
 	void HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessIkeSaAuthInvitation (Ptr<GsamSession> session, const IkePayload& id, const IkePayload& sai2, const IkePayload& tsi, const IkePayload& tsr);
+	void ProcessIkeSaAuthInvitation (	Ptr<GsamSession> session,
+										Ipv4Address group_address,
+										const std::list<IkeSAProposal>& sai2_proposals,
+										const std::list<IkeTrafficSelector>& tsi_selectors,
+										const std::list<IkeTrafficSelector>& tsr_selectors);
 	void ProcessIkeSaAuthResponse (Ptr<GsamSession> session, const IkePayload& sar2, const IkePayload& tsi, const IkePayload& tsr);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void RespondIkeSaAuth (Ptr<GsamSession> session);
 private:	//database operation
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);
-	void CreateIpsecPolicy (Ptr<GsamSession> session);
+	void CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSelector& tsi, const IkeTrafficSelector& tsr);
+	void CreateIpSecPolicy (Ptr<GsamSession> session,
+							const std::list<IkeTrafficSelector>& tsi_selectors,
+							const std::list<IkeTrafficSelector>& tsr_selectors);
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;
