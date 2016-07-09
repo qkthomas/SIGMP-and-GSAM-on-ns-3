@@ -827,6 +827,8 @@ GsamL4Protocol::CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSel
 	policy_entry->SetProtocolNum(tsr.GetProtocolId());
 	policy_entry->SetDestAddressRange(tsr.GetStartingAddress(), tsr.GetStartingAddress());
 	policy_entry->SetTranSrcPortRange(tsr.GetStartPort(), tsr.GetEndPort());
+
+	session->PushBackRelatedPolicies(policy_entry);
 }
 
 void

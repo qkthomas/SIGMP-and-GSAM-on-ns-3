@@ -624,6 +624,7 @@ GsamSession::~GsamSession()
 	this->m_ptr_init_sa = 0;
 	this->m_ptr_database = 0;
 	this->m_ptr_kek_sa = 0;
+	this->m_lst_related_policy_entries.clear();
 }
 
 TypeId
@@ -1004,6 +1005,18 @@ GsamSession::SetIpsecMode (IPsec::MODE mode)
 	this->m_ipsec_mode = mode;
 }
 
+void
+GsamSession::PushBackRelatedPolicies (Ptr<IpSecPolicyEntry> entry)
+{
+	NS_LOG_FUNCTION (this);
+	if (entry == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_lst_related_policy_entries.push_back(entry);
+}
+
 Ptr<GsamInfo>
 GsamSession::GetInfo (void) const
 {
@@ -1201,6 +1214,7 @@ IpSecSADatabase::GetTypeId (void)
 
 IpSecSADatabase::IpSecSADatabase ()
   :  m_ptr_info (0),
+	 m_ptr_root_database (0),
 	 m_ptr_policy_entry (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -1258,10 +1272,39 @@ IpSecSADatabase::AssociatePolicyEntry (Ptr<IpSecPolicyEntry> policy)
 	this->m_ptr_policy_entry = policy;
 }
 
+void
+IpSecSADatabase::SetRootDatabase (Ptr<IpSecDatabase> database)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_root_database = database;
+}
+
+Ptr<IpSecPolicyEntry>
+IpSecSADatabase::GetRootDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_root_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_root_database;
+}
+
 Ptr<IpSecSAEntry>
 IpSecSADatabase::CreateIpSecSAEntry (void)
 {
-	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
+	Ptr<IpSecSAEntry> retval = 0;
+	if (this->m_ptr_policy_entry == 0)
+	{
+		//this database is a sad-i or sad-o that bound to an entry. And it's just a logical database which is a part of the real database;
+		retval = Create<IpSecSAEntry>();
+	}
+	else
+	{
+		retval = this->m_ptr_policy_entry->GetSPD()->GetRootDatabase()->GetSAD()->CreateIpSecSAEntry();
+	}
 	this->PushBackEntry(retval);
 	return retval;
 }
@@ -1530,6 +1573,19 @@ IpSecPolicyEntry::GetDestAddress (Ipv4Address address) const
 	return this->m_dest_starting_address;
 }
 
+Ptr<IpSecPolicyDatabase>
+IpSecPolicyEntry::GetSPD (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_spd == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_spd;
+}
+
 void
 IpSecPolicyEntry::SetSPD (Ptr<IpSecPolicyDatabase> spd)
 {
@@ -1651,6 +1707,7 @@ IpSecPolicyDatabase::GetTypeId (void)
 }
 
 IpSecPolicyDatabase::IpSecPolicyDatabase ()
+  :  m_ptr_root_database (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1703,6 +1760,32 @@ IpSecPolicyDatabase::CreatePolicyEntry (void)
 	retval->SetSPD(this);
 
 	return retval;
+}
+
+void
+IpSecPolicyDatabase::SetRootDatabase (Ptr<IpSecDatabase> database)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_root_database !=0 )
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_root_database = database;
+}
+
+Ptr<IpSecDatabase>
+IpSecPolicyDatabase::GetRootDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_root_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_root_database;
 }
 
 /********************************************************
@@ -1936,6 +2019,34 @@ IpSecDatabase::GetRetransmissionDelay (void)
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ptr_info->GetRetransmissionDelay();
+}
+
+Ptr<IpSecPolicyDatabase>
+IpSecDatabase::GetSPD (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_spd == 0)
+	{
+		this->m_ptr_spd = Create<IpSecPolicyDatabase>();
+		this->m_ptr_spd->SetRootDatabase(this);
+	}
+
+	return this->m_ptr_spd;
+}
+
+Ptr<IpSecSADatabase>
+IpSecDatabase::GetSAD (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_sad == 0)
+	{
+		this->m_ptr_sad = Create<IpSecSADatabase>();
+		this->m_ptr_sad->SetRootDatabase(this);
+	}
+
+	return this->m_ptr_sad;
 }
 
 } /* namespace ns3 */

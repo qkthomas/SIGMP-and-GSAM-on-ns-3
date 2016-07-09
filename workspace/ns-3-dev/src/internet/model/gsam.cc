@@ -1595,6 +1595,7 @@ IkeSAProposal::GetTypeId (void)
 
 IkeSAProposal::IkeSAProposal ()
   :  m_flag_last (false),
+	 m_gsa_type (IkeSAProposal::UNINITIALIZED),
 	 m_proposal_length (12),	//12 bytes until filed SPI. increase by adding more transform
 	 m_proposal_num (0),
 	 m_protocol_id (0),
@@ -1656,6 +1657,8 @@ IkeSAProposal::Serialize (Buffer::Iterator start) const
 		NS_ASSERT (false);
 	}
 
+
+
 	uint16_t proposal_length = 0;
 	proposal_length += 8;	//fields before SPI and Transforms
 	proposal_length += this->m_spi.GetSerializedSize();
@@ -1666,8 +1669,23 @@ IkeSAProposal::Serialize (Buffer::Iterator start) const
 		proposal_length += const_it->GetSerializedSize();
 	}
 
-	//to write the RESERVED field
-	i.WriteU8(0);
+	//to write the RESERVED field and optional GSA type filed
+	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
+	{
+		i.WriteU8(0);
+	}
+	else if (this->m_gsa_type == IkeSAProposal::GSA_Q)
+	{
+		i.WriteU8(1);
+	}
+	else if (this->m_gsa_type == IkeSAProposal::GSA_R)
+	{
+		i.WriteU8(2);
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
 
 	i.WriteHtolsbU16(proposal_length);
 
@@ -1715,8 +1733,24 @@ IkeSAProposal::Deserialize (Buffer::Iterator start)
 		NS_ASSERT (false);
 	}
 
-	//skip first RESERVED
-	i.Next();
+	//read first RESERVED or optional GSA type field
+	uint8_t reserved_gsa_type = i.ReadU8();
+	if (reserved_gsa_type == 0)
+	{
+		this->m_gsa_type = IkeSAProposal::UNINITIALIZED;
+	}
+	else if (reserved_gsa_type == 1)
+	{
+		this->m_gsa_type = IkeSAProposal::GSA_Q;
+	}
+	else if (reserved_gsa_type == 2)
+	{
+		this->m_gsa_type = IkeSAProposal::GSA_R;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
 	size++;
 
 	this->m_proposal_length = i.ReadNtohU16();
@@ -1816,11 +1850,79 @@ IkeSAProposal::PushBackTransform (IkeTransformSubStructure transform)
 	this->SetLastTransform();
 }
 
+void
+IkeSAProposal::SetAsGsaQ (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_gsa_type != IkeSAProposal::UNINITIALIZED)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_gsa_type = IkeSAProposal::GSA_Q;
+}
+
+void
+IkeSAProposal::SetAsGsaR (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_gsa_type != IkeSAProposal::UNINITIALIZED)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_gsa_type = IkeSAProposal::GSA_R;
+}
+
 Spi
 IkeSAProposal::GetSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_spi;
+}
+
+bool
+IkeSAProposal::IsGsa (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = true;
+
+	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
+bool
+IkeSAProposal::IsGsaQ (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+
+	if (this->m_gsa_type == IkeSAProposal::GSA_Q)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+bool
+IkeSAProposal::IsGsaR (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+
+	if (this->m_gsa_type == IkeSAProposal::GSA_R)
+	{
+		retval = true;
+	}
+
+	return retval;
 }
 
 uint8_t

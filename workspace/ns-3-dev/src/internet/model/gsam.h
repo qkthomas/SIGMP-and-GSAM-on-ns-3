@@ -485,6 +485,12 @@ class IkeSAProposal : public Header {
 	 *
 	 */
 
+	enum GSA_TYPE {
+		UNINITIALIZED = 0,
+		GSA_Q = 1,
+		GSA_R = 2
+	};
+
 public:
 	static TypeId GetTypeId (void);
 	IkeSAProposal ();
@@ -503,8 +509,13 @@ public:	//non-const
 	void SetProtocolIdAndSPISize (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	void SetSPI (Spi spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
+	void SetAsGsaQ (void);
+	void SetAsGsaR (void);
 public:	//const
 	Spi GetSpi (void) const;
+	bool IsGsa (void) const;
+	bool IsGsaQ (void) const;
+	bool IsGsaR (void) const;
 private:
 	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	/*
@@ -517,6 +528,7 @@ public:
 	static IkeSAProposal GenerateAuthIkeProposal (Spi spi);
 private:
 	bool m_flag_last;
+	IkeSAProposal::GSA_TYPE m_gsa_type;
 	uint16_t m_proposal_length;	//for deserialization
 	uint8_t m_proposal_num;
 	uint8_t m_protocol_id;

@@ -196,6 +196,7 @@ public:	//self defined
 	void SetGroupAddress (Ipv4Address group_address);
 	void SetIpProtocolNum (uint8_t protocol_id);
 	void SetIpsecMode (IPsec::MODE mode);
+	void PushBackRelatedPolicies (Ptr<IpSecPolicyEntry> entry);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -228,6 +229,7 @@ private:	//fields
 	Ptr<IpSecDatabase> m_ptr_database;
 	Timer m_timer_retransmit;
 	Timer m_timer_timeout;
+	std::list<Ptr<IpSecPolicyEntry> > m_lst_related_policy_entries;
 };
 
 class IpSecSAEntry : public Object {
@@ -279,12 +281,16 @@ private:
 public:	//self-defined
 	Ptr<IpSecSAEntry> CreateIpSecSAEntry (void);
 	void RemoveEntry (Ptr<IpSecSAEntry> entry);
-	void AssociatePolicyEntry (Ptr<IpSecPolicyEntry> policy);
+	void AssociatePolicyEntry (Ptr<IpSecDatabase> policy);
+	void SetRootDatabase (Ptr<IpSecDatabase> database);
+public:	//const
+	Ptr<IpSecPolicyEntry> GetRootDatabase (void) const;
 private:
 	void PushBackEntry (Ptr<IpSecSAEntry> entry);
 private:	//fields
 	Ptr<GsamInfo> m_ptr_info;
-	Ptr<IpSecPolicyEntry> m_ptr_policy_entry;
+	Ptr<IpSecDatabase> m_ptr_root_database;
+	Ptr<IpSecPolicyEntry> m_ptr_policy_entry;	//inbound, outbound logical database ptr in policy entry
 	std::list<Ptr<IpSecSAEntry> > m_lst_entries;
 };
 
@@ -330,6 +336,7 @@ public:	//const
 	Ipv4Address GetDestAddressRangeEnd (void) const;
 	Ipv4Address GetSrcAddress (void) const;
 	Ipv4Address GetDestAddress (Ipv4Address address) const;
+	Ptr<IpSecPolicyDatabase> GetSPD (void) const;
 public:
 	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
 	void SetProtocolNum (uint8_t protocol_id);
@@ -386,7 +393,11 @@ public:
 	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
 	void RemoveEntry (Ptr<IpSecPolicyEntry> entry);
 	Ptr<IpSecPolicyEntry> CreatePolicyEntry (void);
+	void SetRootDatabase (Ptr<IpSecDatabase> database);
+public:	//const
+	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 private:	//fields
+	Ptr<IpSecDatabase> m_ptr_root_database;
 	std::list<Ptr<IpSecPolicyEntry> > m_lst_entries;
 };
 
@@ -418,6 +429,8 @@ public:	//self defined
 	Ptr<GsamSession> CreateSession (void);
 	void RemoveSession (Ptr<GsamSession> session);
 	Time GetRetransmissionDelay (void);
+	Ptr<IpSecPolicyDatabase> GetSPD (void);
+	Ptr<IpSecSADatabase> GetSAD (void);
 private:	//fields
 	std::list<Ptr<GsamSession> > m_lst_ptr_sessions;
 	uint32_t m_window_size;
