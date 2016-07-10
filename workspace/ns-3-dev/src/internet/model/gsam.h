@@ -484,7 +484,7 @@ class IkeSAProposal : public Header {
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *
 	 */
-
+public:
 	enum GSA_TYPE {
 		UNINITIALIZED = 0,
 		GSA_Q = 1,
@@ -504,14 +504,15 @@ public:	//Header Override
 public:	//non-const
 	void SetLast (void);
 	void ClearLast (void);
-	void SetProposalNumber (uint16_t proposal_num);
+	void SetProposalNumber (uint8_t proposal_num);
 	void SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
-	void SetProtocolIdAndSPISize (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	void SetSPI (Spi spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
 	void SetAsGsaQ (void);
 	void SetAsGsaR (void);
+	void SetGsaType (IkeSAProposal::GSA_TYPE gsa_type);
 public:	//const
+	bool IsLast (void) const;
 	Spi GetSpi (void) const;
 	bool IsGsa (void) const;
 	bool IsGsaQ (void) const;
@@ -526,6 +527,7 @@ private:
 public:
 	static IkeSAProposal GenerateInitIkeProposal ();
 	static IkeSAProposal GenerateAuthIkeProposal (Spi spi);
+	static IkeSAProposal GenerateGsaProposal (Spi spi, IkeSAProposal::GSA_TYPE gsa_type);
 private:
 	bool m_flag_last;
 	IkeSAProposal::GSA_TYPE m_gsa_type;
@@ -563,6 +565,7 @@ public:	//Header Override
 public:	//static
 	static IkeSAPayloadSubstructure* GenerateInitIkeProposal (void);
 	static IkeSAPayloadSubstructure* GenerateAuthIkeProposal (Spi spi);
+	static IkeSAPayloadSubstructure* GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r);
 public:	//self-defined
 	void PushBackProposal (IkeSAProposal proposal);
 	void PushBackProposals (const std::list<IkeSAProposal>& proposals);
@@ -574,6 +577,10 @@ private:
 	 */
 	void SetLastProposal (void);
 	void ClearLastProposal (void);
+	/*
+	 * Iterate the list of proposals and set proposal number;
+	 */
+	void SetProposalNum (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
@@ -798,8 +805,8 @@ class IkeNotifySubstructure : public IkePayloadSubstructure {
 		REKEY_SA = 16393,
 		//GSAM
 		SPI_REJECTION = 200001,
-		GSA_REMOTE_SPI_NOTIFICATION = 20002,
-		GSA_LOCAL_SPI_NOTIFICATION = 20003,
+		GSA_Q_SPI_NOTIFICATION = 20002,
+		GSA_R_SPI_NOTIFICATION = 20003,
 		GSA_ACKNOWLEDGEDMENT = 20004
 	};
 
@@ -819,8 +826,8 @@ public:	//const
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//
-	static IkeNotifySubstructure* GenerateGsaRemoteSpiNotification (Spi spi);
-	static IkeNotifySubstructure* GenerateGsaLocalSpiNotification (uint32_t int_spi);
+	static IkeNotifySubstructure* GenerateGsaQNotification (Spi spi);
+	static IkeNotifySubstructure* GenerateGsaRNotification (Spi spi);
 	static IkeNotifySubstructure* GenerateGsaAcknowledgedment (void);
 private:
 	uint8_t m_protocol_id;

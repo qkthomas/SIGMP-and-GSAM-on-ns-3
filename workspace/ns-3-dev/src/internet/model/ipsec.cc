@@ -158,6 +158,12 @@ GsamConfig::GetDefaultIpsecProtocolId (void)
 	return IpSecPolicyEntry::AH;
 }
 
+IPsec::SA_Proposal_PROTOCOL_ID
+GsamConfig::GetDefaultGSAProposalId (void)
+{
+	return IPsec::AH;
+}
+
 /********************************************************
  *        GsamInfo
  ********************************************************/
@@ -606,7 +612,8 @@ GsamSession::GsamSession ()
 	 m_p2_role (GsamSession::UNINITIALIZED),
 	 m_ptr_init_sa (0),
 	 m_ptr_kek_sa (0),
-	 m_ptr_database (0)
+	 m_ptr_database (0),
+	 m_ptr_related_gsa_q (0)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -625,6 +632,8 @@ GsamSession::~GsamSession()
 	this->m_ptr_database = 0;
 	this->m_ptr_kek_sa = 0;
 	this->m_lst_related_policy_entries.clear();
+	this->m_ptr_related_gsa_q = 0;
+	this->m_lst_related_gsa_r.clear();
 }
 
 TypeId
@@ -1017,6 +1026,29 @@ GsamSession::PushBackRelatedPolicies (Ptr<IpSecPolicyEntry> entry)
 	this->m_lst_related_policy_entries.push_back(entry);
 }
 
+void
+GsamSession::SetRelatedGsaQ (Ptr<IpSecSAEntry> gsa_q)
+{
+	NS_LOG_FUNCTION (this);
+	if (gsa_q == 0)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_ptr_related_gsa_q = gsa_q;
+}
+
+void
+GsamSession::PushBackRelatedGsaR (Ptr<IpSecSAEntry> gsa_r)
+{
+	NS_LOG_FUNCTION (this);
+	if (gsa_r == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_lst_related_gsa_r.push_back(gsa_r);
+}
+
 Ptr<GsamInfo>
 GsamSession::GetInfo (void) const
 {
@@ -1042,15 +1074,6 @@ GsamSession::HaveKekSa (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return (this->m_ptr_kek_sa != 0);
-}
-
-Spi
-GsamSession::GetGsaSpi (void) const
-{
-	NS_LOG_FUNCTION (this);
-	Spi retval;
-	retval.SetValueFromUint32(this->GetInfo()->RegisterIpsecSpi());
-	return retval;
 }
 
 uint8_t
@@ -1279,7 +1302,7 @@ IpSecSADatabase::SetRootDatabase (Ptr<IpSecDatabase> database)
 	this->m_ptr_root_database = database;
 }
 
-Ptr<IpSecPolicyEntry>
+Ptr<IpSecDatabase>
 IpSecSADatabase::GetRootDatabase (void) const
 {
 	NS_LOG_FUNCTION (this);

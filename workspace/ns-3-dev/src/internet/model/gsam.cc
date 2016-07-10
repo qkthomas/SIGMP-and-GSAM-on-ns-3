@@ -1809,7 +1809,7 @@ IkeSAProposal::ClearLast (void)
 }
 
 void
-IkeSAProposal::SetProposalNumber (uint16_t proposal_num)
+IkeSAProposal::SetProposalNumber (uint8_t proposal_num)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_proposal_num = proposal_num;
@@ -1820,12 +1820,6 @@ IkeSAProposal::SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_protocol_id = protocol_id;
-}
-
-void
-IkeSAProposal::SetProtocolIdAndSPISize (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
-{
-	NS_LOG_FUNCTION (this);
 }
 
 void
@@ -1874,6 +1868,20 @@ IkeSAProposal::SetAsGsaR (void)
 	}
 
 	this->m_gsa_type = IkeSAProposal::GSA_R;
+}
+
+void
+IkeSAProposal::SetGsaType (IkeSAProposal::GSA_TYPE gsa_type)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_gsa_type = gsa_type;
+}
+
+bool
+IkeSAProposal::IsLast (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_last;
 }
 
 Spi
@@ -1999,6 +2007,16 @@ IkeSAProposal::GenerateAuthIkeProposal (Spi spi)
 	return retval;
 }
 
+IkeSAProposal
+IkeSAProposal::GenerateGsaProposal (Spi spi, IkeSAProposal::GSA_TYPE gsa_type)
+{
+	IkeSAProposal retval;
+	retval.SetProtocolId(GsamConfig::GetDefaultGSAProposalId());
+	retval.SetGsaType(gsa_type);
+	retval.SetSPI(spi);
+	return retval;
+}
+
 /********************************************************
  *        IkeSAPayload
  ********************************************************/
@@ -2081,6 +2099,14 @@ IkeSAPayloadSubstructure::Deserialize (Buffer::Iterator start)
 		size += proposal.GetSerializedSize();
 		length_rest -= proposal.GetSerializedSize();
 		this->m_lst_proposal.push_back(proposal);
+
+		if (length_rest == 0)
+		{
+			if (true != proposal.IsLast())
+			{
+				NS_ASSERT (false);
+			}
+		}
 	}
 
 	NS_ASSERT (size == this->m_length);
@@ -2103,6 +2129,8 @@ IkeSAPayloadSubstructure::GenerateInitIkeProposal (void)
 {
 	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
 	retval->PushBackProposal(IkeSAProposal::GenerateInitIkeProposal());
+	retval->SetLastProposal();
+	retval->SetProposalNum();
 	return retval;
 }
 
@@ -2111,6 +2139,21 @@ IkeSAPayloadSubstructure::GenerateAuthIkeProposal (Spi spi)
 {
 	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
 	retval->PushBackProposal(IkeSAProposal::GenerateAuthIkeProposal(spi));
+	retval->SetLastProposal();
+	retval->SetProposalNum();
+	return retval;
+}
+
+IkeSAPayloadSubstructure*
+IkeSAPayloadSubstructure::GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r)
+{
+	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
+
+	retval->PushBackProposal(IkeSAProposal::GenerateGsaProposal(spi_gsa_q, IkeSAProposal::GSA_Q));
+	retval->PushBackProposal(IkeSAProposal::GenerateGsaProposal(spi_gsa_r, IkeSAProposal::GSA_R));
+
+	retval->SetLastProposal();
+	retval->SetProposalNum();
 	return retval;
 }
 
@@ -2139,6 +2182,40 @@ IkeSAPayloadSubstructure::GetProposals (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_lst_proposal;
+}
+
+void
+IkeSAPayloadSubstructure::SetLastProposal (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_lst_proposal.begin() != this->m_lst_proposal.end())
+	{
+		this->m_lst_proposal.back().SetLast();
+	}
+}
+
+void
+IkeSAPayloadSubstructure::ClearLastProposal (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_lst_proposal.begin() != this->m_lst_proposal.end())
+	{
+		this->m_lst_proposal.back().ClearLast();
+	}
+}
+
+void
+IkeSAPayloadSubstructure::SetProposalNum (void)
+{
+	NS_LOG_FUNCTION (this);
+	uint8_t proposal_num = 1;
+	for (	std::list<IkeSAProposal>::iterator it = this->m_lst_proposal.begin();
+			it != this->m_lst_proposal.end();
+			it++)
+	{
+		it->SetProposalNumber(proposal_num);
+		proposal_num++;
+	}
 }
 
 /********************************************************
@@ -2882,24 +2959,22 @@ IkeNotifySubstructure::GetSpi (void) const
 }
 
 IkeNotifySubstructure*
-IkeNotifySubstructure::GenerateGsaRemoteSpiNotification (Spi spi)
+IkeNotifySubstructure::GenerateGsaQNotification (Spi spi)
 {
 	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
 	retval->m_protocol_id = IPsec::AH;
 	retval->m_spi = spi;
-	retval->m_notify_message_type = IkeNotifySubstructure::GSA_REMOTE_SPI_NOTIFICATION;
+	retval->m_notify_message_type = IkeNotifySubstructure::GSA_Q_SPI_NOTIFICATION;
 	return retval;
 }
 
 IkeNotifySubstructure*
-IkeNotifySubstructure::GenerateGsaLocalSpiNotification (uint32_t int_spi)
+IkeNotifySubstructure::GenerateGsaRNotification (Spi spi)
 {
 	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
 	retval->m_protocol_id = IPsec::AH;
-	Spi spi;
-	spi.SetValueFromUint32(int_spi);
 	retval->m_spi = spi;
-	retval->m_notify_message_type = IkeNotifySubstructure::GSA_LOCAL_SPI_NOTIFICATION;
+	retval->m_notify_message_type = IkeNotifySubstructure::GSA_R_SPI_NOTIFICATION;
 	return retval;
 }
 

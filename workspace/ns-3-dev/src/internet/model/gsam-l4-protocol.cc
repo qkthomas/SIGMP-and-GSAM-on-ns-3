@@ -283,16 +283,15 @@ GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
 
 	session->SetPhaseTwoRole(GsamSession::INITIATOR);
 
-	Spi gsa_spi = session->GetGsaSpi();
+	Spi suggested_gsa_q_spi;
+	suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
 
-	//setting up remote spi notification (remote to peer which is local for this host)
-	IkePayload remote_spi_notification;
-	remote_spi_notification.SetPayload(IkeNotifySubstructure::GenerateGsaRemoteSpiNotification(gsa_spi));
+	Spi suggested_gsa_r_spi;	//needed to be unique in Qs and NQs
+	suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
 
-	//setting up local spi notification (the one that may be rejected)
-	IkePayload local_spi_notification;
-	local_spi_notification.SetPayload(IkeNotifySubstructure::GenerateGsaLocalSpiNotification(session->GetInfo()->GenerateIpsecSpi()));
-	local_spi_notification.SetNextPayloadType(remote_spi_notification.GetPayloadType());
+	//setting up remote spi notification proposal payload
+	IkePayload gsa_push_proposal_payload;
+	gsa_push_proposal_payload.SetPayload(IkeSAPayloadSubstructure::GenerateGsaProposals(suggested_gsa_q_spi, suggested_gsa_r_spi));
 
 	//setting up HDR
 	IkeHeader ikeheader;
@@ -303,14 +302,12 @@ GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
 	ikeheader.SetAsResponder();
 
 	ikeheader.SetMessageId(session->GetCurrentMessageId());
-	ikeheader.SetNextPayloadType(remote_spi_notification.GetPayloadType());
+	ikeheader.SetNextPayloadType(gsa_push_proposal_payload.GetPayloadType());
 	ikeheader.SetLength(ikeheader.GetSerializedSize() +
-			local_spi_notification.GetSerializedSize() +
-			remote_spi_notification.GetSerializedSize());
+			gsa_push_proposal_payload.GetSerializedSize());
 
 	Ptr<Packet> packet = Create<Packet>();
-	packet->AddHeader(remote_spi_notification);
-	packet->AddHeader(local_spi_notification);
+	packet->AddHeader(gsa_push_proposal_payload);
 	packet->AddHeader(ikeheader);
 }
 

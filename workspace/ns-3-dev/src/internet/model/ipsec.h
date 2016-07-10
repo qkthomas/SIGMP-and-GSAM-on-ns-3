@@ -28,6 +28,7 @@ class IpSecSADatabase;
 class IpSecPolicyEntry;
 class IpSecPolicyDatabase;
 class EncryptionFunction;
+class IpSecSAEntry;
 
 class GsamUtility {
 public://static
@@ -44,6 +45,7 @@ public:
 	static Time GetDefaultSessionTimeout (void);
 	static IPsec::MODE GetDefaultIpsecMode (void);
 	static uint8_t GetDefaultIpsecProtocolId (void);
+	static IPsec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
 };
 
 class GsamInfo : public Object {
@@ -72,11 +74,11 @@ public:	//self-defined
 	void SetSecGrpEnd (Ipv4Address address);
 public: //const
 	Time GetRetransmissionDelay (void) const;
+	uint32_t GetLocalAvailableIpsecSpi (void) const;
 	uint32_t GenerateIpsecSpi (void) const;
 	bool IsIpsecSpiOccupied (uint32_t spi) const;
 private:
 	uint64_t GetLocalAvailableGsamSpi (void) const;
-	uint32_t GetLocalAvailableIpsecSpi (void) const;
 	void OccupyGsamSpi (uint64_t spi);
 	void OccupyIpsecSpi (uint32_t spi);
 private:	//fields
@@ -197,6 +199,8 @@ public:	//self defined
 	void SetIpProtocolNum (uint8_t protocol_id);
 	void SetIpsecMode (IPsec::MODE mode);
 	void PushBackRelatedPolicies (Ptr<IpSecPolicyEntry> entry);
+	void SetRelatedGsaQ (Ptr<IpSecSAEntry> gsa_q);
+	void PushBackRelatedGsaR (Ptr<IpSecSAEntry> gsa_r);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -211,7 +215,6 @@ public: //const
 	uint32_t GetCurrentMessageId (void) const;
 	Ipv4Address GetPeerAddress (void) const;
 	Ipv4Address GetGroupAddress (void) const;
-	Spi GetGsaSpi (void) const;
 	uint8_t GetIpProtocolNum (void) const;
 	IPsec::MODE GetIpsecMode (void) const;
 private:
@@ -230,6 +233,8 @@ private:	//fields
 	Timer m_timer_retransmit;
 	Timer m_timer_timeout;
 	std::list<Ptr<IpSecPolicyEntry> > m_lst_related_policy_entries;
+	Ptr<IpSecSAEntry> m_ptr_related_gsa_q;
+	std::list<Ptr<IpSecSAEntry> > m_lst_related_gsa_r;
 };
 
 class IpSecSAEntry : public Object {
@@ -281,10 +286,10 @@ private:
 public:	//self-defined
 	Ptr<IpSecSAEntry> CreateIpSecSAEntry (void);
 	void RemoveEntry (Ptr<IpSecSAEntry> entry);
-	void AssociatePolicyEntry (Ptr<IpSecDatabase> policy);
+	void AssociatePolicyEntry (Ptr<IpSecPolicyEntry> policy);
 	void SetRootDatabase (Ptr<IpSecDatabase> database);
 public:	//const
-	Ptr<IpSecPolicyEntry> GetRootDatabase (void) const;
+	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 private:
 	void PushBackEntry (Ptr<IpSecSAEntry> entry);
 private:	//fields
