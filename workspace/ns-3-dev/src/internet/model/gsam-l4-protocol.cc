@@ -299,7 +299,7 @@ GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
 	ikeheader.SetResponderSpi(session->GetKekSaResponderSpi());
 	ikeheader.SetIkev2Version();
 	ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
-	ikeheader.SetAsResponder();
+	ikeheader.SetAsInitiator();
 
 	ikeheader.SetMessageId(session->GetCurrentMessageId());
 	ikeheader.SetNextPayloadType(gsa_push_proposal_payload.GetPayloadType());
@@ -309,6 +309,8 @@ GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(gsa_push_proposal_payload);
 	packet->AddHeader(ikeheader);
+
+	this->SendMessage(session, packet, true);
 }
 
 void
