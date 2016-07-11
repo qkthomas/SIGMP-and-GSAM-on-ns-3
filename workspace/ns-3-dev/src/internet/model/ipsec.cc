@@ -605,15 +605,13 @@ GsamSession::GetTypeId (void)
 GsamSession::GsamSession ()
   :  m_current_message_id (0),
 	 m_peer_address (Ipv4Address ("0.0.0.0")),
-	 m_group_address (Ipv4Address ("0.0.0.0")),
-	 m_ip_protocol_num (0),
-	 m_ipsec_mode (IPsec::NONE),
+	 m_ptr_session_group (0),
 	 m_p1_role (GsamSession::UNINITIALIZED),
 	 m_p2_role (GsamSession::UNINITIALIZED),
 	 m_ptr_init_sa (0),
 	 m_ptr_kek_sa (0),
 	 m_ptr_database (0),
-	 m_ptr_related_gsa_q (0)
+	 m_ptr_related_gsa_r (0)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -628,12 +626,17 @@ GsamSession::~GsamSession()
 	{
 		this->m_ptr_database->RemoveSession(this);
 	}
+
+	if (this->m_ptr_session_group != 0)
+	{
+		this->m_ptr_session_group->RemoveSession(this);
+	}
+
 	this->m_ptr_init_sa = 0;
 	this->m_ptr_database = 0;
 	this->m_ptr_kek_sa = 0;
-	this->m_lst_related_policy_entries.clear();
-	this->m_ptr_related_gsa_q = 0;
-	this->m_lst_related_gsa_r.clear();
+	this->m_ptr_related_gsa_r = 0;
+	this->m_ptr_session_group = 0;
 }
 
 TypeId
@@ -658,6 +661,15 @@ GsamSession::DoDispose (void)
 	{
 		this->m_ptr_database->RemoveSession(this);
 	}
+
+	this->m_ptr_database = 0;
+
+	if (this->m_ptr_session_group != 0)
+	{
+		this->m_ptr_session_group->RemoveSession(this);
+	}
+
+	this->m_ptr_session_group = 0;
 }
 
 GsamSession::ROLE
@@ -715,6 +727,11 @@ operator == (GsamSession const& lhs, GsamSession const& rhs)
 	}
 
 	if (lhs.m_p1_role != rhs.m_p1_role)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_p2_role != rhs.m_p2_role)
 	{
 		retval = false;
 	}
@@ -853,6 +870,12 @@ void
 GsamSession::SetDatabase (Ptr<IpSecDatabase> database)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	this->m_ptr_database = database;
 }
 
@@ -974,18 +997,29 @@ GsamSession::GetGroupAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_group_address.Get() == 0)
+	if (this->m_ptr_session_group == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	return this->m_group_address;
+	return this->m_ptr_session_group->GetGroupAddress();
 }
 
 void
 GsamSession::SetPeerAddress (Ipv4Address peer_address)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (peer_address.Get() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (this->m_peer_address.Get() != 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	this->m_peer_address = peer_address;
 }
 
@@ -993,60 +1027,40 @@ void
 GsamSession::SetGroupAddress (Ipv4Address group_address)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_group_address = group_address;
-}
 
-void
-GsamSession::SetIpProtocolNum (uint8_t protocol_id)
-{
-	NS_LOG_FUNCTION (this);
-	if (protocol_id > 3)
+	if (this->m_ptr_session_group == 0)
 	{
-		NS_ASSERT(false);
+		this->m_ptr_session_group = this->m_ptr_database->GetSessionGroup(group_address);
+		this->m_ptr_session_group->PushBackSession(this);
 	}
-	this->m_ip_protocol_num = protocol_id;
-}
-
-void
-GsamSession::SetIpsecMode (IPsec::MODE mode)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_ipsec_mode = mode;
-}
-
-void
-GsamSession::PushBackRelatedPolicies (Ptr<IpSecPolicyEntry> entry)
-{
-	NS_LOG_FUNCTION (this);
-	if (entry == 0)
+	else
 	{
 		NS_ASSERT (false);
 	}
-
-	this->m_lst_related_policy_entries.push_back(entry);
 }
 
 void
-GsamSession::SetRelatedGsaQ (Ptr<IpSecSAEntry> gsa_q)
-{
-	NS_LOG_FUNCTION (this);
-	if (gsa_q == 0)
-	{
-		NS_ASSERT (false);
-	}
-	this->m_ptr_related_gsa_q = gsa_q;
-}
-
-void
-GsamSession::PushBackRelatedGsaR (Ptr<IpSecSAEntry> gsa_r)
+GsamSession::SetRelatedGsaR (Ptr<IpSecSAEntry> gsa_r)
 {
 	NS_LOG_FUNCTION (this);
 	if (gsa_r == 0)
 	{
 		NS_ASSERT (false);
 	}
+	this->m_ptr_related_gsa_r = gsa_r;
+}
 
-	this->m_lst_related_gsa_r.push_back(gsa_r);
+void
+GsamSession::AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (session_group == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_session_group = session_group;
 }
 
 Ptr<GsamInfo>
@@ -1076,26 +1090,210 @@ GsamSession::HaveKekSa (void) const
 	return (this->m_ptr_kek_sa != 0);
 }
 
-uint8_t
-GsamSession::GetIpProtocolNum (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	return this->m_ip_protocol_num;
-}
-
-IPsec::MODE
-GsamSession::GetIpsecMode (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	return this->m_ipsec_mode;
-}
-
 void
 GsamSession::TimeoutAction (void)
 {
 	NS_LOG_FUNCTION (this);
+}
+
+Ptr<IpSecSAEntry>
+GsamSession::GetRelatedGsaR (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_related_gsa_r;
+}
+Ptr<IpSecSAEntry>
+GsamSession::GetRelatedGsaQ (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_session_group == 0)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_ptr_session_group->GetRelatedGsaQ();
+}
+
+/********************************************************
+ *        GsamSessionGroup
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (GsamSessionGroup);
+
+TypeId
+GsamSessionGroup::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::GsamSessionGroup")
+	    		.SetParent<Object> ()
+				.SetGroupName ("Internet")
+				.AddConstructor<GsamSessionGroup> ()
+				;
+		return tid;
+}
+
+GsamSessionGroup::GsamSessionGroup ()
+  :  m_group_address (Ipv4Address ("0.0.0.0")),
+	 m_ptr_database (0),
+	 m_ptr_related_gsa_q (0),
+	 m_ptr_related_policy (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+GsamSessionGroup::~GsamSessionGroup()
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_database != 0)
+	{
+		this->m_ptr_database->RemoveSessionGroup(this);
+	}
+	this->m_ptr_related_gsa_q = 0;
+	this->m_ptr_related_policy = 0;
+	this->m_lst_sessions.clear();
+}
+
+TypeId
+GsamSessionGroup::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return GsamSessionGroup::GetTypeId();
+}
+
+void
+GsamSessionGroup::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamSessionGroup::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_database != 0)
+	{
+		this->m_ptr_database->RemoveSessionGroup(this);
+	}
+	this->m_ptr_database = 0;
+}
+
+bool
+operator == (GsamSessionGroup const& lhs, GsamSessionGroup const& rhs)
+{
+	return lhs.GetGroupAddress() == rhs.GetGroupAddress();
+}
+
+void
+GsamSessionGroup::SetGroupAddress (Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_group_address = group_address;
+}
+
+void
+GsamSessionGroup::SetDatabase (Ptr<IpSecDatabase> database)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_database = database;
+}
+
+void
+GsamSessionGroup::AssociateWithGsaQ (Ptr<IpSecSAEntry> gsa_q)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_related_gsa_q != 0)
+	{
+		NS_ASSERT(false);
+	}
+
+	this->m_ptr_related_gsa_q = gsa_q;
+}
+
+void
+GsamSessionGroup::AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_related_policy != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_related_policy = policy;
+}
+
+void
+GsamSessionGroup::PushBackSession (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_sessions.push_back(session);
+	session->AssociateWithSessionGroup(this);
+}
+
+void
+GsamSessionGroup::RemoveSession (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_sessions.remove(session);
+}
+
+Ipv4Address
+GsamSessionGroup::GetGroupAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_group_address;
+}
+
+Ptr<IpSecDatabase>
+GsamSessionGroup::GetDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_database;
+}
+
+Ptr<IpSecSAEntry>
+GsamSessionGroup::GetRelatedGsaQ (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_related_gsa_q == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_related_gsa_q;
+}
+
+Ptr<IpSecPolicyEntry>
+GsamSessionGroup::GetRelatedPolicy (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_related_policy == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_related_policy;
+}
+
+const std::list<Ptr<GsamSession> >&
+GsamSessionGroup::GetSessions (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_sessions;
 }
 
 /********************************************************
@@ -1127,7 +1325,10 @@ IpSecSAEntry::IpSecSAEntry ()
 IpSecSAEntry::~IpSecSAEntry()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_ptr_sad->RemoveEntry(this);
+	if (this->m_ptr_sad != 0)
+	{
+		this->m_ptr_sad->RemoveEntry(this);
+	}
 	this->m_ptr_encrypt_fn = 0;
 	this->m_ptr_sad = 0;
 }
@@ -1149,6 +1350,12 @@ void
 IpSecSAEntry::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_sad != 0)
+	{
+		this->m_ptr_sad->RemoveEntry(this);
+	}
+
+	this->m_ptr_sad = 0;
 }
 
 bool
@@ -1370,7 +1577,10 @@ IpSecPolicyEntry::IpSecPolicyEntry ()
 IpSecPolicyEntry::~IpSecPolicyEntry()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_ptr_spd->RemoveEntry(this);
+	if (this->m_ptr_spd != 0)
+	{
+		this->m_ptr_spd->RemoveEntry(this);
+	}
 	this->m_ptr_spd = 0;
 	this->m_ptr_outbound_sad = 0;
 }
@@ -1392,6 +1602,12 @@ void
 IpSecPolicyEntry::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_spd != 0)
+	{
+		this->m_ptr_spd->RemoveEntry(this);
+	}
+
+	this->m_ptr_spd = 0;
 }
 
 void
@@ -1841,10 +2057,11 @@ IpSecDatabase::IpSecDatabase ()
 IpSecDatabase::~IpSecDatabase()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_lst_ptr_sessions.clear();
+	this->m_lst_ptr_all_sessions.clear();
 	this->m_ptr_spd = 0;
 	this->m_ptr_sad = 0;
 	this->m_ptr_info = 0;
+	this->m_lst_ptr_session_groups.clear();
 }
 
 TypeId
@@ -1873,8 +2090,8 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t ini
 
 	Ptr<GsamSession> session = 0;
 
-	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_sessions.begin();
-			const_it != this->m_lst_ptr_sessions.end();
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_all_sessions.begin();
+			const_it != this->m_lst_ptr_all_sessions.end();
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
@@ -1899,8 +2116,8 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t ini
 
 	Ptr<GsamSession> session = 0;
 
-	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_sessions.begin();
-			const_it != this->m_lst_ptr_sessions.end();
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_all_sessions.begin();
+			const_it != this->m_lst_ptr_all_sessions.end();
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
@@ -1924,8 +2141,8 @@ IpSecDatabase::GetPhaseTwoSession (GsamSession::ROLE local_p2_role, uint64_t ini
 
 	Ptr<GsamSession> session = 0;
 
-	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_sessions.begin();
-			const_it != this->m_lst_ptr_sessions.end();
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_all_sessions.begin();
+			const_it != this->m_lst_ptr_all_sessions.end();
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
@@ -1979,8 +2196,34 @@ IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address) co
 	return retval;
 }
 
+Ptr<GsamSessionGroup>
+IpSecDatabase::GetSessionGroup (Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSessionGroup> retval = 0;
+
+	for (	std::list<Ptr<GsamSessionGroup> >::const_iterator const_it = this->m_lst_ptr_session_groups.begin();
+			const_it != this->m_lst_ptr_session_groups.end();
+			const_it++)
+	{
+		Ptr<GsamSessionGroup> value_const_it = (*const_it);
+		if (value_const_it->GetGroupAddress() == group_address)
+		{
+			retval = value_const_it;
+		}
+	}
+
+	if (retval == 0)
+	{
+		retval = this->CreateSessionGroup(group_address);
+	}
+
+	return retval;
+}
+
 Ptr<GsamInfo>
-IpSecDatabase::GetInfo ()
+IpSecDatabase::GetInfo (void)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -2013,9 +2256,45 @@ IpSecDatabase::CreateSession (void)
 
 	Ptr<GsamSession> session = Create<GsamSession>();
 	session->SetDatabase(this);
-	this->m_lst_ptr_sessions.push_back(session);
+	this->m_lst_ptr_all_sessions.push_back(session);
 
 	return session;
+}
+
+Ptr<GsamSession>
+IpSecDatabase::CreateSession (Ipv4Address group_address, Ipv4Address peer_address)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> session = Create<GsamSession>();
+	session->SetDatabase(this);
+	session->SetGroupAddress(group_address);
+	session->SetPeerAddress(peer_address);
+
+	Ptr<GsamSessionGroup> session_group = this->GetSessionGroup(group_address);
+
+	if (session_group == 0)
+	{
+		session_group = this->GetSessionGroup(group_address);
+	}
+
+	session_group->PushBackSession(session);
+
+	this->m_lst_ptr_all_sessions.push_back(session);
+
+	return session;
+}
+
+Ptr<GsamSessionGroup>
+IpSecDatabase::CreateSessionGroup (Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSessionGroup> session_group = Create<GsamSessionGroup>();
+	session_group->SetDatabase(this);
+	this->m_lst_ptr_session_groups.push_back(session_group);
+
+	return session_group;
 }
 
 void
@@ -2023,18 +2302,25 @@ IpSecDatabase::RemoveSession (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
-	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_sessions.begin();
-			it != this->m_lst_ptr_sessions.end();
+	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_all_sessions.begin();
+			it != this->m_lst_ptr_all_sessions.end();
 			it++)
 	{
 		Ptr<GsamSession> session_it = (*it);
 
 		if (session_it == session_it)
 		{
-			it = this->m_lst_ptr_sessions.erase(it);
+			it = this->m_lst_ptr_all_sessions.erase(it);
 			break;
 		}
 	}
+}
+
+void
+IpSecDatabase::RemoveSessionGroup (Ptr<GsamSessionGroup> session_group)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_ptr_session_groups.remove(session_group);
 }
 
 Time

@@ -175,7 +175,7 @@ GsamL4Protocol::HandleRead (Ptr<Socket> socket)
 }
 
 void
-GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session, Ipv4Address dest)
+GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session)
 {
 	//rfc 5996 page 10
 	NS_LOG_FUNCTION (this);
@@ -203,7 +203,6 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session, Ipv4Address dest)
 	session->SetPhaseOneRole(GsamSession::INITIATOR);
 	session->EtablishGsamInitSa();
 	session->SetInitSaInitiatorSpi(initiator_spi);
-	session->SetPeerAddress(dest);
 	//continue setting HDR
 	ikeheader.SetMessageId(session->GetCurrentMessageId());
 	ikeheader.SetNextPayloadType(sa_payload_init.GetPayloadType());

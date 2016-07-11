@@ -29,6 +29,7 @@ class IpSecPolicyEntry;
 class IpSecPolicyDatabase;
 class EncryptionFunction;
 class IpSecSAEntry;
+class GsamSessinGroup;
 
 class GsamUtility {
 public://static
@@ -196,11 +197,8 @@ public:	//self defined
 	bool IsRetransmit (void);
 	void SetPeerAddress (Ipv4Address peer_address);
 	void SetGroupAddress (Ipv4Address group_address);
-	void SetIpProtocolNum (uint8_t protocol_id);
-	void SetIpsecMode (IPsec::MODE mode);
-	void PushBackRelatedPolicies (Ptr<IpSecPolicyEntry> entry);
-	void SetRelatedGsaQ (Ptr<IpSecSAEntry> gsa_q);
-	void PushBackRelatedGsaR (Ptr<IpSecSAEntry> gsa_r);
+	void SetRelatedGsaR (Ptr<IpSecSAEntry> gsa_r);
+	void AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -217,14 +215,15 @@ public: //const
 	Ipv4Address GetGroupAddress (void) const;
 	uint8_t GetIpProtocolNum (void) const;
 	IPsec::MODE GetIpsecMode (void) const;
+	Ptr<IpSecSAEntry> GetRelatedGsaR (void) const;
+	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields
 	uint32_t m_current_message_id;
 	Ipv4Address m_peer_address;
+	Ptr<GsamSessionGroup> m_ptr_session_group;
 	Ipv4Address m_group_address;
-	uint8_t m_ip_protocol_num;
-	IPsec::MODE m_ipsec_mode;
 	GsamSession::ROLE m_p1_role;
 	GsamSession::ROLE m_p2_role;
 	Ptr<GsamSa> m_ptr_init_sa;
@@ -232,9 +231,7 @@ private:	//fields
 	Ptr<IpSecDatabase> m_ptr_database;
 	Timer m_timer_retransmit;
 	Timer m_timer_timeout;
-	std::list<Ptr<IpSecPolicyEntry> > m_lst_related_policy_entries;
-	Ptr<IpSecSAEntry> m_ptr_related_gsa_q;
-	std::list<Ptr<IpSecSAEntry> > m_lst_related_gsa_r;
+	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
 };
 
 class GsamSessionGroup : public Object {
@@ -252,9 +249,27 @@ protected:
 
 private:
 	virtual void DoDispose (void);
+public:	//operators
+	friend bool operator == (GsamSessionGroup const& lhs, GsamSessionGroup const& rhs);
+public: //self-defined
+	void SetGroupAddress (Ipv4Address group_address);
+	void SetDatabase (Ptr<IpSecDatabase> database);
+	void AssociateWithGsaQ (Ptr<IpSecSAEntry> gsa_q);
+	void AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy);
+	void PushBackSession (Ptr<GsamSession> session);
+	void RemoveSession (Ptr<GsamSession> session);
+public:	//const
+	Ipv4Address GetGroupAddress (void) const;
+	Ptr<IpSecDatabase> GetDatabase (void) const;
+	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
+	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
+	const std::list<Ptr<GsamSession> >& GetSessions (void) const;
 private:	//fields
-	Ipv4Address group_address;
-	Ptr<IpSecSAEntry> m_ptr_gsa_q;
+	Ipv4Address m_group_address;
+	Ptr<IpSecDatabase> m_ptr_database;
+	Ptr<IpSecSAEntry> m_ptr_related_gsa_q;
+	std::list<Ptr<GsamSession> > m_lst_sessions;
+	Ptr<IpSecPolicyEntry> m_ptr_related_policy;
 };
 
 class IpSecSAEntry : public Object {
@@ -444,20 +459,27 @@ private:
 	virtual void DoDispose (void);
 
 public:	//self defined
-	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
-	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
-	Ptr<GsamSession> GetPhaseTwoSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
-	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
-	Ptr<GsamInfo> GetInfo ();
-	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
-	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
+	Ptr<GsamInfo> GetInfo (void);
 	Ptr<GsamSession> CreateSession (void);
+	Ptr<GsamSession> CreateSession (Ipv4Address group_address, Ipv4Address peer_address);
+	Ptr<GsamSessionGroup> GetSessionGroup (Ipv4Address group_address);
 	void RemoveSession (Ptr<GsamSession> session);
+	void RemoveSessionGroup (Ptr<GsamSessionGroup> session_group);
 	Time GetRetransmissionDelay (void);
 	Ptr<IpSecPolicyDatabase> GetSPD (void);
 	Ptr<IpSecSADatabase> GetSAD (void);
+public:	//const
+	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetPhaseTwoSession (GsamSession::ROLE local_p2_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
+	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
+	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
+private:
+	Ptr<GsamSessionGroup> CreateSessionGroup (Ipv4Address group_address);
 private:	//fields
-	std::list<Ptr<GsamSession> > m_lst_ptr_sessions;
+	std::list<Ptr<GsamSession> > m_lst_ptr_all_sessions;
+	std::list<Ptr<GsamSessionGroup> > m_lst_ptr_session_groups;
 	uint32_t m_window_size;
 	Ptr<IpSecPolicyDatabase> m_ptr_spd;
 	Ptr<IpSecSADatabase> m_ptr_sad;

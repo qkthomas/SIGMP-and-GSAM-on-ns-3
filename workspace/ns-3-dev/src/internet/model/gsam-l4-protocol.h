@@ -56,7 +56,7 @@ public:	//added by Lin Chen
 	void HandleRead (Ptr<Socket> socket);
 public:	//exchanges, added by Lin Chen
 	//create session somewhere first
-	void Send_IKE_SA_INIT (Ptr<GsamSession> session, Ipv4Address dest);
+	void Send_IKE_SA_INIT (Ptr<GsamSession> session);
 	void Send_IKE_SA_AUTH (Ptr<GsamSession> session);
 	void Send_GSA_Notification (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
