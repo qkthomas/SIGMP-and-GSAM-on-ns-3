@@ -58,7 +58,7 @@ public:	//exchanges, added by Lin Chen
 	//create session somewhere first
 	void Send_IKE_SA_INIT (Ptr<GsamSession> session);
 	void Send_IKE_SA_AUTH (Ptr<GsamSession> session);
-	void Send_GSA_Notification (Ptr<GsamSession> session);
+	void Send_GSA_PUSH (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
@@ -85,6 +85,9 @@ private:	//responing, added by Lin Chen
 							IkeSAProposal chosen_proposal,
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
+	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
+	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 private:	//private staitc
 	static void ChooseSAProposalOffer (	const std::list<IkeSAProposal> proposals,
 										IkeSAProposal& retval_chosen_proposal);
@@ -96,6 +99,8 @@ private:	//database operation
 	void CreateIpSecPolicy (Ptr<GsamSession> session,
 							const std::list<IkeTrafficSelector>& tsi_selectors,
 							const std::list<IkeTrafficSelector>& tsr_selectors);
+	Ptr<IpSecSAEntry> CreateOutBoundSa (Ptr<GsamSession> session, Spi spi);
+	Ptr<IpSecSAEntry> CreateInBoundSa (Ptr<GsamSession> session, Spi spi);
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;

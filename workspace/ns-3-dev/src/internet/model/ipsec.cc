@@ -164,6 +164,12 @@ GsamConfig::GetDefaultGSAProposalId (void)
 	return IPsec::AH;
 }
 
+Time
+GsamConfig::GetDefaultRetransmitTimeout (void)
+{
+	return Seconds(2.0);
+}
+
 /********************************************************
  *        GsamInfo
  ********************************************************/
@@ -518,14 +524,16 @@ GsamSa::FreeLocalSpi (void)
 	uint64_t local_spi = 0;
 	GsamSession::ROLE role = GsamSession::UNINITIALIZED;
 
-	if (this->m_type == GsamSa::GSAM_INIT_SA)
-	{
-		role = this->m_ptr_session->GetPhaseOneRole();
-	}
-	else if (this->m_type == GsamSa::GSAM_KEK_SA)
-	{
-		role = this->m_ptr_session->GetPhaseTwoRole();
-	}
+//	if (this->m_type == GsamSa::GSAM_INIT_SA)
+//	{
+//		role = this->m_ptr_session->GetPhaseOneRole();
+//	}
+//	else if (this->m_type == GsamSa::GSAM_KEK_SA)
+//	{
+//		role = this->m_ptr_session->GetPhaseTwoRole();
+//	}
+
+	role = this->m_ptr_session->GetPhaseOneRole();
 
 	if (role == GsamSession::INITIATOR)
 	{
@@ -637,6 +645,9 @@ GsamSession::~GsamSession()
 	this->m_ptr_kek_sa = 0;
 	this->m_ptr_related_gsa_r = 0;
 	this->m_ptr_session_group = 0;
+
+	this->m_timer_retransmit.Cancel();
+	this->m_timer_timeout.Cancel();
 }
 
 TypeId
@@ -1051,6 +1062,17 @@ GsamSession::SetRelatedGsaR (Ptr<IpSecSAEntry> gsa_r)
 }
 
 void
+GsamSession::AssociateGsaQ (Ptr<IpSecSAEntry> gsa_q)
+{
+	NS_LOG_FUNCTION (this);
+	if (gsa_q == 0)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_ptr_session_group->AssociateWithGsaQ(gsa_q);
+}
+
+void
 GsamSession::AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group)
 {
 	NS_LOG_FUNCTION (this);
@@ -1061,6 +1083,17 @@ GsamSession::AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group)
 	}
 
 	this->m_ptr_session_group = session_group;
+}
+
+void
+GsamSession::AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy)
+{
+	if (policy == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_session_group->AssociateWithPolicy (policy);
 }
 
 Ptr<GsamInfo>
@@ -1094,6 +1127,8 @@ void
 GsamSession::TimeoutAction (void)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamSession: " << this << " time out.";
 }
 
 Ptr<IpSecSAEntry>
@@ -1111,6 +1146,19 @@ GsamSession::GetRelatedGsaQ (void) const
 		NS_ASSERT (false);
 	}
 	return this->m_ptr_session_group->GetRelatedGsaQ();
+}
+
+Ptr<IpSecPolicyEntry>
+GsamSession::GetRelatedPolicy (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_session_group == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_session_group->GetRelatedPolicy();
 }
 
 /********************************************************
@@ -1207,6 +1255,11 @@ GsamSessionGroup::AssociateWithGsaQ (Ptr<IpSecSAEntry> gsa_q)
 {
 	NS_LOG_FUNCTION (this);
 
+	if (gsa_q == 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	if (this->m_ptr_related_gsa_q != 0)
 	{
 		NS_ASSERT(false);
@@ -1219,6 +1272,11 @@ void
 GsamSessionGroup::AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (policy == 0)
+	{
+		NS_ASSERT (false);
+	}
 
 	if (this->m_ptr_related_policy != 0)
 	{
@@ -1267,11 +1325,6 @@ Ptr<IpSecSAEntry>
 GsamSessionGroup::GetRelatedGsaQ (void) const
 {
 	NS_LOG_FUNCTION (this);
-
-	if (this->m_ptr_related_gsa_q == 0)
-	{
-		NS_ASSERT (false);
-	}
 
 	return this->m_ptr_related_gsa_q;
 }
@@ -1443,8 +1496,7 @@ IpSecSADatabase::GetTypeId (void)
 }
 
 IpSecSADatabase::IpSecSADatabase ()
-  :  m_ptr_info (0),
-	 m_ptr_root_database (0),
+  :  m_ptr_root_database (0),
 	 m_ptr_policy_entry (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -1453,8 +1505,8 @@ IpSecSADatabase::IpSecSADatabase ()
 IpSecSADatabase::~IpSecSADatabase()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_ptr_info = 0;
 	this->m_ptr_policy_entry = 0;
+	this->m_ptr_root_database = 0;
 	this->m_lst_entries.clear();
 }
 
@@ -1523,17 +1575,55 @@ IpSecSADatabase::GetRootDatabase (void) const
 }
 
 Ptr<IpSecSAEntry>
-IpSecSADatabase::CreateIpSecSAEntry (void)
+IpSecSADatabase::GetIpsecSAEntry (uint32_t spi) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (spi == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecSAEntry> retval = 0;
+
+	for (	std::list<Ptr<IpSecSAEntry> >::const_iterator const_it = this->m_lst_entries.begin();
+			const_it != this->m_lst_entries.end();
+			const_it++)
+	{
+		Ptr<IpSecSAEntry> value_const_it = (*const_it);
+
+		if (value_const_it->GetSpi() == spi)
+		{
+			retval = value_const_it;
+		}
+	}
+
+	return retval;
+}
+
+Ptr<GsamInfo>
+IpSecSADatabase::GetInfo (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->GetRootDatabase()->GetInfo();
+}
+
+Ptr<IpSecSAEntry>
+IpSecSADatabase::CreateIpSecSAEntry (Spi spi)
 {
 	Ptr<IpSecSAEntry> retval = 0;
 	if (this->m_ptr_policy_entry == 0)
 	{
 		//this database is a sad-i or sad-o that bound to an entry. And it's just a logical database which is a part of the real database;
 		retval = Create<IpSecSAEntry>();
+		retval->SetSAD(this);
+		retval->SetSpi(spi.ToUint32());
 	}
 	else
 	{
-		retval = this->m_ptr_policy_entry->GetSPD()->GetRootDatabase()->GetSAD()->CreateIpSecSAEntry();
+		retval = this->m_ptr_policy_entry->GetSPD()->GetRootDatabase()->GetSAD()->CreateIpSecSAEntry(spi);
+		retval->AssociatePolicy(this->m_ptr_policy_entry);
 	}
 	this->PushBackEntry(retval);
 	return retval;
@@ -1801,7 +1891,7 @@ IpSecPolicyEntry::SetSingleDestAddress (Ipv4Address address)
 }
 
 Ipv4Address
-IpSecPolicyEntry::GetDestAddress (Ipv4Address address) const
+IpSecPolicyEntry::GetDestAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
 	if (this->m_dest_starting_address != this->m_dest_ending_address)
@@ -1847,6 +1937,7 @@ IpSecPolicyEntry::GetOutboundSAD (void)
 	{
 		this->m_ptr_outbound_sad = Create<IpSecSADatabase>();
 		this->m_ptr_outbound_sad->AssociatePolicyEntry(this);
+		this->m_ptr_outbound_sad->SetRootDatabase(this->GetSPD()->GetRootDatabase());
 	}
 
 	return this->m_ptr_outbound_sad;
@@ -1861,6 +1952,7 @@ IpSecPolicyEntry::GetInboundSAD (void)
 	{
 		this->m_ptr_inbound_sad = Create<IpSecSADatabase>();
 		this->m_ptr_inbound_sad->AssociatePolicyEntry(this);
+		this->m_ptr_outbound_sad->SetRootDatabase(this->GetSPD()->GetRootDatabase());
 	}
 
 	return this->m_ptr_inbound_sad;
@@ -1955,6 +2047,7 @@ IpSecPolicyDatabase::~IpSecPolicyDatabase()
 {
 	NS_LOG_FUNCTION (this);
 	this->m_lst_entries.clear();
+	this->m_ptr_root_database = 0;
 }
 
 TypeId
@@ -2027,6 +2120,14 @@ IpSecPolicyDatabase::GetRootDatabase (void) const
 	return this->m_ptr_root_database;
 }
 
+Ptr<GsamInfo>
+IpSecPolicyDatabase::GetInfo (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->GetRootDatabase()->GetInfo();
+}
+
 /********************************************************
  *        IpSecDatabase
  ********************************************************/
@@ -2052,6 +2153,12 @@ IpSecDatabase::IpSecDatabase ()
 {
 	NS_LOG_FUNCTION (this);
 	srand(time(0));	//random
+
+	this->m_ptr_spd = Create<IpSecPolicyDatabase>();
+	this->m_ptr_spd->SetRootDatabase(this);
+	this->m_ptr_sad = Create<IpSecSADatabase>();
+	this->m_ptr_sad->SetRootDatabase(this);
+	this->m_ptr_info = Create<GsamInfo>();
 }
 
 IpSecDatabase::~IpSecDatabase()
@@ -2135,7 +2242,7 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t ini
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetPhaseTwoSession (GsamSession::ROLE local_p2_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
+IpSecDatabase::GetPhaseTwoSession (uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -2146,10 +2253,9 @@ IpSecDatabase::GetPhaseTwoSession (GsamSession::ROLE local_p2_role, uint64_t ini
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetPhaseTwoRole() == local_p2_role) &&
-				(session_it->GetKekSaInitiatorSpi() == initiator_spi &&
+		if (	(session_it->GetKekSaInitiatorSpi() == initiator_spi &&
 				(session_it->GetKekSaResponderSpi() == responder_spi) &&
-				 session_it->GetCurrentMessageId() == message_id &&
+				 session_it->GetCurrentMessageId() <= message_id &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
 		{
@@ -2179,7 +2285,7 @@ IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address) co
 	default:
 		if (header_message_id >= 2)
 		{
-			retval = this->GetPhaseTwoSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
+			retval = this->GetPhaseTwoSession(header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
 			break;
 		}
 		else if (header_message_id < 0)
@@ -2223,13 +2329,13 @@ IpSecDatabase::GetSessionGroup (Ipv4Address group_address)
 }
 
 Ptr<GsamInfo>
-IpSecDatabase::GetInfo (void)
+IpSecDatabase::GetInfo (void) const
 {
 	NS_LOG_FUNCTION (this);
 
 	if (this->m_ptr_info == 0)
 	{
-		this->m_ptr_info = Create<GsamInfo>();
+		NS_ASSERT (false);
 	}
 
 	return this->m_ptr_info;
@@ -2239,6 +2345,12 @@ Ptr<IpSecPolicyDatabase>
 IpSecDatabase::GetPolicyDatabase (void) const
 {
 	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_spd == 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	return this->m_ptr_spd;
 }
 
@@ -2246,6 +2358,13 @@ Ptr<IpSecSADatabase>
 IpSecDatabase::GetIpSecSaDatabase (void) const
 {
 	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_sad == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+
 	return this->m_ptr_sad;
 }
 
@@ -2272,11 +2391,6 @@ IpSecDatabase::CreateSession (Ipv4Address group_address, Ipv4Address peer_addres
 	session->SetPeerAddress(peer_address);
 
 	Ptr<GsamSessionGroup> session_group = this->GetSessionGroup(group_address);
-
-	if (session_group == 0)
-	{
-		session_group = this->GetSessionGroup(group_address);
-	}
 
 	session_group->PushBackSession(session);
 

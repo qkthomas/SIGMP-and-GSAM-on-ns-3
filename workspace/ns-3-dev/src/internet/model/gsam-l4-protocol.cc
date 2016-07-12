@@ -168,6 +168,7 @@ GsamL4Protocol::HandleRead (Ptr<Socket> socket)
 	case IkeHeader::CREATE_CHILD_SA:
 		break;
 	case IkeHeader::INFORMATIONAL:
+		this->HandleGsaInformational(packet, ikeheader, peer_address);
 		break;
 	default:
 		break;
@@ -276,17 +277,41 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::Send_GSA_Notification (Ptr<GsamSession> session)
+GsamL4Protocol::Send_GSA_PUSH (Ptr<GsamSession> session)
 {
+	//only Qs or NQs will invoke this function
+
 	NS_LOG_FUNCTION (this);
 
 	session->SetPhaseTwoRole(GsamSession::INITIATOR);
 
+	//setting up gsa_q
 	Spi suggested_gsa_q_spi;
-	suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
+	Ptr<IpSecSAEntry> gsa_q = session->GetRelatedGsaQ();
+	if (gsa_q == 0)
+	{
+		suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
+		gsa_q = this->CreateOutBoundSa(session, suggested_gsa_q_spi);
+		session->AssociateGsaQ(gsa_q);
+	}
+	else
+	{
+		suggested_gsa_q_spi.SetValueFromUint32(gsa_q->GetSpi());
+	}
 
+	//setting up gsa_r
 	Spi suggested_gsa_r_spi;	//needed to be unique in Qs and NQs
-	suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
+	Ptr<IpSecSAEntry> gsa_r = session->GetRelatedGsaR();
+	if (gsa_r == 0)
+	{
+		suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
+		gsa_r = this->CreateInBoundSa(session, suggested_gsa_r_spi);
+		session->SetRelatedGsaR(gsa_r);
+	}
+	else
+	{
+		suggested_gsa_r_spi.SetValueFromUint32(gsa_r->GetSpi());
+	}
 
 	//setting up remote spi notification proposal payload
 	IkePayload gsa_push_proposal_payload;
@@ -332,7 +357,7 @@ GsamL4Protocol::SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool 
 		bool session_retransmit = session->IsRetransmit();
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, packet, session_retransmit);
-		session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+		session->GetRetransmitTimer().Schedule(GsamConfig::GetDefaultRetransmitTimeout());
 	}
 	else
 	{
@@ -471,6 +496,8 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 	}
 	else
 	{
+		session->GetRetransmitTimer().Cancel();
+
 		uint64_t responder_spi = ikeheader.GetResponderSpi();
 
 		if (0 == responder_spi)
@@ -673,6 +700,8 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 {
 	NS_LOG_FUNCTION (this);
 
+	session->GetRetransmitTimer().Cancel();
+
 	uint32_t message_id = ikeheader.GetMessageId();
 
 	NS_ASSERT (message_id == 1);
@@ -793,6 +822,53 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 	this->SendMessage(session, packet, true);
 }
 
+void
+GsamL4Protocol::HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
+
+	if (session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	bool is_invitation = ikeheader.IsInitiator();
+	bool is_response = ikeheader.IsResponder();
+
+	if (	(true == is_invitation) &&
+			(false == is_response))
+	{
+		//invitation
+		this->HandleGsaPush(packet, ikeheader, session);
+
+	}
+	else if ((false == is_invitation) &&
+			(true == is_response))
+	{
+		//response
+		this->HandleGsaAck(packet, ikeheader, session);
+	}
+	else
+	{
+		//error
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamL4Protocol::HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+}
+
 Ptr<IpSecDatabase>
 GsamL4Protocol::GetIpSecDatabase (void)
 {
@@ -826,7 +902,12 @@ GsamL4Protocol::CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSel
 	policy_entry->SetDestAddressRange(tsr.GetStartingAddress(), tsr.GetStartingAddress());
 	policy_entry->SetTranSrcPortRange(tsr.GetStartPort(), tsr.GetEndPort());
 
-	session->PushBackRelatedPolicies(policy_entry);
+	if (policy_entry->GetDestAddress() != session->GetGroupAddress())
+	{
+		NS_ASSERT (false);
+	}
+
+	session->AssociateWithPolicy(policy_entry);
 }
 
 void
@@ -834,6 +915,19 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 									const std::list<IkeTrafficSelector>& tsi_selectors,
 									const std::list<IkeTrafficSelector>& tsr_selectors)
 {
+	NS_LOG_FUNCTION (this);
+	//this method need to be refactored, according to gsam's rule, a GM can only join one group at a time using a session
+
+	if (tsi_selectors.size() > 1)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (tsr_selectors.size() > 1)
+	{
+		NS_ASSERT (false);
+	}
+
 	for (	std::list<IkeTrafficSelector>::const_iterator const_it_tsi_selectors = tsi_selectors.begin();
 			const_it_tsi_selectors != tsi_selectors.end();
 			const_it_tsi_selectors++)
@@ -845,6 +939,36 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 			this->CreateIpSecPolicy(session, (*const_it_tsi_selectors), (*const_it_tsr_selectors));
 		}
 	}
+}
+
+Ptr<IpSecSAEntry>
+GsamL4Protocol::CreateOutBoundSa (Ptr<GsamSession> session, Spi spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecSAEntry> retval = 0;
+
+	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
+	Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
+
+	retval = outbound_sad->CreateIpSecSAEntry(spi);
+
+	return retval;
+}
+
+Ptr<IpSecSAEntry>
+GsamL4Protocol::CreateInBoundSa (Ptr<GsamSession> session, Spi spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecSAEntry> retval = 0;
+
+	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
+	Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
+
+	retval = inbound_sad->CreateIpSecSAEntry(spi);
+
+	return retval;
 }
 
 void
