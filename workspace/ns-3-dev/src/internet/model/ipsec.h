@@ -16,6 +16,7 @@
 #include <set>
 #include "ns3/timer.h"
 #include "ns3/nstime.h"
+#include "igmpv3-l4-protocol.h"
 
 namespace ns3 {
 
@@ -154,10 +155,17 @@ private:
 
 class GsamSession : public Object {
 public:
-	enum ROLE {
-		UNINITIALIZED = 0,
+	enum PHASE_ONE_ROLE {
+		P1_UNINITIALIZED = 0,
 		INITIATOR = 1,
 		RESPONDER = 2,
+	};
+
+	enum PHASE_TWO_ROLE {
+		P2_UNINITIALIZED = 10,
+		QUERIER = 11,
+		NON_QUERIER = 12,
+		GROUP_MEMBER = 13
 	};
 
 public:	//Object override
@@ -175,12 +183,12 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//static
-	static GsamSession::ROLE GetLocalRole (const IkeHeader& incoming_header);
+	static GsamSession::PHASE_ONE_ROLE GetLocalRole (const IkeHeader& incoming_header);
 public:	//operator
 	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
 public:	//self defined
-	void SetPhaseOneRole (GsamSession::ROLE role);
-	void SetPhaseTwoRole (GsamSession::ROLE role);
+	void SetPhaseOneRole (GsamSession::PHASE_ONE_ROLE role);
+	void SetPhaseTwoRole (GsamSession::PHASE_TWO_ROLE role);
 	//init sa
 	void SetInitSaInitiatorSpi (uint64_t spi);
 	void SetInitSaResponderSpi (uint64_t spi);
@@ -211,8 +219,8 @@ public: //const
 	uint64_t GetKekSaInitiatorSpi (void) const;
 	uint64_t GetInitSaResponderSpi (void) const;
 	uint64_t GetInitSaInitiatorSpi (void) const;
-	GsamSession::ROLE GetPhaseOneRole (void) const;
-	GsamSession::ROLE GetPhaseTwoRole (void) const;
+	GsamSession::PHASE_ONE_ROLE GetPhaseOneRole (void) const;
+	GsamSession::PHASE_TWO_ROLE GetPhaseTwoRole (void) const;
 	uint32_t GetCurrentMessageId (void) const;
 	Ipv4Address GetPeerAddress (void) const;
 	Ipv4Address GetGroupAddress (void) const;
@@ -226,13 +234,14 @@ private:	//fields
 	Ipv4Address m_peer_address;
 	Ptr<GsamSessionGroup> m_ptr_session_group;
 	Ipv4Address m_group_address;
-	GsamSession::ROLE m_p1_role;
-	GsamSession::ROLE m_p2_role;
+	GsamSession::PHASE_ONE_ROLE m_p1_role;
+	GsamSession::PHASE_TWO_ROLE m_p2_role;
 	Ptr<GsamSa> m_ptr_init_sa;
 	Ptr<GsamSa> m_ptr_kek_sa;
 	Ptr<IpSecDatabase> m_ptr_database;
 	Timer m_timer_retransmit;
 	Timer m_timer_timeout;
+	//Issues, NQ can have multiple related gsa for a group
 	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
 };
 
@@ -471,14 +480,16 @@ public:	//self defined
 	Time GetRetransmissionDelay (void);
 	Ptr<IpSecPolicyDatabase> GetSPD (void);
 	Ptr<IpSecSADatabase> GetSAD (void);
+	void SetGsam (Ptr<GsamL4Protocol> gsam);
 public:	//const
 	Ptr<GsamInfo> GetInfo (void) const;
-	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
-	Ptr<GsamSession> GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
+	Ptr<GsamSession> GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetPhaseTwoSession (uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
 	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
 	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
+	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:
 	Ptr<GsamSessionGroup> CreateSessionGroup (Ipv4Address group_address);
 private:	//fields
@@ -488,6 +499,7 @@ private:	//fields
 	Ptr<IpSecPolicyDatabase> m_ptr_spd;
 	Ptr<IpSecSADatabase> m_ptr_sad;
 	Ptr<GsamInfo> m_ptr_info;
+	Ptr<GsamL4Protocol> m_ptr_gsam;
 };
 
 } /* namespace ns3 */

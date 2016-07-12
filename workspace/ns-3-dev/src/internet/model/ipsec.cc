@@ -522,7 +522,7 @@ GsamSa::FreeLocalSpi (void)
 	NS_LOG_FUNCTION (this);
 
 	uint64_t local_spi = 0;
-	GsamSession::ROLE role = GsamSession::UNINITIALIZED;
+	GsamSession::PHASE_ONE_ROLE role = GsamSession::P1_UNINITIALIZED;
 
 //	if (this->m_type == GsamSa::GSAM_INIT_SA)
 //	{
@@ -614,8 +614,8 @@ GsamSession::GsamSession ()
   :  m_current_message_id (0),
 	 m_peer_address (Ipv4Address ("0.0.0.0")),
 	 m_ptr_session_group (0),
-	 m_p1_role (GsamSession::UNINITIALIZED),
-	 m_p2_role (GsamSession::UNINITIALIZED),
+	 m_p1_role (GsamSession::P1_UNINITIALIZED),
+	 m_p2_role (GsamSession::P2_UNINITIALIZED),
 	 m_ptr_init_sa (0),
 	 m_ptr_kek_sa (0),
 	 m_ptr_database (0),
@@ -643,11 +643,12 @@ GsamSession::~GsamSession()
 	this->m_ptr_init_sa = 0;
 	this->m_ptr_database = 0;
 	this->m_ptr_kek_sa = 0;
-	this->m_ptr_related_gsa_r = 0;
 	this->m_ptr_session_group = 0;
 
 	this->m_timer_retransmit.Cancel();
 	this->m_timer_timeout.Cancel();
+
+	this->m_ptr_related_gsa_r = 0;
 }
 
 TypeId
@@ -683,7 +684,7 @@ GsamSession::DoDispose (void)
 	this->m_ptr_session_group = 0;
 }
 
-GsamSession::ROLE
+GsamSession::PHASE_ONE_ROLE
 GsamSession::GetLocalRole (const IkeHeader& incoming_header)
 {
 	if (incoming_header.IsInitiator() && incoming_header.IsResponder())
@@ -696,7 +697,7 @@ GsamSession::GetLocalRole (const IkeHeader& incoming_header)
 		NS_ASSERT (false);
 	}
 
-	GsamSession::ROLE role = GsamSession::UNINITIALIZED;
+	GsamSession::PHASE_ONE_ROLE role = GsamSession::P1_UNINITIALIZED;
 
 	if (incoming_header.IsInitiator())
 	{
@@ -755,14 +756,14 @@ operator == (GsamSession const& lhs, GsamSession const& rhs)
 	return retval;
 }
 
-GsamSession::ROLE
+GsamSession::PHASE_ONE_ROLE
 GsamSession::GetPhaseOneRole (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_p1_role;
 }
 
-GsamSession::ROLE
+GsamSession::PHASE_TWO_ROLE
 GsamSession::GetPhaseTwoRole (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -770,10 +771,10 @@ GsamSession::GetPhaseTwoRole (void) const
 }
 
 void
-GsamSession::SetPhaseOneRole (GsamSession::ROLE role)
+GsamSession::SetPhaseOneRole (GsamSession::PHASE_ONE_ROLE role)
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_p1_role != GsamSession::UNINITIALIZED)
+	if (this->m_p1_role != GsamSession::P1_UNINITIALIZED)
 	{
 		NS_ASSERT (false);
 	}
@@ -782,10 +783,10 @@ GsamSession::SetPhaseOneRole (GsamSession::ROLE role)
 }
 
 void
-GsamSession::SetPhaseTwoRole (GsamSession::ROLE role)
+GsamSession::SetPhaseTwoRole (GsamSession::PHASE_TWO_ROLE role)
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_p2_role != GsamSession::UNINITIALIZED)
+	if (this->m_p2_role != GsamSession::P2_UNINITIALIZED)
 	{
 		NS_ASSERT (false);
 	}
@@ -1135,6 +1136,8 @@ Ptr<IpSecSAEntry>
 GsamSession::GetRelatedGsaR (void) const
 {
 	NS_LOG_FUNCTION (this);
+
+	//return value is allowed to be 0
 	return this->m_ptr_related_gsa_r;
 }
 Ptr<IpSecSAEntry>
@@ -1145,6 +1148,8 @@ GsamSession::GetRelatedGsaQ (void) const
 	{
 		NS_ASSERT (false);
 	}
+
+	//return value is allowed to be 0
 	return this->m_ptr_session_group->GetRelatedGsaQ();
 }
 
@@ -1326,6 +1331,7 @@ GsamSessionGroup::GetRelatedGsaQ (void) const
 {
 	NS_LOG_FUNCTION (this);
 
+	//return value is allowed to be 0
 	return this->m_ptr_related_gsa_q;
 }
 
@@ -1334,11 +1340,7 @@ GsamSessionGroup::GetRelatedPolicy (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_ptr_related_policy == 0)
-	{
-		NS_ASSERT (false);
-	}
-
+	//return value can be zero. For the use of judging the need of creating policy
 	return this->m_ptr_related_policy;
 }
 
@@ -2191,7 +2193,7 @@ IpSecDatabase::DoDispose (void)
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
+IpSecDatabase::GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -2217,7 +2219,7 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t ini
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const
+IpSecDatabase::GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -2230,6 +2232,7 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::ROLE local_p1_role, uint64_t ini
 		Ptr<GsamSession> session_it = (*const_it);
 		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
+						//the responder maybe 1 behind of message id
 				 session_it->GetCurrentMessageId() <= message_id &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
@@ -2255,6 +2258,7 @@ IpSecDatabase::GetPhaseTwoSession (uint64_t initiator_spi, uint64_t responder_sp
 		Ptr<GsamSession> session_it = (*const_it);
 		if (	(session_it->GetKekSaInitiatorSpi() == initiator_spi &&
 				(session_it->GetKekSaResponderSpi() == responder_spi) &&
+					//the responder maybe 1 behind of message id
 				 session_it->GetCurrentMessageId() <= message_id &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
@@ -2271,7 +2275,7 @@ IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address) co
 {
 	Ptr<GsamSession> retval = 0;
 
-	GsamSession::ROLE local_role = GsamSession::GetLocalRole(header);
+	GsamSession::PHASE_ONE_ROLE local_role = GsamSession::GetLocalRole(header);
 	uint32_t header_message_id = header.GetMessageId();
 
 	switch (header_message_id)
@@ -2366,6 +2370,19 @@ IpSecDatabase::GetIpSecSaDatabase (void) const
 
 
 	return this->m_ptr_sad;
+}
+
+Ptr<Igmpv3L4Protocol>
+IpSecDatabase::GetIgmp (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_gsam == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_gsam->GetIgmp();
 }
 
 Ptr<GsamSession>
@@ -2470,6 +2487,17 @@ IpSecDatabase::GetSAD (void)
 	}
 
 	return this->m_ptr_sad;
+}
+
+void
+IpSecDatabase::SetGsam (Ptr<GsamL4Protocol> gsam)
+{
+	NS_LOG_FUNCTION (this);
+	if (gsam == 0)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_ptr_gsam = gsam;
 }
 
 } /* namespace ns3 */

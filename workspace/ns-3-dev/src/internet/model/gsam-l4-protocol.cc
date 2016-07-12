@@ -283,7 +283,7 @@ GsamL4Protocol::Send_GSA_PUSH (Ptr<GsamSession> session)
 
 	NS_LOG_FUNCTION (this);
 
-	session->SetPhaseTwoRole(GsamSession::INITIATOR);
+	session->SetPhaseTwoRole(GsamSession::QUERIER);
 
 	//setting up gsa_q
 	Spi suggested_gsa_q_spi;
@@ -692,7 +692,10 @@ GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamSession> session,
 	session->SetKekSaInitiatorSpi(proposal.GetSpi().ToUint64());
 	session->SetKekSaResponderSpi(session->GetInfo()->RegisterGsamSpi());
 
-	this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+	if (0 == session->GetRelatedPolicy())
+	{
+		this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+	}
 }
 
 void
@@ -840,14 +843,12 @@ GsamL4Protocol::HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ike
 	if (	(true == is_invitation) &&
 			(false == is_response))
 	{
-		//invitation
 		this->HandleGsaPush(packet, ikeheader, session);
 
 	}
 	else if ((false == is_invitation) &&
 			(true == is_response))
 	{
-		//response
 		this->HandleGsaAck(packet, ikeheader, session);
 	}
 	else
@@ -861,12 +862,93 @@ void
 GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	uint32_t message_id = ikeheader.GetMessageId();
+
+	NS_ASSERT (message_id >= 2);
+
+	IkePayload pushed_sa_payload;
+	pushed_sa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+
+	packet->RemoveHeader(pushed_sa_payload);
+
+	std::list<IkeSAProposal> proposals = pushed_sa_payload.GetSAProposals();
+
+	if (proposals.size() != 2)
+	{
+		NS_ASSERT (false);
+	}
+
+	IkeSAProposal gsa_q_proposal = proposals.front();
+	IkeSAProposal gsa_r_proposal = proposals.back();
+
+	this->ProcessGsaPush(session, gsa_q_proposal, gsa_r_proposal);
+}
+
+void
+GsamL4Protocol::ProcessGsaPush (Ptr<GsamSession> session, const IkeSAProposal& gsa_q_proposal, const IkeSAProposal& gsa_r_proposal)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
+	Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
+
+	if (local_gsa_q == 0)
+	{
+		if (local_gsa_r == 0)
+		{
+			//new GM
+//			uint32_t pushed_gsa_q_spi = gsa_q_proposal.GetSpi().ToUint32();
+//			uint32_t pushed_gsa_r_spi = gsa_r_proposal.GetSpi().ToUint32();
+		}
+		else
+		{
+			//weird
+		}
+	}
+	else
+	{
+		if (local_gsa_r == 0)
+		{
+			//weird
+		}
+		else
+		{
+			//duplicate gsa push?
+
+			if (local_gsa_q->GetSpi() != gsa_q_proposal.GetSpi().ToUint32())
+			{
+				//weird
+			}
+
+			if (local_gsa_r->GetSpi() != gsa_r_proposal.GetSpi().ToUint32())
+			{
+				//weird
+			}
+		}
+	}
 }
 
 void
 GsamL4Protocol::HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+}
+
+Ptr<Igmpv3L4Protocol>
+GsamL4Protocol::GetIgmp (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_node == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_node()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+
+	return ipv4l3->GetIgmp();
 }
 
 Ptr<IpSecDatabase>
@@ -877,6 +959,7 @@ GsamL4Protocol::GetIpSecDatabase (void)
 	if (this->m_ptr_database == 0)
 	{
 		this->m_ptr_database = Create<IpSecDatabase>();
+		this->m_ptr_database->SetGsam(this);
 	}
 
 	return this->m_ptr_database;

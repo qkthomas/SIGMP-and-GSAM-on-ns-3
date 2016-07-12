@@ -13,6 +13,7 @@
 #include "ns3/socket.h"
 #include <list>
 #include <set>
+#include "igmpv3-l4-protocol.h"
 
 namespace ns3 {
 
@@ -87,7 +88,10 @@ private:	//responing, added by Lin Chen
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void ProcessGsaPush (Ptr<GsamSession> session, const IkeSAProposal& gsa_q_proposal, const IkeSAProposal& gsa_r_proposal);
 	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+public:	//const
+	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc
 	static void ChooseSAProposalOffer (	const std::list<IkeSAProposal> proposals,
 										IkeSAProposal& retval_chosen_proposal);
