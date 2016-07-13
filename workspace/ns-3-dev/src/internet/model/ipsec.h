@@ -31,6 +31,7 @@ class IpSecPolicyEntry;
 class IpSecPolicyDatabase;
 class EncryptionFunction;
 class IpSecSAEntry;
+class GsamL4Protocol;
 
 class GsamUtility {
 public://static
@@ -188,7 +189,6 @@ public:	//operator
 	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
 public:	//self defined
 	void SetPhaseOneRole (GsamSession::PHASE_ONE_ROLE role);
-	void SetPhaseTwoRole (GsamSession::PHASE_TWO_ROLE role);
 	//init sa
 	void SetInitSaInitiatorSpi (uint64_t spi);
 	void SetInitSaResponderSpi (uint64_t spi);
@@ -220,13 +220,15 @@ public: //const
 	uint64_t GetInitSaResponderSpi (void) const;
 	uint64_t GetInitSaInitiatorSpi (void) const;
 	GsamSession::PHASE_ONE_ROLE GetPhaseOneRole (void) const;
-	GsamSession::PHASE_TWO_ROLE GetPhaseTwoRole (void) const;
 	uint32_t GetCurrentMessageId (void) const;
 	Ipv4Address GetPeerAddress (void) const;
 	Ipv4Address GetGroupAddress (void) const;
 	Ptr<IpSecSAEntry> GetRelatedGsaR (void) const;
 	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
 	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
+	bool IsHostQuerier (void) const;
+	bool IsHostHost (void) const;
+	bool IsHostNonQuerier (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields
@@ -235,7 +237,6 @@ private:	//fields
 	Ptr<GsamSessionGroup> m_ptr_session_group;
 	Ipv4Address m_group_address;
 	GsamSession::PHASE_ONE_ROLE m_p1_role;
-	GsamSession::PHASE_TWO_ROLE m_p2_role;
 	Ptr<GsamSa> m_ptr_init_sa;
 	Ptr<GsamSa> m_ptr_kek_sa;
 	Ptr<IpSecDatabase> m_ptr_database;

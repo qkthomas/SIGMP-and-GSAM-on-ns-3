@@ -22,6 +22,8 @@
 #include "ipv4-raw-socket-impl-multicast.h"
 #include <cstdlib>
 #include <ctime>
+#include "igmpv3-l4-protocol.h"
+#include "gsam-l4-protocol.h"
 
 namespace ns3 {
 
@@ -615,7 +617,6 @@ GsamSession::GsamSession ()
 	 m_peer_address (Ipv4Address ("0.0.0.0")),
 	 m_ptr_session_group (0),
 	 m_p1_role (GsamSession::P1_UNINITIALIZED),
-	 m_p2_role (GsamSession::P2_UNINITIALIZED),
 	 m_ptr_init_sa (0),
 	 m_ptr_kek_sa (0),
 	 m_ptr_database (0),
@@ -743,11 +744,6 @@ operator == (GsamSession const& lhs, GsamSession const& rhs)
 		retval = false;
 	}
 
-	if (lhs.m_p2_role != rhs.m_p2_role)
-	{
-		retval = false;
-	}
-
 	if (lhs.m_current_message_id != rhs.m_current_message_id)
 	{
 		retval = false;
@@ -763,13 +759,6 @@ GsamSession::GetPhaseOneRole (void) const
 	return this->m_p1_role;
 }
 
-GsamSession::PHASE_TWO_ROLE
-GsamSession::GetPhaseTwoRole (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_p2_role;
-}
-
 void
 GsamSession::SetPhaseOneRole (GsamSession::PHASE_ONE_ROLE role)
 {
@@ -780,18 +769,6 @@ GsamSession::SetPhaseOneRole (GsamSession::PHASE_ONE_ROLE role)
 	}
 
 	this->m_p1_role = role;
-}
-
-void
-GsamSession::SetPhaseTwoRole (GsamSession::PHASE_TWO_ROLE role)
-{
-	NS_LOG_FUNCTION (this);
-	if (this->m_p2_role != GsamSession::P2_UNINITIALIZED)
-	{
-		NS_ASSERT (false);
-	}
-
-	this->m_p2_role = role;
 }
 
 uint64_t
@@ -1164,6 +1141,54 @@ GsamSession::GetRelatedPolicy (void) const
 	}
 
 	return this->m_ptr_session_group->GetRelatedPolicy();
+}
+
+bool
+GsamSession::IsHostQuerier (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+	Ptr<Igmpv3L4Protocol> igmp = this->m_ptr_database->GetIgmp();
+
+	if (igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+bool
+GsamSession::IsHostHost (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+	Ptr<Igmpv3L4Protocol> igmp = this->m_ptr_database->GetIgmp();
+
+	if (igmp->GetRole() == Igmpv3L4Protocol::HOST)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+bool
+GsamSession::IsHostNonQuerier (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+	Ptr<Igmpv3L4Protocol> igmp = this->m_ptr_database->GetIgmp();
+
+	if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	{
+		retval = true;
+	}
+
+	return retval;
 }
 
 /********************************************************

@@ -283,7 +283,10 @@ GsamL4Protocol::Send_GSA_PUSH (Ptr<GsamSession> session)
 
 	NS_LOG_FUNCTION (this);
 
-	session->SetPhaseTwoRole(GsamSession::QUERIER);
+	if (false == session->IsHostQuerier())
+	{
+		NS_ASSERT(false);
+	}
 
 	//setting up gsa_q
 	Spi suggested_gsa_q_spi;
@@ -945,7 +948,7 @@ GsamL4Protocol::GetIgmp (void) const
 		NS_ASSERT (false);
 	}
 
-	Ptr<Ipv4Multicast> ipv4 = this->m_node()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4Multicast> ipv4 = this->m_node->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
 
 	return ipv4l3->GetIgmp();
