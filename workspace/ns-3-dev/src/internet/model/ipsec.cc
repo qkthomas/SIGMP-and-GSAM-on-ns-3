@@ -1197,6 +1197,12 @@ GsamSession::IsHostNonQuerier (void) const
 
 	if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
 	{
+		if (	(this->GetGroupAddress().Get() != 0) &&
+				(this->GetGroupAddress().Get() != GsamConfig::GetIgmpv3DestGrpReportAddress().Get()))
+		{
+			NS_ASSERT (false);
+		}
+
 		retval = true;
 	}
 

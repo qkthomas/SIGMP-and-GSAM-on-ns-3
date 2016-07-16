@@ -893,42 +893,57 @@ GsamL4Protocol::ProcessGsaPush (Ptr<GsamSession> session, const IkeSAProposal& g
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
-	Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
-
-	if (local_gsa_q == 0)
+	if (true == session->IsHostNonQuerier())
 	{
-		if (local_gsa_r == 0)
+		//need information of group address or policy entry
+	}
+	else if (true == session->IsHostHost())
+	{
+		Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
+		Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
+
+		if (local_gsa_q == 0)
 		{
-			//new GM
-//			uint32_t pushed_gsa_q_spi = gsa_q_proposal.GetSpi().ToUint32();
-//			uint32_t pushed_gsa_r_spi = gsa_r_proposal.GetSpi().ToUint32();
+			if (local_gsa_r == 0)
+			{
+				//new GM
+		//			uint32_t pushed_gsa_q_spi = gsa_q_proposal.GetSpi().ToUint32();
+		//			uint32_t pushed_gsa_r_spi = gsa_r_proposal.GetSpi().ToUint32();
+			}
+			else
+			{
+				//weird
+			}
 		}
 		else
 		{
-			//weird
+			if (local_gsa_r == 0)
+			{
+				//weird
+			}
+			else
+			{
+				//duplicate gsa push?
+
+				if (local_gsa_q->GetSpi() != gsa_q_proposal.GetSpi().ToUint32())
+				{
+					//weird
+				}
+
+				if (local_gsa_r->GetSpi() != gsa_r_proposal.GetSpi().ToUint32())
+				{
+					//weird
+				}
+			}
 		}
+	}
+	else if (true == session->IsHostQuerier())
+	{
+		NS_ASSERT (false);
 	}
 	else
 	{
-		if (local_gsa_r == 0)
-		{
-			//weird
-		}
-		else
-		{
-			//duplicate gsa push?
-
-			if (local_gsa_q->GetSpi() != gsa_q_proposal.GetSpi().ToUint32())
-			{
-				//weird
-			}
-
-			if (local_gsa_r->GetSpi() != gsa_r_proposal.GetSpi().ToUint32())
-			{
-				//weird
-			}
-		}
+		NS_ASSERT (false);
 	}
 }
 
@@ -1001,7 +1016,7 @@ GsamL4Protocol::CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSel
 	}
 	else
 	{
-		if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+		if (session->IsHostNonQuerier())
 		{
 			Ptr<IpSecDatabase> root_database = session->GetDatabase();
 			Ptr<GsamSessionGroup> session_group = root_database->GetSessionGroup(policy_entry->GetDestAddress());
