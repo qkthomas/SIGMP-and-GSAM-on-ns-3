@@ -454,9 +454,10 @@ private:
 	void SetTransformType (IkeTransformSubStructure::TRANSFORM_TYPE transform_type);
 	void SetTransformId (IkeTransformSubStructure::GENERIC_TRANSFORM_ID transform_id);
 public:
-	bool IsLast (void);
 	void SetLast (void);
 	void ClearLast (void);
+public:	//const
+	bool IsLast (void) const;
 public:	//static
 	static IkeTransformSubStructure GetEmptyTransform (void);
 private:
@@ -571,6 +572,7 @@ public:	//self-defined
 	void PushBackProposals (const std::list<IkeSAProposal>& proposals);
 public:	//const
 	const std::list<IkeSAProposal>& GetProposals (void) const;
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 private:
 	/*
 	 * Iterate the list of proposals and set the last one's "field last"
@@ -629,6 +631,8 @@ public:
 	static IkeKeyExchangeSubStructure* GetDummySubstructure (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//const
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 private:
 	uint16_t m_dh_group_num;
 	std::list<uint8_t> m_lst_data;
@@ -670,14 +674,21 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//self-defined
 	void SetIpv4AddressData (Ipv4Address address);
-public:	//non-virtual const
+	/*
+	 * Default value is initiator
+	 */
+	void SetResponder (void);
+public:	//const
 	Ipv4Address GetIpv4AddressFromData (void) const;
+	bool IsResponder (void) const;
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
-	static IkeIdSubstructure* GenerateIpv4Substructure (Ipv4Address address);
+	static IkeIdSubstructure* GenerateIpv4Substructure (Ipv4Address address, bool is_responder);
 private:
 	uint8_t m_id_type;
+	bool m_flag_initiator_responder;	//false for initiator, true for responder
 	std::list<uint8_t> m_lst_id_data;
 };
 
@@ -716,6 +727,8 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//const
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//static
 	static IkeAuthSubstructure* GenerateEmptyAuthSubstructure (void);
 private:
@@ -823,6 +836,7 @@ public:	//Header Override
 public:	//const
 	uint8_t GetNotifyMessageType (void) const;
 	Spi GetSpi (void) const;
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//
@@ -861,6 +875,8 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//const
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
@@ -953,16 +969,21 @@ public:	//Header Override
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
-	static IkeTrafficSelectorSubstructure* GenerateEmptySubstructure (void);
-	static IkeTrafficSelectorSubstructure* GetSecureGroupSubstructure (Ipv4Address group_address);
-	static IkeTrafficSelectorSubstructure* GenerateDefaultSubstructure (void);
+	static IkeTrafficSelectorSubstructure* GenerateEmptySubstructure (bool is_responder);
+	static IkeTrafficSelectorSubstructure* GetSecureGroupSubstructure (Ipv4Address group_address, bool is_responder);
+	static IkeTrafficSelectorSubstructure* GenerateDefaultSubstructure (bool is_responder);
+public:	//non-const
+	void SetResponder (void);
 public:	//const
+	bool IsResponder (void) const;
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	void PushBackTrafficSelector (IkeTrafficSelector ts);
 	void PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss);
 private:
 	uint8_t m_num_of_tss;	//for deserilization
+	bool m_flag_initiator_responder;	//false for initiator, ture for responder
 	std::list<IkeTrafficSelector> m_lst_traffic_selectors;
 };
 
@@ -1000,9 +1021,11 @@ public:
 	using IkePayloadSubstructure::Deserialize;
 public:
 	void SetBlockSize (uint8_t block_size);
-	bool IsInitialized (void);
 private:	//non-const
 	void DeleteEncryptedPayload (void);
+public:	//const
+	bool IsInitialized (void) const;
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 private:
 	std::list<uint8_t> m_initialization_vector;
 	//std::list<uint8_t> m_lst_encrypted_payload;	//including padding and pad length
@@ -1082,6 +1105,8 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//const
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 private:
 	uint8_t m_cfg_type;
 	std::list<IkeConfigAttribute> m_lst_config_attributes;

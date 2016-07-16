@@ -172,6 +172,12 @@ GsamConfig::GetDefaultRetransmitTimeout (void)
 	return Seconds(2.0);
 }
 
+Ipv4Address
+GsamConfig::GetIgmpv3DestGrpReportAddress (void)
+{
+	return Ipv4Address ("224.0.0.22");
+}
+
 /********************************************************
  *        GsamInfo
  ********************************************************/
@@ -1085,6 +1091,12 @@ Ptr<IpSecDatabase>
 GsamSession::GetDatabase (void) const
 {
 	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	return this->m_ptr_database;
 }
 

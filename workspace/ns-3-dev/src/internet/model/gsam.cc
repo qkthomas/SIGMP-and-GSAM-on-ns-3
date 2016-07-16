@@ -1123,6 +1123,7 @@ IkePayload
 IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 {
 	IkePayload retval;
+	IkePayloadSubstructure* ptr_substructure = NULL;
 	switch (payload_type)
 	{
 	case IkePayloadHeader::SECURITY_ASSOCIATION:
@@ -1135,7 +1136,9 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 		retval.SetPayload(new IkeIdSubstructure());
 		break;
 	case IkePayloadHeader::IDENTIFICATION_RESPONDER:
-		retval.SetPayload(new IkeIdSubstructure());
+		ptr_substructure = new IkeIdSubstructure();
+		dynamic_cast<IkeIdSubstructure*>(ptr_substructure)->SetResponder();
+		retval.SetPayload(ptr_substructure);
 		break;
 	case IkePayloadHeader::CERTIFICATE:
 		//not implemented
@@ -1166,12 +1169,12 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 		NS_ASSERT (false);
 		break;
 	case IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR:
-		//not implemented
 		retval.SetPayload(new IkeTrafficSelectorSubstructure());
 		break;
 	case IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER:
-		//not implemented
-		retval.SetPayload(new IkeTrafficSelectorSubstructure());
+		ptr_substructure = new IkeTrafficSelectorSubstructure();
+		dynamic_cast<IkeTrafficSelectorSubstructure*>(ptr_substructure)->SetResponder();
+		retval.SetPayload(ptr_substructure);
 		break;
 	case IkePayloadHeader::ENCRYPTED_AND_AUTHENTICATED:
 		//not implemented
@@ -1560,7 +1563,7 @@ IkeTransformSubStructure::SetTransformId (IkeTransformSubStructure::GENERIC_TRAN
 }
 
 bool
-IkeTransformSubStructure::IsLast (void)
+IkeTransformSubStructure::IsLast (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_flag_last;
@@ -2184,6 +2187,13 @@ IkeSAPayloadSubstructure::GetProposals (void) const
 	return this->m_lst_proposal;
 }
 
+IkePayloadHeader::PAYLOAD_TYPE
+IkeSAPayloadSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::SECURITY_ASSOCIATION;
+}
+
 void
 IkeSAPayloadSubstructure::SetLastProposal (void)
 {
@@ -2381,6 +2391,13 @@ IkeKeyExchangeSubStructure::GetDummySubstructure (void)
 	return substructure;
 }
 
+IkePayloadHeader::PAYLOAD_TYPE
+IkeKeyExchangeSubStructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::KEY_EXCHANGE;
+}
+
 /********************************************************
  *        IkeIdSubstructure
  ********************************************************/
@@ -2398,7 +2415,8 @@ IkeIdSubstructure::GetTypeId (void)
 }
 
 IkeIdSubstructure::IkeIdSubstructure ()
-  : m_id_type (0)
+  : m_id_type (0),
+	m_flag_initiator_responder (false)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -2506,6 +2524,13 @@ IkeIdSubstructure::SetIpv4AddressData (Ipv4Address address)
 	GsamUtility::Uint32ToBytes(this->m_lst_id_data, address.Get());
 }
 
+void
+IkeIdSubstructure::SetResponder (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_initiator_responder = true;
+}
+
 Ipv4Address
 IkeIdSubstructure::GetIpv4AddressFromData (void) const
 {
@@ -2516,13 +2541,35 @@ IkeIdSubstructure::GetIpv4AddressFromData (void) const
 	return Ipv4Address(value);
 }
 
+bool
+IkeIdSubstructure::IsResponder (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_initiator_responder;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeIdSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	IkePayloadHeader::PAYLOAD_TYPE retval = IkePayloadHeader::IDENTIFICATION_INITIATOR;
+	if (true == this->IsResponder())
+	{
+		retval = IkePayloadHeader::IDENTIFICATION_RESPONDER;
+	}
+	return retval;
+}
+
 IkeIdSubstructure*
-IkeIdSubstructure::GenerateIpv4Substructure (Ipv4Address address)
+IkeIdSubstructure::GenerateIpv4Substructure (Ipv4Address address, bool is_responder)
 {
 	IkeIdSubstructure* retval = new IkeIdSubstructure();
 
 	retval->SetIpv4AddressData(address);
-
+	if (true == is_responder)
+	{
+		retval->SetResponder();
+	}
 	retval->m_length = 8;
 
 	return retval;
@@ -2686,6 +2733,13 @@ IkeAuthSubstructure::Print (std::ostream &os) const
 	NS_LOG_FUNCTION (this << &os);
 	IkePayloadSubstructure::Print(os);
 	os << "IkeIdSubstructure: " << this << std::endl;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeAuthSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::AUTHENTICATION;
 }
 
 IkeAuthSubstructure*
@@ -2958,6 +3012,13 @@ IkeNotifySubstructure::GetSpi (void) const
 	return this->m_spi;
 }
 
+IkePayloadHeader::PAYLOAD_TYPE
+IkeNotifySubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::NOTIFY;
+}
+
 IkeNotifySubstructure*
 IkeNotifySubstructure::GenerateGsaQNotification (Spi spi)
 {
@@ -3113,6 +3174,13 @@ IkeDeletePayloadSubstructure::Print (std::ostream &os) const
 	NS_LOG_FUNCTION (this << &os);
 	IkePayloadSubstructure::Print(os);
 	os << "IkeDeletePayloadSubstructure: " << this << std::endl;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeDeletePayloadSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::DELETE;
 }
 
 /********************************************************
@@ -3334,7 +3402,8 @@ IkeTrafficSelectorSubstructure::GetTypeId (void)
 }
 
 IkeTrafficSelectorSubstructure::IkeTrafficSelectorSubstructure ()
-  :  m_num_of_tss (0)
+  :  m_num_of_tss (0),
+	 m_flag_initiator_responder (false)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -3444,15 +3513,20 @@ IkeTrafficSelectorSubstructure::Print (std::ostream &os) const
 }
 
 IkeTrafficSelectorSubstructure*
-IkeTrafficSelectorSubstructure::GenerateEmptySubstructure (void)
+IkeTrafficSelectorSubstructure::GenerateEmptySubstructure (bool is_responder)
 {
 	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+
+	if (true == is_responder)
+	{
+		retval->SetResponder();
+	}
 
 	return retval;
 }
 
 IkeTrafficSelectorSubstructure*
-IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_address)
+IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_address, bool is_responder)
 {
 	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
 
@@ -3467,11 +3541,16 @@ IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_ad
 		retval->m_length += const_it->GetSerializedSize();
 	}
 
+	if (true == is_responder)
+	{
+		retval->SetResponder();
+	}
+
 	return retval;
 }
 
 IkeTrafficSelectorSubstructure*
-IkeTrafficSelectorSubstructure::GenerateDefaultSubstructure (void)
+IkeTrafficSelectorSubstructure::GenerateDefaultSubstructure (bool is_responder)
 {
 	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
 
@@ -3486,7 +3565,26 @@ IkeTrafficSelectorSubstructure::GenerateDefaultSubstructure (void)
 		retval->m_length += const_it->GetSerializedSize();
 	}
 
+	if (true == is_responder)
+	{
+		retval->SetResponder();
+	}
+
 	return retval;
+}
+
+void
+IkeTrafficSelectorSubstructure::SetResponder (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_initiator_responder = true;
+}
+
+bool
+IkeTrafficSelectorSubstructure::IsResponder (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_initiator_responder;
 }
 
 const std::list<IkeTrafficSelector>&
@@ -3495,6 +3593,18 @@ IkeTrafficSelectorSubstructure::GetTrafficSelectors (void) const
 	NS_LOG_FUNCTION (this);
 
 	return this->m_lst_traffic_selectors;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeTrafficSelectorSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	IkePayloadHeader::PAYLOAD_TYPE retval = IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR;
+	if (true == this->IsResponder())
+	{
+		retval = IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER;
+	}
+	return retval;
 }
 
 void
@@ -3705,10 +3815,17 @@ IkeEncryptedPayloadSubstructure::SetBlockSize (uint8_t block_size)
 }
 
 bool
-IkeEncryptedPayloadSubstructure::IsInitialized (void)
+IkeEncryptedPayloadSubstructure::IsInitialized (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return (this->m_length != 0) && (this->m_block_size != 0) && (this->m_checksum_length != 0);
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeEncryptedPayloadSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::ENCRYPTED_AND_AUTHENTICATED;
 }
 
 void
@@ -3944,6 +4061,13 @@ IkeConfigPayloadSubstructure::Print (std::ostream &os) const
 	NS_LOG_FUNCTION (this << &os);
 	IkePayloadSubstructure::Print(os);
 	os << "IkeConfigPayloadSubstructure: " << this << std::endl;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeConfigPayloadSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::CONFIGURATION;
 }
 
 }  // namespace ns3

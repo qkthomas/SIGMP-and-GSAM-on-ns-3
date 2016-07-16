@@ -50,6 +50,7 @@ public:
 	static uint8_t GetDefaultIpsecProtocolId (void);
 	static IPsec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
 	static Time GetDefaultRetransmitTimeout (void);
+	static Ipv4Address GetIgmpv3DestGrpReportAddress (void);
 };
 
 class GsamInfo : public Object {

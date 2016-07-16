@@ -228,10 +228,10 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 
 	//Setting up TSr
 	IkePayload tsr;
-	tsr.SetPayload(IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure(session->GetGroupAddress()));
+	tsr.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure(true));
 	//settuping up tsi
 	IkePayload tsi;
-	tsi.SetPayload(IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure(Ipv4Address("0.0.0.0")));
+	tsi.SetPayload(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure(false));
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sai2
 	IkePayload sai2;
@@ -245,7 +245,7 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 	auth.SetNextPayloadType(sai2.GetPayloadType());
 	//setting up id
 	IkePayload id;
-	id.SetPayload(IkeIdSubstructure::GenerateIpv4Substructure(session->GetGroupAddress()));
+	id.SetPayload(IkeIdSubstructure::GenerateIpv4Substructure(session->GetGroupAddress(), false));
 	id.SetNextPayloadType(auth.GetPayloadType());
 	//setting up HDR
 	IkeHeader ikeheader;
@@ -988,12 +988,41 @@ GsamL4Protocol::CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSel
 	policy_entry->SetDestAddressRange(tsr.GetStartingAddress(), tsr.GetStartingAddress());
 	policy_entry->SetTranSrcPortRange(tsr.GetStartPort(), tsr.GetEndPort());
 
-	if (policy_entry->GetDestAddress() != session->GetGroupAddress())
+	if (policy_entry->GetDestAddress() == session->GetGroupAddress())
 	{
-		NS_ASSERT (false);
+		if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+		{
+			NS_ASSERT (false);
+		}
+		else
+		{
+			session->AssociateWithPolicy(policy_entry);
+		}
 	}
-
-	session->AssociateWithPolicy(policy_entry);
+	else
+	{
+		if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+		{
+			Ptr<IpSecDatabase> root_database = session->GetDatabase();
+			Ptr<GsamSessionGroup> session_group = root_database->GetSessionGroup(policy_entry->GetDestAddress());
+			Ptr<IpSecPolicyEntry> session_group_policy = session_group->GetRelatedPolicy();
+			if (session_group_policy == 0)
+			{
+				//it means this NQs first time receive a GSA_PUSH about this group address
+				session_group->AssociateWithPolicy(policy_entry);
+			}
+			else
+			{
+				//it means that this session_group is already bound to a policy
+				//this is irrelevant to this session_group's GSA_Q or any GSA_R bound to this session_group
+			}
+		}
+		else
+		{
+			//something went wrong
+			NS_ASSERT (false);
+		}
+	}
 }
 
 void
