@@ -279,7 +279,7 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 void
 GsamL4Protocol::Send_GSA_PUSH (Ptr<GsamSession> session)
 {
-	//only Qs or NQs will invoke this function
+	//only Q will invoke this function
 
 	NS_LOG_FUNCTION (this);
 
@@ -287,6 +287,22 @@ GsamL4Protocol::Send_GSA_PUSH (Ptr<GsamSession> session)
 	{
 		NS_ASSERT(false);
 	}
+
+	if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+	{
+		//There is a NQ on the other side of the session
+	}
+	else
+	{
+		//There is a GM on the other side of the session
+		this->Send_GSA_PUSH_GM(session);
+	}
+}
+
+void
+GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
 
 	//setting up gsa_q
 	Spi suggested_gsa_q_spi;

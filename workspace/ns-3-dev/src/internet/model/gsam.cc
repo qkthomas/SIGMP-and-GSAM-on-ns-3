@@ -4070,4 +4070,458 @@ IkeConfigPayloadSubstructure::GetPayloadType (void) const
 	return IkePayloadHeader::CONFIGURATION;
 }
 
+/********************************************************
+ *        IkeGSAProposal
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeGSAProposal);
+
+TypeId
+IkeGSAProposal::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeGSAProposal")
+	    .SetParent<Header> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeGSAProposal> ();
+	  return tid;
+}
+
+IkeGSAProposal::IkeGSAProposal ()
+  :  m_flag_last (false),
+	 m_gsa_type (IkeGSAProposal::UNINITIALIZED),
+	 m_proposal_length (12),	//12 bytes until filed SPI. increase by adding more transform
+	 m_proposal_num (0),
+	 m_protocol_id (0),
+	 m_spi_size (4),	//ah or esp
+	 m_num_transforms (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeGSAProposal::~IkeGSAProposal ()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_transforms.clear();
+}
+
+uint32_t
+IkeGSAProposal::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t size = 0;
+
+	size += 8;
+	size += this->m_spi.GetSerializedSize();
+
+	size += this->m_src_ts.GetSerializedSize();
+	size += this->m_dest_ts.GetSerializedSize();
+
+	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
+			const_it != this->m_lst_transforms.end();
+			const_it++)
+	{
+		size += const_it->GetSerializedSize();
+	}
+
+	return size;
+}
+
+TypeId
+IkeGSAProposal::GetInstanceTypeId (void) const
+{
+	return IkeGSAProposal::GetTypeId();
+}
+
+void
+IkeGSAProposal::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+
+	Buffer::Iterator i = start;
+
+	if (true == this->m_flag_last)
+	{
+		i.WriteU8(0);
+	}
+	else if (false == this->m_flag_last)
+	{
+		i.WriteU8(2);
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	uint16_t proposal_length = 0;
+	proposal_length += 8;	//fields before SPI and Transforms
+	proposal_length += this->m_spi.GetSerializedSize();
+	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
+			const_it != this->m_lst_transforms.end();
+			const_it++)
+	{
+		proposal_length += const_it->GetSerializedSize();
+	}
+
+	//to write the RESERVED field and optional GSA type filed
+	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
+	{
+		i.WriteU8(0);
+	}
+	else if (this->m_gsa_type == IkeSAProposal::GSA_Q)
+	{
+		i.WriteU8(1);
+	}
+	else if (this->m_gsa_type == IkeSAProposal::GSA_R)
+	{
+		i.WriteU8(2);
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	i.WriteHtolsbU16(proposal_length);
+
+	i.WriteU8(this->m_proposal_num);
+
+	i.WriteU8(this->m_protocol_id);
+
+	i.WriteU8(this->m_spi.GetSerializedSize());
+
+	i.WriteU8(this->m_lst_transforms.size());
+
+	this->m_spi.Serialize(i);
+	i.Next(this->m_spi.GetSerializedSize());
+
+	this->m_src_ts.Serialize(i);
+	i.Next(this->m_src_ts.GetSerializedSize());
+
+	this->m_dest_ts.Serialize(i);
+	i.Next(this->m_dest_ts.GetSerializedSize());
+
+	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
+			const_it != this->m_lst_transforms.end();
+			const_it++)
+	{
+		const_it->Serialize(i);
+		i.Next(const_it->GetSerializedSize());
+	}
+}
+
+uint32_t
+IkeGSAProposal::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	uint32_t size = 0;
+
+	uint8_t field_last = i.ReadU8();
+	size += sizeof (field_last);
+
+	if (0 == field_last)
+	{
+		this->m_flag_last = true;
+	}
+	else if (2 == field_last)
+	{
+		this->m_flag_last = false;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	//read first RESERVED or optional GSA type field
+	uint8_t reserved_gsa_type = i.ReadU8();
+	if (reserved_gsa_type == 0)
+	{
+		this->m_gsa_type = IkeSAProposal::UNINITIALIZED;
+	}
+	else if (reserved_gsa_type == 1)
+	{
+		this->m_gsa_type = IkeSAProposal::GSA_Q;
+	}
+	else if (reserved_gsa_type == 2)
+	{
+		this->m_gsa_type = IkeSAProposal::GSA_R;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	size++;
+
+	this->m_proposal_length = i.ReadNtohU16();
+	size += sizeof (this->m_proposal_length);
+
+	this->m_proposal_num = i.ReadU8();
+	size += sizeof (this->m_proposal_num);
+
+	this->m_protocol_id = i.ReadU8();
+	size += sizeof (this->m_protocol_id);
+
+	this->m_spi_size = i.ReadU8();
+
+	size += sizeof (this->m_spi_size);
+
+	this->m_num_transforms = i.ReadU8();
+	size += sizeof (this->m_num_transforms);
+
+	this->m_spi.Deserialize(i, this->m_spi_size);
+	uint32_t spi_serializedsize = this->m_spi.GetSerializedSize();
+	i.Next(spi_serializedsize);
+	size += spi_serializedsize;
+
+	this->m_src_ts.Deserialize(i);
+	uint32_t src_ts_serializedsize = this->m_src_ts.GetSerializedSize();
+	i.Next(src_ts_serializedsize);
+	size += src_ts_serializedsize;
+
+	for (	uint8_t it = 1;
+			it <= this->m_num_transforms;
+			it++)
+	{
+		IkeTransformSubStructure tranform;
+		tranform.Deserialize(i);
+		i.Next(tranform.GetSerializedSize());
+		this->m_lst_transforms.push_back(tranform);
+	}
+
+	NS_ASSERT (size == this->m_proposal_length);
+
+	return size;
+}
+
+void
+IkeGSAProposal::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	os << "IkeGSAProposal: " << this << std::endl;
+}
+
+void
+IkeGSAProposal::SetLast (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_last = true;
+}
+
+void
+IkeGSAProposal::ClearLast (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_last = false;
+}
+
+void
+IkeGSAProposal::SetProposalNumber (uint8_t proposal_num)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_proposal_num = proposal_num;
+}
+
+void
+IkeGSAProposal::SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_protocol_id = protocol_id;
+}
+
+void
+IkeGSAProposal::SetSPI (Spi spi)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_spi = spi;
+	this->m_spi_size = this->m_spi.GetSerializedSize();
+}
+
+void
+IkeGSAProposal::PushBackTransform (IkeTransformSubStructure transform)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->ClearLastTranform();
+
+	this->m_lst_transforms.push_back(transform);
+	this->m_num_transforms++;
+	this->m_proposal_length += transform.GetSerializedSize();
+
+	this->SetLastTransform();
+}
+
+void
+IkeGSAProposal::SetAsGsaQ (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_gsa_type != IkeGSAProposal::UNINITIALIZED)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_gsa_type = IkeGSAProposal::GSA_Q;
+}
+
+void
+IkeGSAProposal::SetAsGsaR (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_gsa_type != IkeGSAProposal::UNINITIALIZED)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_gsa_type = IkeGSAProposal::GSA_R;
+}
+
+void
+IkeGSAProposal::SetGsaType (IkeGSAProposal::GSA_TYPE gsa_type)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_gsa_type = gsa_type;
+}
+
+bool
+IkeGSAProposal::IsLast (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_last;
+}
+
+Spi
+IkeGSAProposal::GetSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_spi;
+}
+
+bool
+IkeGSAProposal::IsGsa (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = true;
+
+	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
+bool
+IkeGSAProposal::IsGsaQ (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+
+	if (this->m_gsa_type == IkeSAProposal::GSA_Q)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+bool
+IkeGSAProposal::IsGsaR (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+
+	if (this->m_gsa_type == IkeSAProposal::GSA_R)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+uint8_t
+IkeGSAProposal::GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint8_t size = 0;
+
+	switch (protocol_id) {
+	case IPsec::IKE:
+		size = 8;	//8 bytes
+		break;
+	case IPsec::AH:
+		size = 4;
+		break;
+	case IPsec::ESP:
+		size = 4;
+		break;
+	default:
+		NS_ASSERT(false);
+	}
+
+	return size;
+}
+
+void
+IkeGSAProposal::SetLastTransform (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_lst_transforms.begin() != this->m_lst_transforms.end())
+	{
+		this->m_lst_transforms.back().SetLast();
+	}
+}
+
+void
+IkeGSAProposal::ClearLastTranform (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_lst_transforms.begin() != this->m_lst_transforms.end())
+	{
+		this->m_lst_transforms.back().ClearLast();
+	}
+}
+
+IkeGSAProposal
+IkeGSAProposal::GenerateInitIkeProposal ()
+{
+	IkeGSAProposal retval;
+	//set ike
+	retval.SetProtocolId(IPsec::IKE);
+	//no need to set spi, set transform
+	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
+	retval.PushBackTransform(transform);
+	retval.SetLastTransform();
+	return retval;
+}
+
+IkeGSAProposal
+IkeGSAProposal::GenerateAuthIkeProposal (Spi spi)
+{
+	IkeGSAProposal retval;
+	//set ike
+	retval.SetProtocolId(IPsec::IKE);
+	//set spi
+	retval.SetSPI(spi);
+	//set trasform
+	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
+	retval.PushBackTransform(transform);
+	retval.SetLastTransform();
+	return retval;
+}
+
+IkeGSAProposal
+IkeGSAProposal::GenerateGsaProposal (Spi spi, IkeGSAProposal::GSA_TYPE gsa_type)
+{
+	IkeGSAProposal retval;
+	retval.SetProtocolId(GsamConfig::GetDefaultGSAProposalId());
+	retval.SetGsaType(gsa_type);
+	retval.SetSPI(spi);
+	return retval;
+}
+
 }  // namespace ns3

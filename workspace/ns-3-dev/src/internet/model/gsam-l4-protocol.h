@@ -60,6 +60,7 @@ public:	//exchanges, added by Lin Chen
 	void Send_IKE_SA_INIT (Ptr<GsamSession> session);
 	void Send_IKE_SA_AUTH (Ptr<GsamSession> session);
 	void Send_GSA_PUSH (Ptr<GsamSession> session);
+	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);

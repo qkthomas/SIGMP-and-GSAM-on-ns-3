@@ -1112,6 +1112,87 @@ private:
 	std::list<IkeConfigAttribute> m_lst_config_attributes;
 };
 
+class IkeGSAProposal : public Header {
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * | 0 (last) or 2 |    GSA Type   |         Proposal Length       |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * | Proposal Num  |  Protocol ID  |    SPI Size(4)|Num  Transforms|
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                        SPI (variable)                         ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                   <Source Traffic Selector>                   ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                <Destination Traffic Selector>                 ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                        <Transforms>                           ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 *
+	 */
+public:
+	enum GSA_TYPE {
+		UNINITIALIZED = 0,
+		GSA_Q = 1,
+		GSA_R = 2
+	};
+
+public:
+	static TypeId GetTypeId (void);
+	IkeGSAProposal ();
+	virtual ~IkeGSAProposal ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:	//non-const
+	void SetLast (void);
+	void ClearLast (void);
+	void SetProposalNumber (uint8_t proposal_num);
+	void SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
+	void SetSPI (Spi spi);
+	void PushBackTransform (IkeTransformSubStructure transform);
+	void SetAsGsaQ (void);
+	void SetAsGsaR (void);
+	void SetGsaType (IkeGSAProposal::GSA_TYPE gsa_type);
+	IkeTrafficSelector& GetSourceTrafficSelector (void);
+	IkeTrafficSelector& GetDestTrafficSelector (void);
+public:	//const
+	bool IsLast (void) const;
+	Spi GetSpi (void) const;
+	bool IsGsa (void) const;
+	bool IsGsaQ (void) const;
+	bool IsGsaR (void) const;
+private:
+	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
+	/*
+	 * Iterate the list of transform and set the last one's "field last"
+	 */
+	void SetLastTransform (void);
+	void ClearLastTranform (void);
+public:
+	static IkeGSAProposal GenerateInitIkeProposal ();
+	static IkeGSAProposal GenerateAuthIkeProposal (Spi spi);
+	static IkeGSAProposal GenerateGsaProposal (Spi spi, IkeGSAProposal::GSA_TYPE gsa_type);
+private:
+	bool m_flag_last;
+	IkeGSAProposal::GSA_TYPE m_gsa_type;
+	uint16_t m_proposal_length;	//for deserialization
+	uint8_t m_proposal_num;
+	uint8_t m_protocol_id;
+	Spi m_spi;	//ah or esp or ike
+	IkeTrafficSelector m_src_ts;
+	IkeTrafficSelector m_dest_ts;
+	uint8_t m_spi_size;			//for reading
+	uint8_t m_num_transforms;	//for reading
+	std::list<IkeTransformSubStructure> m_lst_transforms;
+};
+
 }  // namespace ns3
 
 #endif /* GSAM_H_ */
