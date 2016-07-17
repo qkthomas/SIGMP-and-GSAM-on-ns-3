@@ -1598,7 +1598,6 @@ IkeSAProposal::GetTypeId (void)
 
 IkeSAProposal::IkeSAProposal ()
   :  m_flag_last (false),
-	 m_gsa_type (IkeSAProposal::UNINITIALIZED),
 	 m_proposal_length (12),	//12 bytes until filed SPI. increase by adding more transform
 	 m_proposal_num (0),
 	 m_protocol_id (0),
@@ -1672,23 +1671,8 @@ IkeSAProposal::Serialize (Buffer::Iterator start) const
 		proposal_length += const_it->GetSerializedSize();
 	}
 
-	//to write the RESERVED field and optional GSA type filed
-	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
-	{
-		i.WriteU8(0);
-	}
-	else if (this->m_gsa_type == IkeSAProposal::GSA_Q)
-	{
-		i.WriteU8(1);
-	}
-	else if (this->m_gsa_type == IkeSAProposal::GSA_R)
-	{
-		i.WriteU8(2);
-	}
-	else
-	{
-		NS_ASSERT (false);
-	}
+	//to write the RESERVED field as zero
+	i.WriteU8(0);
 
 	i.WriteHtolsbU16(proposal_length);
 
@@ -1736,21 +1720,9 @@ IkeSAProposal::Deserialize (Buffer::Iterator start)
 		NS_ASSERT (false);
 	}
 
-	//read first RESERVED or optional GSA type field
+	//read first RESERVED and it must be zero, assert if not
 	uint8_t reserved_gsa_type = i.ReadU8();
-	if (reserved_gsa_type == 0)
-	{
-		this->m_gsa_type = IkeSAProposal::UNINITIALIZED;
-	}
-	else if (reserved_gsa_type == 1)
-	{
-		this->m_gsa_type = IkeSAProposal::GSA_Q;
-	}
-	else if (reserved_gsa_type == 2)
-	{
-		this->m_gsa_type = IkeSAProposal::GSA_R;
-	}
-	else
+	if (reserved_gsa_type != 0)
 	{
 		NS_ASSERT (false);
 	}
@@ -1847,39 +1819,6 @@ IkeSAProposal::PushBackTransform (IkeTransformSubStructure transform)
 	this->SetLastTransform();
 }
 
-void
-IkeSAProposal::SetAsGsaQ (void)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_gsa_type != IkeSAProposal::UNINITIALIZED)
-	{
-		NS_ASSERT (false);
-	}
-
-	this->m_gsa_type = IkeSAProposal::GSA_Q;
-}
-
-void
-IkeSAProposal::SetAsGsaR (void)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_gsa_type != IkeSAProposal::UNINITIALIZED)
-	{
-		NS_ASSERT (false);
-	}
-
-	this->m_gsa_type = IkeSAProposal::GSA_R;
-}
-
-void
-IkeSAProposal::SetGsaType (IkeSAProposal::GSA_TYPE gsa_type)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_gsa_type = gsa_type;
-}
-
 bool
 IkeSAProposal::IsLast (void) const
 {
@@ -1892,48 +1831,6 @@ IkeSAProposal::GetSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_spi;
-}
-
-bool
-IkeSAProposal::IsGsa (void) const
-{
-	NS_LOG_FUNCTION (this);
-	bool retval = true;
-
-	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
-	{
-		retval = false;
-	}
-
-	return retval;
-}
-
-bool
-IkeSAProposal::IsGsaQ (void) const
-{
-	NS_LOG_FUNCTION (this);
-	bool retval = false;
-
-	if (this->m_gsa_type == IkeSAProposal::GSA_Q)
-	{
-		retval = true;
-	}
-
-	return retval;
-}
-
-bool
-IkeSAProposal::IsGsaR (void) const
-{
-	NS_LOG_FUNCTION (this);
-	bool retval = false;
-
-	if (this->m_gsa_type == IkeSAProposal::GSA_R)
-	{
-		retval = true;
-	}
-
-	return retval;
 }
 
 uint8_t
@@ -2010,18 +1907,8 @@ IkeSAProposal::GenerateAuthIkeProposal (Spi spi)
 	return retval;
 }
 
-IkeSAProposal
-IkeSAProposal::GenerateGsaProposal (Spi spi, IkeSAProposal::GSA_TYPE gsa_type)
-{
-	IkeSAProposal retval;
-	retval.SetProtocolId(GsamConfig::GetDefaultGSAProposalId());
-	retval.SetGsaType(gsa_type);
-	retval.SetSPI(spi);
-	return retval;
-}
-
 /********************************************************
- *        IkeSAPayload
+ *        IkeSAPayloadSubstructure
  ********************************************************/
 
 NS_OBJECT_ENSURE_REGISTERED (IkeSAPayloadSubstructure);

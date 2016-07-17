@@ -486,12 +486,6 @@ class IkeSAProposal : public Object {
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *
 	 */
-public:
-	enum GSA_TYPE {
-		UNINITIALIZED = 0,
-		GSA_Q = 1,
-		GSA_R = 2
-	};
 
 public:
 	static TypeId GetTypeId (void);
@@ -510,15 +504,9 @@ public:	//non-const
 	void SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	void SetSPI (Spi spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
-	void SetAsGsaQ (void);
-	void SetAsGsaR (void);
-	void SetGsaType (IkeSAProposal::GSA_TYPE gsa_type);
 public:	//const
 	bool IsLast (void) const;
 	Spi GetSpi (void) const;
-	bool IsGsa (void) const;
-	bool IsGsaQ (void) const;
-	bool IsGsaR (void) const;
 private:
 	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	/*
@@ -529,10 +517,8 @@ private:
 public:
 	static IkeSAProposal GenerateInitIkeProposal ();
 	static IkeSAProposal GenerateAuthIkeProposal (Spi spi);
-	static IkeSAProposal GenerateGsaProposal (Spi spi, IkeSAProposal::GSA_TYPE gsa_type);
 private:
 	bool m_flag_last;
-	IkeSAProposal::GSA_TYPE m_gsa_type;
 	uint16_t m_proposal_length;	//for deserialization
 	uint8_t m_proposal_num;
 	uint8_t m_protocol_id;
