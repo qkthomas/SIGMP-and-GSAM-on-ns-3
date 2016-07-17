@@ -3361,7 +3361,7 @@ IkeTrafficSelector::GenerateDefaultSigmpTs(void)
 	retval.m_ending_address = GsamConfig::GetSecGrpAddressEnd();
 
 	//header = 4; 2 ports = 4; 2 ipv4 address = 8
-	retval.m_length = 16;	//16 bytes
+	retval.m_selector_length = 16;	//16 bytes
 
 	return retval;
 
@@ -3379,7 +3379,7 @@ IkeTrafficSelector::GenerateDestSecureGroupTs(Ipv4Address grpup_adress)
 	retval.m_ending_address = grpup_adress;
 
 	//header = 4; 2 ports = 4; 2 ipv4 address = 8
-	retval.m_length = 16;	//16 bytes
+	retval.m_selector_length = 16;	//16 bytes
 
 	return retval;
 
@@ -4164,15 +4164,15 @@ IkeGSAProposal::Serialize (Buffer::Iterator start) const
 	}
 
 	//to write the RESERVED field and optional GSA type filed
-	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
+	if (this->m_gsa_type == IkeGSAProposal::UNINITIALIZED)
 	{
 		i.WriteU8(0);
 	}
-	else if (this->m_gsa_type == IkeSAProposal::GSA_Q)
+	else if (this->m_gsa_type == IkeGSAProposal::GSA_Q)
 	{
 		i.WriteU8(1);
 	}
-	else if (this->m_gsa_type == IkeSAProposal::GSA_R)
+	else if (this->m_gsa_type == IkeGSAProposal::GSA_R)
 	{
 		i.WriteU8(2);
 	}
@@ -4237,15 +4237,15 @@ IkeGSAProposal::Deserialize (Buffer::Iterator start)
 	uint8_t reserved_gsa_type = i.ReadU8();
 	if (reserved_gsa_type == 0)
 	{
-		this->m_gsa_type = IkeSAProposal::UNINITIALIZED;
+		this->m_gsa_type = IkeGSAProposal::UNINITIALIZED;
 	}
 	else if (reserved_gsa_type == 1)
 	{
-		this->m_gsa_type = IkeSAProposal::GSA_Q;
+		this->m_gsa_type = IkeGSAProposal::GSA_Q;
 	}
 	else if (reserved_gsa_type == 2)
 	{
-		this->m_gsa_type = IkeSAProposal::GSA_R;
+		this->m_gsa_type = IkeGSAProposal::GSA_R;
 	}
 	else
 	{
@@ -4404,7 +4404,7 @@ IkeGSAProposal::IsGsa (void) const
 	NS_LOG_FUNCTION (this);
 	bool retval = true;
 
-	if (this->m_gsa_type == IkeSAProposal::UNINITIALIZED)
+	if (this->m_gsa_type == IkeGSAProposal::UNINITIALIZED)
 	{
 		retval = false;
 	}
@@ -4418,7 +4418,7 @@ IkeGSAProposal::IsGsaQ (void) const
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
 
-	if (this->m_gsa_type == IkeSAProposal::GSA_Q)
+	if (this->m_gsa_type == IkeGSAProposal::GSA_Q)
 	{
 		retval = true;
 	}
@@ -4432,7 +4432,7 @@ IkeGSAProposal::IsGsaR (void) const
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
 
-	if (this->m_gsa_type == IkeSAProposal::GSA_R)
+	if (this->m_gsa_type == IkeGSAProposal::GSA_R)
 	{
 		retval = true;
 	}

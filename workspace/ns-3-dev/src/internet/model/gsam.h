@@ -26,6 +26,7 @@
 #include "ns3/trailer.h"
 #include "ns3/ipv4-address.h"
 #include <list>
+#include "ns3/object.h"
 
 namespace ns3 {
 
@@ -322,7 +323,7 @@ private:
 	IkePayloadSubstructure* m_ptr_substructure;
 };
 
-class IkeTransformAttribute : public Header {
+class IkeTransformAttribute : public Object {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -468,7 +469,7 @@ private:
 	std::list<IkeTransformAttribute> m_lst_transform_attributes;
 };
 
-class IkeSAProposal : public Header {
+class IkeSAProposal : public Object {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -886,7 +887,7 @@ private:
 	std::list<Spi> m_lst_spis;
 };
 
-class IkeTrafficSelector : public IkePayloadSubstructure {
+class IkeTrafficSelector : public Object {
 
 	/*
 	 *                      1                   2                   3
@@ -1035,7 +1036,7 @@ private:
 	std::list<uint8_t> m_lst_integrity_checksum_data;
 };
 
-class IkeConfigAttribute : public Header {
+class IkeConfigAttribute : public Object {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1112,7 +1113,7 @@ private:
 	std::list<IkeConfigAttribute> m_lst_config_attributes;
 };
 
-class IkeGSAProposal : public Header {
+class IkeGSAProposal : public Object {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
