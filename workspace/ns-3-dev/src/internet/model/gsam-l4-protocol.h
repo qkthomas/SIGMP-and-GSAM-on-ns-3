@@ -75,27 +75,27 @@ private:	//responing, added by Lin Chen
 	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessIkeSaAuthInvitation (	Ptr<GsamSession> session,
 										Ipv4Address group_address,
-										const IkeSAProposal& proposal,
+										const Ptr<IkeSAProposal> proposal,
 										const std::list<IkeTrafficSelector>& tsi_selectors,
 										const std::list<IkeTrafficSelector>& tsr_selectors);
 	void ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
-									const std::list<IkeSAProposal>& sar2_proposals,
+									const std::list<Ptr<IkeSAProposal> >& sar2_proposals,
 									const std::list<IkeTrafficSelector>& tsi_selectors,
 									const std::list<IkeTrafficSelector>& tsr_selectors);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void RespondIkeSaAuth (	Ptr<GsamSession> session,
-							IkeSAProposal chosen_proposal,
+							Ptr<IkeSAProposal> chosen_proposal,
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessGsaPush (Ptr<GsamSession> session, const IkeSAProposal& gsa_q_proposal, const IkeSAProposal& gsa_r_proposal);
+	void ProcessGsaPush (Ptr<GsamSession> session, const Ptr<IkeSAProposal> gsa_q_proposal, const Ptr<IkeSAProposal> gsa_r_proposal);
 	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc
-	static void ChooseSAProposalOffer (	const std::list<IkeSAProposal> proposals,
-										IkeSAProposal& retval_chosen_proposal);
+	static void ChooseSAProposalOffer (	const std::list<Ptr<IkeSAProposal> >& proposals,
+										Ptr<IkeSAProposal> retval_chosen_proposal);
 	static void NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
 												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation

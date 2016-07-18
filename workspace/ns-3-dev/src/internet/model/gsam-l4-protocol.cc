@@ -669,7 +669,7 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
 	packet->RemoveHeader(tsr);
 
-	IkeSAProposal chosen_proposal;
+	Ptr<IkeSAProposal> chosen_proposal = Create<IkeSAProposal>();
 	GsamL4Protocol::ChooseSAProposalOffer(sai2.GetSAProposals(), chosen_proposal);
 
 	std::list<IkeTrafficSelector> narrowed_tssi;
@@ -699,7 +699,7 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 void
 GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamSession> session,
 											Ipv4Address group_address,
-											const IkeSAProposal& proposal,
+											const Ptr<IkeSAProposal> proposal,
 											const std::list<IkeTrafficSelector>& tsi_selectors,
 											const std::list<IkeTrafficSelector>& tsr_selectors)
 {
@@ -708,7 +708,7 @@ GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamSession> session,
 	session->SetGroupAddress(group_address);
 
 	session->EtablishGsamKekSa();
-	session->SetKekSaInitiatorSpi(proposal.GetSpi().ToUint64());
+	session->SetKekSaInitiatorSpi(proposal->GetSpi().ToUint64());
 	session->SetKekSaResponderSpi(session->GetInfo()->RegisterGsamSpi());
 
 	if (0 == session->GetRelatedPolicy())
@@ -771,7 +771,7 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 
 void
 GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
-											const std::list<IkeSAProposal>& sar2_proposals,
+											const std::list<Ptr<IkeSAProposal> >& sar2_proposals,
 											const std::list<IkeTrafficSelector>& tsi_selectors,
 											const std::list<IkeTrafficSelector>& tsr_selectors)
 {
@@ -782,9 +782,9 @@ GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
 		NS_ASSERT (false);
 	}
 
-	IkeSAProposal proposal = sar2_proposals.front();
+	Ptr<IkeSAProposal> proposal = sar2_proposals.front();
 
-	Spi spi_responder = proposal.GetSpi();
+	Spi spi_responder = proposal->GetSpi();
 
 	session->SetKekSaResponderSpi(spi_responder.ToUint64());
 
@@ -793,7 +793,7 @@ GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
 
 void
 GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
-									IkeSAProposal chosen_proposal,
+									Ptr<IkeSAProposal> chosen_proposal,
 									const std::list<IkeTrafficSelector>& narrowed_tssi,
 									const std::list<IkeTrafficSelector>& narrowed_tssr)
 {
@@ -891,21 +891,21 @@ GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, P
 
 	packet->RemoveHeader(pushed_sa_payload);
 
-	std::list<IkeSAProposal> proposals = pushed_sa_payload.GetSAProposals();
+	std::list<Ptr<IkeSAProposal> > proposals = pushed_sa_payload.GetSAProposals();
 
 	if (proposals.size() != 2)
 	{
 		NS_ASSERT (false);
 	}
 
-	IkeSAProposal gsa_q_proposal = proposals.front();
-	IkeSAProposal gsa_r_proposal = proposals.back();
+	Ptr<IkeSAProposal> gsa_q_proposal = proposals.front();
+	Ptr<IkeSAProposal> gsa_r_proposal = proposals.back();
 
 	this->ProcessGsaPush(session, gsa_q_proposal, gsa_r_proposal);
 }
 
 void
-GsamL4Protocol::ProcessGsaPush (Ptr<GsamSession> session, const IkeSAProposal& gsa_q_proposal, const IkeSAProposal& gsa_r_proposal)
+GsamL4Protocol::ProcessGsaPush (Ptr<GsamSession> session, const Ptr<IkeSAProposal> gsa_q_proposal, const Ptr<IkeSAProposal> gsa_r_proposal)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -941,12 +941,12 @@ GsamL4Protocol::ProcessGsaPush (Ptr<GsamSession> session, const IkeSAProposal& g
 			{
 				//duplicate gsa push?
 
-				if (local_gsa_q->GetSpi() != gsa_q_proposal.GetSpi().ToUint32())
+				if (local_gsa_q->GetSpi() != gsa_q_proposal->GetSpi().ToUint32())
 				{
 					//weird
 				}
 
-				if (local_gsa_r->GetSpi() != gsa_r_proposal.GetSpi().ToUint32())
+				if (local_gsa_r->GetSpi() != gsa_r_proposal->GetSpi().ToUint32())
 				{
 					//weird
 				}
@@ -1118,8 +1118,8 @@ GsamL4Protocol::CreateInBoundSa (Ptr<GsamSession> session, Spi spi)
 }
 
 void
-GsamL4Protocol::ChooseSAProposalOffer (	const std::list<IkeSAProposal> proposals,
-										IkeSAProposal& retval_chosen_proposal)
+GsamL4Protocol::ChooseSAProposalOffer (	const std::list<Ptr<IkeSAProposal> >& proposals,
+										Ptr<IkeSAProposal> retval_chosen_proposal)
 {
 	if (proposals.size() == 0)
 	{

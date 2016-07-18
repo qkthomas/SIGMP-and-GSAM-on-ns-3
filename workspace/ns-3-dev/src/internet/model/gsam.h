@@ -34,6 +34,7 @@ class GsamInfo;
 class Spi;
 class IkeSAProposal;
 class IkeTrafficSelector;
+class IkeGSAProposal;
 
 class IPsec {
 public:
@@ -230,7 +231,7 @@ private:
 	uint32_t m_length;
 };
 
-class IkePayloadSubstructure : public Header {
+class IkePayloadSubstructure : public Object {
 public:
 	static TypeId GetTypeId (void);
 	IkePayloadSubstructure ();
@@ -299,16 +300,16 @@ public:	//const
 	bool IsInitialized (void) const;
 	IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
-	const IkePayloadSubstructure* GetSubstructure (void) const;
-	const std::list<IkeSAProposal>& GetSAProposals (void) const;
+	const Ptr<IkePayloadSubstructure> GetSubstructure (void) const;
+	const std::list<Ptr<IkeSAProposal> >& GetSAProposals (void) const;
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
 	Ipv4Address GetIpv4AddressId (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
-	void SetPayload (IkePayloadSubstructure* substructure);
+	void SetPayload (Ptr<IkePayloadSubstructure> substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
-	void PushBackProposal (IkeSAProposal proposal);
-	void PushBackProposals (const std::list<IkeSAProposal>& proposals);
+	void PushBackProposal (Ptr<IkeSAProposal> proposal);
+	void PushBackProposals (const std::list<Ptr<IkeSAProposal> >& proposals);
 	void PushBackTrafficSelector (IkeTrafficSelector ts);
 	void PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss);
 public:	//static
@@ -320,7 +321,7 @@ private:	//non-const
 	void DeletePayloadSubstructure (void);
 private:
 	IkePayloadHeader m_header;
-	IkePayloadSubstructure* m_ptr_substructure;
+	Ptr<IkePayloadSubstructure> m_ptr_substructure;
 };
 
 class IkeTransformAttribute : public Object {
@@ -507,7 +508,7 @@ public:	//non-const
 public:	//const
 	bool IsLast (void) const;
 	Spi GetSpi (void) const;
-private:
+protected:
 	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	/*
 	 * Iterate the list of transform and set the last one's "field last"
@@ -515,9 +516,9 @@ private:
 	void SetLastTransform (void);
 	void ClearLastTranform (void);
 public:
-	static IkeSAProposal GenerateInitIkeProposal ();
-	static IkeSAProposal GenerateAuthIkeProposal (Spi spi);
-private:
+	static Ptr<IkeSAProposal> GenerateInitIkeProposal ();
+	static Ptr<IkeSAProposal> GenerateAuthIkeProposal (Spi spi);
+protected:
 	bool m_flag_last;
 	uint16_t m_proposal_length;	//for deserialization
 	uint8_t m_proposal_num;
@@ -551,14 +552,14 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//static
-	static IkeSAPayloadSubstructure* GenerateInitIkeProposal (void);
-	static IkeSAPayloadSubstructure* GenerateAuthIkeProposal (Spi spi);
-	static IkeSAPayloadSubstructure* GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r);
+	static Ptr<IkeSAPayloadSubstructure > GenerateInitIkeProposal (void);
+	static Ptr<IkeSAPayloadSubstructure > GenerateAuthIkeProposal (Spi spi);
+	static Ptr<IkeSAPayloadSubstructure > GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r);
 public:	//self-defined
-	void PushBackProposal (IkeSAProposal proposal);
-	void PushBackProposals (const std::list<IkeSAProposal>& proposals);
+	void PushBackProposal (Ptr<IkeSAProposal> proposal);
+	void PushBackProposals (const std::list<Ptr<IkeSAProposal> >& proposals);
 public:	//const
-	const std::list<IkeSAProposal>& GetProposals (void) const;
+	const std::list<Ptr<IkeSAProposal> >& GetProposals (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 private:
 	/*
@@ -573,7 +574,7 @@ private:
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
-	std::list<IkeSAProposal> m_lst_proposal;	//proposals? Since it can be more than one.
+	std::list<Ptr<IkeSAProposal> > m_lst_proposal;	//proposals? Since it can be more than one.
 };
 
 class IkeKeyExchangeSubStructure : public IkePayloadSubstructure {
@@ -1099,7 +1100,7 @@ private:
 	std::list<IkeConfigAttribute> m_lst_config_attributes;
 };
 
-class IkeGSAProposal : public Object {
+class IkeGSAProposal : public IkeSAProposal {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1138,46 +1139,21 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//non-const
-	void SetLast (void);
-	void ClearLast (void);
-	void SetProposalNumber (uint8_t proposal_num);
-	void SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
-	void SetSPI (Spi spi);
-	void PushBackTransform (IkeTransformSubStructure transform);
 	void SetAsGsaQ (void);
 	void SetAsGsaR (void);
 	void SetGsaType (IkeGSAProposal::GSA_TYPE gsa_type);
 	IkeTrafficSelector& GetSourceTrafficSelector (void);
 	IkeTrafficSelector& GetDestTrafficSelector (void);
 public:	//const
-	bool IsLast (void) const;
-	Spi GetSpi (void) const;
 	bool IsGsa (void) const;
 	bool IsGsaQ (void) const;
 	bool IsGsaR (void) const;
-private:
-	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
-	/*
-	 * Iterate the list of transform and set the last one's "field last"
-	 */
-	void SetLastTransform (void);
-	void ClearLastTranform (void);
 public:
-	static IkeGSAProposal GenerateInitIkeProposal ();
-	static IkeGSAProposal GenerateAuthIkeProposal (Spi spi);
-	static IkeGSAProposal GenerateGsaProposal (Spi spi, IkeGSAProposal::GSA_TYPE gsa_type);
+	static Ptr<IkeGSAProposal> GenerateGsaProposal (Spi spi, IkeGSAProposal::GSA_TYPE gsa_type);
 private:
-	bool m_flag_last;
 	IkeGSAProposal::GSA_TYPE m_gsa_type;
-	uint16_t m_proposal_length;	//for deserialization
-	uint8_t m_proposal_num;
-	uint8_t m_protocol_id;
-	Spi m_spi;	//ah or esp or ike
 	IkeTrafficSelector m_src_ts;
 	IkeTrafficSelector m_dest_ts;
-	uint8_t m_spi_size;			//for reading
-	uint8_t m_num_transforms;	//for reading
-	std::list<IkeTransformSubStructure> m_lst_transforms;
 };
 
 }  // namespace ns3

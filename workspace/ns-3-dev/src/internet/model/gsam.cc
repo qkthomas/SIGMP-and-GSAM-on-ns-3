@@ -987,14 +987,14 @@ IkePayload::GetNextPayloadType (void) const
 	return this->m_header.GetNextPayloadType();
 }
 
-const IkePayloadSubstructure*
+const Ptr<IkePayloadSubstructure>
 IkePayload::GetSubstructure (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ptr_substructure;
 }
 
-const std::list<IkeSAProposal>&
+const std::list<Ptr<IkeSAProposal> >&
 IkePayload::GetSAProposals (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -1004,7 +1004,7 @@ IkePayload::GetSAProposals (void) const
 		NS_ASSERT (false);
 	}
 
-	IkeSAPayloadSubstructure* ptr_derived = dynamic_cast<IkeSAPayloadSubstructure*>(this->m_ptr_substructure);
+	Ptr<IkeSAPayloadSubstructure> ptr_derived = DynamicCast<IkeSAPayloadSubstructure>(this->m_ptr_substructure);
 
 	return ptr_derived->GetProposals();
 }
@@ -1020,7 +1020,7 @@ IkePayload::GetTrafficSelectors (void) const
 		NS_ASSERT (false);
 	}
 
-	IkeTrafficSelectorSubstructure* ptr_derived = dynamic_cast<IkeTrafficSelectorSubstructure*>(this->m_ptr_substructure);
+	Ptr<IkeTrafficSelectorSubstructure> ptr_derived = DynamicCast<IkeTrafficSelectorSubstructure>(this->m_ptr_substructure);
 
 	return ptr_derived->GetTrafficSelectors();
 }
@@ -1033,7 +1033,7 @@ IkePayload::GetIpv4AddressId (void) const
 		NS_ASSERT (false);
 	}
 
-	IkeIdSubstructure* ptr_derived = dynamic_cast<IkeIdSubstructure*>(this->m_ptr_substructure);
+	Ptr<IkeIdSubstructure> ptr_derived = DynamicCast<IkeIdSubstructure>(this->m_ptr_substructure);
 
 	return ptr_derived->GetIpv4AddressFromData();
 }
@@ -1049,7 +1049,7 @@ IkePayload::GetIpv4AddressId (void) const
 //}
 
 void
-IkePayload::SetPayload (IkePayloadSubstructure* substructure)
+IkePayload::SetPayload (Ptr<IkePayloadSubstructure> substructure)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1067,25 +1067,25 @@ IkePayload::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 }
 
 void
-IkePayload::PushBackProposal (IkeSAProposal proposal)
+IkePayload::PushBackProposal (Ptr<IkeSAProposal> proposal)
 {
 	NS_LOG_FUNCTION (this);
 	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
 	{
 		NS_ASSERT (false);
 	}
-	IkeSAPayloadSubstructure* ptr_derived = dynamic_cast<IkeSAPayloadSubstructure*>(this->m_ptr_substructure);
+	Ptr<IkeSAPayloadSubstructure> ptr_derived = DynamicCast<IkeSAPayloadSubstructure>(this->m_ptr_substructure);
 	ptr_derived->PushBackProposal(proposal);
 }
 void
-IkePayload::PushBackProposals (const std::list<IkeSAProposal>& proposals)
+IkePayload::PushBackProposals (const std::list<Ptr<IkeSAProposal> >& proposals)
 {
 	NS_LOG_FUNCTION (this);
 	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
 	{
 		NS_ASSERT (false);
 	}
-	IkeSAPayloadSubstructure* ptr_derived = dynamic_cast<IkeSAPayloadSubstructure*>(this->m_ptr_substructure);
+	Ptr<IkeSAPayloadSubstructure> ptr_derived = DynamicCast<IkeSAPayloadSubstructure>(this->m_ptr_substructure);
 	ptr_derived->PushBackProposals(proposals);
 }
 
@@ -1100,7 +1100,7 @@ IkePayload::PushBackTrafficSelector (IkeTrafficSelector ts)
 			NS_ASSERT (false);
 		}
 
-		IkeTrafficSelectorSubstructure* ptr_derived = dynamic_cast<IkeTrafficSelectorSubstructure*>(this->m_ptr_substructure);
+		Ptr<IkeTrafficSelectorSubstructure> ptr_derived = DynamicCast<IkeTrafficSelectorSubstructure>(this->m_ptr_substructure);
 		ptr_derived->PushBackTrafficSelector(ts);
 }
 
@@ -1115,7 +1115,7 @@ IkePayload::PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss)
 			NS_ASSERT (false);
 		}
 
-		IkeTrafficSelectorSubstructure* ptr_derived = dynamic_cast<IkeTrafficSelectorSubstructure*>(this->m_ptr_substructure);
+		Ptr<IkeTrafficSelectorSubstructure> ptr_derived = DynamicCast<IkeTrafficSelectorSubstructure>(this->m_ptr_substructure);
 		ptr_derived->PushBackTrafficSelectors(tss);
 }
 
@@ -1123,21 +1123,21 @@ IkePayload
 IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 {
 	IkePayload retval;
-	IkePayloadSubstructure* ptr_substructure = NULL;
+	Ptr<IkePayloadSubstructure> ptr_substructure = 0;
 	switch (payload_type)
 	{
 	case IkePayloadHeader::SECURITY_ASSOCIATION:
-		retval.SetPayload(new IkeSAPayloadSubstructure());
+		retval.SetPayload(Create<IkeSAPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::KEY_EXCHANGE:
-	retval.SetPayload(new IkeKeyExchangeSubStructure());
+	retval.SetPayload(Create<IkeKeyExchangeSubStructure>());
 	break;
 	case IkePayloadHeader::IDENTIFICATION_INITIATOR:
-		retval.SetPayload(new IkeIdSubstructure());
+		retval.SetPayload(Create<IkeIdSubstructure>());
 		break;
 	case IkePayloadHeader::IDENTIFICATION_RESPONDER:
-		ptr_substructure = new IkeIdSubstructure();
-		dynamic_cast<IkeIdSubstructure*>(ptr_substructure)->SetResponder();
+		ptr_substructure = Create<IkeIdSubstructure>();
+		DynamicCast<IkeIdSubstructure>(ptr_substructure)->SetResponder();
 		retval.SetPayload(ptr_substructure);
 		break;
 	case IkePayloadHeader::CERTIFICATE:
@@ -1150,39 +1150,39 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 		break;
 	case IkePayloadHeader::AUTHENTICATION:
 		//not implemented
-		retval.SetPayload(new IkeAuthSubstructure());
+		retval.SetPayload(Create<IkeAuthSubstructure>());
 		break;
 	case IkePayloadHeader::NONCE:
 		//not implemented
-		retval.SetPayload(new IkeNonceSubstructure());
+		retval.SetPayload(Create<IkeNonceSubstructure>());
 		break;
 	case IkePayloadHeader::NOTIFY:
 		//not implemented
-		retval.SetPayload(new IkeNotifySubstructure());
+		retval.SetPayload(Create<IkeNotifySubstructure>());
 		break;
 	case IkePayloadHeader::DELETE:
 		//not implemented
-		retval.SetPayload(new IkeDeletePayloadSubstructure());
+		retval.SetPayload(Create<IkeDeletePayloadSubstructure>());
 		break;
 	case IkePayloadHeader::VENDOR_ID:
 		//not implemented
 		NS_ASSERT (false);
 		break;
 	case IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR:
-		retval.SetPayload(new IkeTrafficSelectorSubstructure());
+		retval.SetPayload(Create<IkeTrafficSelectorSubstructure>());
 		break;
 	case IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER:
-		ptr_substructure = new IkeTrafficSelectorSubstructure();
-		dynamic_cast<IkeTrafficSelectorSubstructure*>(ptr_substructure)->SetResponder();
+		ptr_substructure = Create<IkeTrafficSelectorSubstructure>();
+		DynamicCast<IkeTrafficSelectorSubstructure>(ptr_substructure)->SetResponder();
 		retval.SetPayload(ptr_substructure);
 		break;
 	case IkePayloadHeader::ENCRYPTED_AND_AUTHENTICATED:
 		//not implemented
-		retval.SetPayload(new IkeEncryptedPayloadSubstructure());
+		retval.SetPayload(Create<IkeEncryptedPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::CONFIGURATION:
 		//not implemented
-		retval.SetPayload(new IkeConfigPayloadSubstructure());
+		retval.SetPayload(Create<IkeConfigPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::EXTENSIBLE_AUTHENTICATION:
 		//not implemented
@@ -1203,7 +1203,7 @@ IkePayload::DeletePayloadSubstructure (void)
 
 	if (0 != this->m_ptr_substructure)
 	{
-		delete m_ptr_substructure;
+		this->m_ptr_substructure = 0;
 	}
 }
 
@@ -1879,31 +1879,31 @@ IkeSAProposal::ClearLastTranform (void)
 	}
 }
 
-IkeSAProposal
+Ptr<IkeSAProposal>
 IkeSAProposal::GenerateInitIkeProposal ()
 {
-	IkeSAProposal retval;
+	Ptr<IkeSAProposal> retval = Create<IkeSAProposal>();
 	//set ike
-	retval.SetProtocolId(IPsec::IKE);
+	retval->SetProtocolId(IPsec::IKE);
 	//no need to set spi, set transform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
-	retval.PushBackTransform(transform);
-	retval.SetLastTransform();
+	retval->PushBackTransform(transform);
+	retval->SetLastTransform();
 	return retval;
 }
 
-IkeSAProposal
+Ptr<IkeSAProposal>
 IkeSAProposal::GenerateAuthIkeProposal (Spi spi)
 {
-	IkeSAProposal retval;
+	Ptr<IkeSAProposal> retval = Create<IkeSAProposal>();
 	//set ike
-	retval.SetProtocolId(IPsec::IKE);
+	retval->SetProtocolId(IPsec::IKE);
 	//set spi
-	retval.SetSPI(spi);
+	retval->SetSPI(spi);
 	//set trasform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
-	retval.PushBackTransform(transform);
-	retval.SetLastTransform();
+	retval->PushBackTransform(transform);
+	retval->SetLastTransform();
 	return retval;
 }
 
@@ -1940,11 +1940,11 @@ IkeSAPayloadSubstructure::GetSerializedSize (void) const
 
 	uint32_t size = 0;
 
-	for (	std::list<IkeSAProposal>::const_iterator const_it = this->m_lst_proposal.begin();
+	for (	std::list<Ptr<IkeSAProposal> >::const_iterator const_it = this->m_lst_proposal.begin();
 			const_it != this->m_lst_proposal.end();
 			const_it++)
 	{
-		size += const_it->GetSerializedSize();
+		size += (*const_it)->GetSerializedSize();
 	}
 
 	return size;
@@ -1964,12 +1964,12 @@ IkeSAPayloadSubstructure::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	for (	std::list<IkeSAProposal>::const_iterator const_it = this->m_lst_proposal.begin();
+	for (	std::list<Ptr<IkeSAProposal> >::const_iterator const_it = this->m_lst_proposal.begin();
 			const_it != this->m_lst_proposal.end();
 			const_it++)
 	{
-		const_it->Serialize(i);
-		i.Next(const_it->GetSerializedSize());
+		(*const_it)->Serialize(i);
+		i.Next((*const_it)->GetSerializedSize());
 	}
 }
 
@@ -1984,15 +1984,15 @@ IkeSAPayloadSubstructure::Deserialize (Buffer::Iterator start)
 
 	while (length_rest > 0)
 	{
-		IkeSAProposal proposal;
-		proposal.Deserialize(i);
-		size += proposal.GetSerializedSize();
-		length_rest -= proposal.GetSerializedSize();
+		Ptr<IkeSAProposal> proposal = Create<IkeSAProposal>();
+		proposal->Deserialize(i);
+		size += proposal->GetSerializedSize();
+		length_rest -= proposal->GetSerializedSize();
 		this->m_lst_proposal.push_back(proposal);
 
 		if (length_rest == 0)
 		{
-			if (true != proposal.IsLast())
+			if (true != proposal->IsLast())
 			{
 				NS_ASSERT (false);
 			}
@@ -2014,33 +2014,32 @@ IkeSAPayloadSubstructure::Print (std::ostream &os) const
 	os << "IkeSAPayloadSubstructure: " << this << std::endl;
 }
 
-IkeSAPayloadSubstructure*
+Ptr<IkeSAPayloadSubstructure>
 IkeSAPayloadSubstructure::GenerateInitIkeProposal (void)
 {
-	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
+	Ptr<IkeSAPayloadSubstructure> retval = Create<IkeSAPayloadSubstructure>();
 	retval->PushBackProposal(IkeSAProposal::GenerateInitIkeProposal());
 	retval->SetLastProposal();
 	retval->SetProposalNum();
 	return retval;
 }
 
-IkeSAPayloadSubstructure*
+Ptr<IkeSAPayloadSubstructure>
 IkeSAPayloadSubstructure::GenerateAuthIkeProposal (Spi spi)
 {
-	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
+	Ptr<IkeSAPayloadSubstructure> retval = Create<IkeSAPayloadSubstructure>();
 	retval->PushBackProposal(IkeSAProposal::GenerateAuthIkeProposal(spi));
 	retval->SetLastProposal();
 	retval->SetProposalNum();
 	return retval;
 }
-
-IkeSAPayloadSubstructure*
+Ptr<IkeSAPayloadSubstructure>
 IkeSAPayloadSubstructure::GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r)
 {
-	IkeSAPayloadSubstructure* retval = new IkeSAPayloadSubstructure();
+	Ptr<IkeSAPayloadSubstructure> retval = Create<IkeSAPayloadSubstructure>();
 
-	retval->PushBackProposal(IkeSAProposal::GenerateGsaProposal(spi_gsa_q, IkeSAProposal::GSA_Q));
-	retval->PushBackProposal(IkeSAProposal::GenerateGsaProposal(spi_gsa_r, IkeSAProposal::GSA_R));
+	retval->PushBackProposal(IkeGSAProposal::GenerateGsaProposal(spi_gsa_q, IkeGSAProposal::GSA_Q));
+	retval->PushBackProposal(IkeGSAProposal::GenerateGsaProposal(spi_gsa_r, IkeGSAProposal::GSA_R));
 
 	retval->SetLastProposal();
 	retval->SetProposalNum();
@@ -2048,18 +2047,18 @@ IkeSAPayloadSubstructure::GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r)
 }
 
 void
-IkeSAPayloadSubstructure::PushBackProposal (IkeSAProposal proposal)
+IkeSAPayloadSubstructure::PushBackProposal (Ptr<IkeSAProposal> proposal)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_lst_proposal.push_back(proposal);
-	this->m_length += proposal.GetSerializedSize();
+	this->m_length += proposal->GetSerializedSize();
 }
 
 void
-IkeSAPayloadSubstructure::PushBackProposals (const std::list<IkeSAProposal>& proposals)
+IkeSAPayloadSubstructure::PushBackProposals (const std::list<Ptr<IkeSAProposal> >& proposals)
 {
 	NS_LOG_FUNCTION (this);
-	for (	std::list<IkeSAProposal>::const_iterator const_it = proposals.begin();
+	for (	std::list<Ptr<IkeSAProposal> >::const_iterator const_it = proposals.begin();
 			const_it != proposals.end();
 			const_it++)
 	{
@@ -2067,7 +2066,7 @@ IkeSAPayloadSubstructure::PushBackProposals (const std::list<IkeSAProposal>& pro
 	}
 }
 
-const std::list<IkeSAProposal>&
+const std::list<Ptr<IkeSAProposal> >&
 IkeSAPayloadSubstructure::GetProposals (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -2087,7 +2086,7 @@ IkeSAPayloadSubstructure::SetLastProposal (void)
 	NS_LOG_FUNCTION (this);
 	if (this->m_lst_proposal.begin() != this->m_lst_proposal.end())
 	{
-		this->m_lst_proposal.back().SetLast();
+		this->m_lst_proposal.back()->SetLast();
 	}
 }
 
@@ -2097,7 +2096,7 @@ IkeSAPayloadSubstructure::ClearLastProposal (void)
 	NS_LOG_FUNCTION (this);
 	if (this->m_lst_proposal.begin() != this->m_lst_proposal.end())
 	{
-		this->m_lst_proposal.back().ClearLast();
+		this->m_lst_proposal.back()->ClearLast();
 	}
 }
 
@@ -2106,11 +2105,11 @@ IkeSAPayloadSubstructure::SetProposalNum (void)
 {
 	NS_LOG_FUNCTION (this);
 	uint8_t proposal_num = 1;
-	for (	std::list<IkeSAProposal>::iterator it = this->m_lst_proposal.begin();
+	for (	std::list<Ptr<IkeSAProposal> >::iterator it = this->m_lst_proposal.begin();
 			it != this->m_lst_proposal.end();
 			it++)
 	{
-		it->SetProposalNumber(proposal_num);
+		(*it)->SetProposalNumber(proposal_num);
 		proposal_num++;
 	}
 }
@@ -3974,13 +3973,7 @@ IkeGSAProposal::GetTypeId (void)
 }
 
 IkeGSAProposal::IkeGSAProposal ()
-  :  m_flag_last (false),
-	 m_gsa_type (IkeGSAProposal::UNINITIALIZED),
-	 m_proposal_length (12),	//12 bytes until filed SPI. increase by adding more transform
-	 m_proposal_num (0),
-	 m_protocol_id (0),
-	 m_spi_size (4),	//ah or esp
-	 m_num_transforms (0)
+  :  m_gsa_type (IkeGSAProposal::UNINITIALIZED)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -4189,56 +4182,6 @@ IkeGSAProposal::Print (std::ostream &os) const
 }
 
 void
-IkeGSAProposal::SetLast (void)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_flag_last = true;
-}
-
-void
-IkeGSAProposal::ClearLast (void)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_flag_last = false;
-}
-
-void
-IkeGSAProposal::SetProposalNumber (uint8_t proposal_num)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_proposal_num = proposal_num;
-}
-
-void
-IkeGSAProposal::SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_protocol_id = protocol_id;
-}
-
-void
-IkeGSAProposal::SetSPI (Spi spi)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_spi = spi;
-	this->m_spi_size = this->m_spi.GetSerializedSize();
-}
-
-void
-IkeGSAProposal::PushBackTransform (IkeTransformSubStructure transform)
-{
-	NS_LOG_FUNCTION (this);
-
-	this->ClearLastTranform();
-
-	this->m_lst_transforms.push_back(transform);
-	this->m_num_transforms++;
-	this->m_proposal_length += transform.GetSerializedSize();
-
-	this->SetLastTransform();
-}
-
-void
 IkeGSAProposal::SetAsGsaQ (void)
 {
 	NS_LOG_FUNCTION (this);
@@ -4269,20 +4212,6 @@ IkeGSAProposal::SetGsaType (IkeGSAProposal::GSA_TYPE gsa_type)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_gsa_type = gsa_type;
-}
-
-bool
-IkeGSAProposal::IsLast (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_flag_last;
-}
-
-Spi
-IkeGSAProposal::GetSpi (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_spi;
 }
 
 bool
@@ -4327,87 +4256,13 @@ IkeGSAProposal::IsGsaR (void) const
 	return retval;
 }
 
-uint8_t
-IkeGSAProposal::GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
-{
-	NS_LOG_FUNCTION (this);
-
-	uint8_t size = 0;
-
-	switch (protocol_id) {
-	case IPsec::IKE:
-		size = 8;	//8 bytes
-		break;
-	case IPsec::AH:
-		size = 4;
-		break;
-	case IPsec::ESP:
-		size = 4;
-		break;
-	default:
-		NS_ASSERT(false);
-	}
-
-	return size;
-}
-
-void
-IkeGSAProposal::SetLastTransform (void)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_lst_transforms.begin() != this->m_lst_transforms.end())
-	{
-		this->m_lst_transforms.back().SetLast();
-	}
-}
-
-void
-IkeGSAProposal::ClearLastTranform (void)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_lst_transforms.begin() != this->m_lst_transforms.end())
-	{
-		this->m_lst_transforms.back().ClearLast();
-	}
-}
-
-IkeGSAProposal
-IkeGSAProposal::GenerateInitIkeProposal ()
-{
-	IkeGSAProposal retval;
-	//set ike
-	retval.SetProtocolId(IPsec::IKE);
-	//no need to set spi, set transform
-	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
-	retval.PushBackTransform(transform);
-	retval.SetLastTransform();
-	return retval;
-}
-
-IkeGSAProposal
-IkeGSAProposal::GenerateAuthIkeProposal (Spi spi)
-{
-	IkeGSAProposal retval;
-	//set ike
-	retval.SetProtocolId(IPsec::IKE);
-	//set spi
-	retval.SetSPI(spi);
-	//set trasform
-	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
-	retval.PushBackTransform(transform);
-	retval.SetLastTransform();
-	return retval;
-}
-
-IkeGSAProposal
+Ptr<IkeGSAProposal>
 IkeGSAProposal::GenerateGsaProposal (Spi spi, IkeGSAProposal::GSA_TYPE gsa_type)
 {
-	IkeGSAProposal retval;
-	retval.SetProtocolId(GsamConfig::GetDefaultGSAProposalId());
-	retval.SetGsaType(gsa_type);
-	retval.SetSPI(spi);
+	Ptr<IkeGSAProposal> retval = Create<IkeGSAProposal>();
+	retval->SetProtocolId(GsamConfig::GetDefaultGSAProposalId());
+	retval->SetGsaType(gsa_type);
+	retval->SetSPI(spi);
 	return retval;
 }
 
