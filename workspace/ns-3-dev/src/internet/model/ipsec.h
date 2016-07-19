@@ -271,12 +271,13 @@ public: //self-defined
 	void AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy);
 	void PushBackSession (Ptr<GsamSession> session);
 	void RemoveSession (Ptr<GsamSession> session);
+	std::list<Ptr<GsamSession> >& GetSessions (void);
 public:	//const
 	Ipv4Address GetGroupAddress (void) const;
 	Ptr<IpSecDatabase> GetDatabase (void) const;
 	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
 	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
-	const std::list<Ptr<GsamSession> >& GetSessions (void) const;
+	const std::list<Ptr<GsamSession> >& GetSessionsConst (void) const;
 private:	//fields
 	Ipv4Address m_group_address;
 	Ptr<IpSecDatabase> m_ptr_database;
@@ -477,6 +478,7 @@ public:	//self defined
 	Ptr<GsamSession> CreateSession (void);
 	Ptr<GsamSession> CreateSession (Ipv4Address group_address, Ipv4Address peer_address);
 	Ptr<GsamSessionGroup> GetSessionGroup (Ipv4Address group_address);
+	std::list<Ptr<GsamSessionGroup> >& GetSessionGroups (void);
 	void RemoveSession (Ptr<GsamSession> session);
 	void RemoveSessionGroup (Ptr<GsamSessionGroup> session_group);
 	Time GetRetransmissionDelay (void);

@@ -291,6 +291,7 @@ GsamL4Protocol::Send_GSA_PUSH (Ptr<GsamSession> session)
 	if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
 	{
 		//There is a NQ on the other side of the session
+		this->Send_GSA_PUSH_NQ(session);
 	}
 	else
 	{
@@ -310,8 +311,9 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	if (gsa_q == 0)
 	{
 		suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
-		gsa_q = this->CreateOutBoundSa(session, suggested_gsa_q_spi);
-		session->AssociateGsaQ(gsa_q);
+		// do not etablish gsa yet
+		//gsa_q = this->CreateOutBoundSa(session, suggested_gsa_q_spi);
+		//session->AssociateGsaQ(gsa_q);
 	}
 	else
 	{
@@ -324,11 +326,15 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	if (gsa_r == 0)
 	{
 		suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
-		gsa_r = this->CreateInBoundSa(session, suggested_gsa_r_spi);
-		session->SetRelatedGsaR(gsa_r);
+		// do not etablish gsa yet
+		//gsa_r = this->CreateInBoundSa(session, suggested_gsa_r_spi);
+		//session->SetRelatedGsaR(gsa_r);
 	}
 	else
 	{
+		//it already has a gsa_r, why?
+		//weird, it should not the case of retransmission when code run reach here
+		NS_ASSERT (false);
 		suggested_gsa_r_spi.SetValueFromUint32(gsa_r->GetSpi());
 	}
 
@@ -354,12 +360,89 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	packet->AddHeader(ikeheader);
 
 	this->SendMessage(session, packet, true);
+	this->CarbonCopyToNQs(packet);
+}
+
+void
+GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IpSecDatabase> ipsec_root_db = session->GetDatabase();
+	std::list<Ptr<GsamSessionGroup> > lst_session_groups = ipsec_root_db->GetSessionGroups();
+
+	IkePayload payload_gsa_nq = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+
+	for (	std::list<Ptr<GsamSessionGroup> >::iterator it = lst_session_groups.begin();
+			it != lst_session_groups.end();
+			it++)
+	{
+		Ptr<GsamSessionGroup> session_group = (*it);
+		if (session_group->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
+		{
+			//non nq session group
+			Ptr<IpSecSAEntry> gsa_q = session_group->GetRelatedGsaQ();
+
+			if (gsa_q == 0)
+			{
+				//no gsa_q but there is an established session group
+				//maybe there the q is waiting for reply of GSA_PUSH from the first member joining that group
+				if (0 != session_group->GetSessionsConst().size())
+				{
+					//has no established gsa_q but has established gsa_r?
+					NS_ASSERT (false);
+				}
+			}
+			else
+			{
+				payload_gsa_nq.PushBackProposal(IkeGSAProposal::GenerateGsaProposal(Spi(gsa_q->GetSpi()), IkeGSAProposal::GSA_Q));
+
+				const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
+
+				for (	std::list<Ptr<GsamSession> >::const_iterator const_it = lst_sessions.begin();
+						const_it != lst_sessions.end();
+						const_it++)
+				{
+					const Ptr<GsamSession> gm_session = (*const_it);
+					Ptr<IpSecSAEntry> gsa_r = gm_session->GetRelatedGsaR();
+					if (gsa_r == 0)
+					{
+						//no gsa_r but there is an established session group
+						//maybe there the q is waiting for reply of GSA_PUSH from the gm joining that group
+					}
+					else
+					{
+						payload_gsa_nq.PushBackProposal(IkeGSAProposal::GenerateGsaProposal(Spi(gsa_r->GetSpi()), IkeGSAProposal::GSA_R));
+					}
+				}
+			}
+		}
+	}
+
+	//now we have a SA payload with  spis from all GMs' sessions
 }
 
 void
 GsamL4Protocol::Send_GSA_Acknowledgedment (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamL4Protocol::CarbonCopyToNQs (Ptr<Packet> packet)
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<GsamSessionGroup> session_group_nq = this->GetIpSecDatabase()->GetSessionGroup(GsamConfig::GetIgmpv3DestGrpReportAddress());
+
+	std::list<Ptr<GsamSession> > lst_sessions_nq = session_group_nq->GetSessions();
+
+	for (	std::list<Ptr<GsamSession> >::iterator it = lst_sessions_nq.begin();
+			it != lst_sessions_nq.end();
+			it++)
+	{
+		this->SendMessage(*it, packet, true);
+	}
+
+
 }
 
 void
@@ -374,6 +457,15 @@ GsamL4Protocol::SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool 
 	if (true == retransmit)
 	{
 		bool session_retransmit = session->IsRetransmit();
+		if (true == session->GetRetransmitTimer().IsRunning())
+		{
+			//something may went wrong.
+			NS_ASSERT (false);
+		}
+		else
+		{
+			session->GetRetransmitTimer().Cancel();
+		}
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, packet, session_retransmit);
 		session->GetRetransmitTimer().Schedule(GsamConfig::GetDefaultRetransmitTimeout());

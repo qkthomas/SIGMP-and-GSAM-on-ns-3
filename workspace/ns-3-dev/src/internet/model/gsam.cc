@@ -739,6 +739,13 @@ Spi::Spi ()
 	NS_LOG_FUNCTION (this);
 }
 
+explicit
+Spi::Spi (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	this->SetValueFromUint32(spi);
+}
+
 Spi::~Spi ()
 {
 	NS_LOG_FUNCTION (this);
@@ -2234,10 +2241,10 @@ IkeKeyExchangeSubStructure::Print (std::ostream &os) const
 	os << "IkeKeyExchangeSubStructure: " << this << std::endl;
 }
 
-IkeKeyExchangeSubStructure*
+Ptr<IkeKeyExchangeSubStructure>
 IkeKeyExchangeSubStructure::GetDummySubstructure (void)
 {
-	IkeKeyExchangeSubStructure* substructure = new IkeKeyExchangeSubStructure();
+	Ptr<IkeKeyExchangeSubStructure> substructure = Create<IkeKeyExchangeSubStructure>();
 	substructure->m_dh_group_num = IkeKeyExchangeSubStructure::DH_32_BIT_MODP;
 	substructure->SetLength(4);
 
@@ -2446,10 +2453,10 @@ IkeIdSubstructure::GetPayloadType (void) const
 	return retval;
 }
 
-IkeIdSubstructure*
+Ptr<IkeIdSubstructure>
 IkeIdSubstructure::GenerateIpv4Substructure (Ipv4Address address, bool is_responder)
 {
-	IkeIdSubstructure* retval = new IkeIdSubstructure();
+	Ptr<IkeIdSubstructure> retval = Create<IkeIdSubstructure>();
 
 	retval->SetIpv4AddressData(address);
 	if (true == is_responder)
@@ -2628,10 +2635,10 @@ IkeAuthSubstructure::GetPayloadType (void) const
 	return IkePayloadHeader::AUTHENTICATION;
 }
 
-IkeAuthSubstructure*
+Ptr<IkeAuthSubstructure>
 IkeAuthSubstructure::GenerateEmptyAuthSubstructure (void)
 {
-	IkeAuthSubstructure* retval = new IkeAuthSubstructure();
+	Ptr<IkeAuthSubstructure> retval = Create<IkeAuthSubstructure>();
 	retval->m_auth_method = IkeAuthSubstructure::EMPTY;
 	retval->m_length = 4;
 	return retval;
@@ -2741,10 +2748,10 @@ IkeNonceSubstructure::GetPayloadType (void)
 	return IkePayloadHeader::NONCE;
 }
 
-IkeNonceSubstructure*
+Ptr<IkeNonceSubstructure>
 IkeNonceSubstructure::GenerateNonceSubstructure (void)
 {
-	IkeNonceSubstructure* nonce = new IkeNonceSubstructure();
+	Ptr<IkeNonceSubstructure> nonce = Create<IkeNonceSubstructure>();
 
 	//uint16_t length = rand();
 	uint16_t length = 4;	//fix length 4
@@ -2905,30 +2912,30 @@ IkeNotifySubstructure::GetPayloadType (void) const
 	return IkePayloadHeader::NOTIFY;
 }
 
-IkeNotifySubstructure*
+Ptr<IkeNotifySubstructure>
 IkeNotifySubstructure::GenerateGsaQNotification (Spi spi)
 {
-	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
+	Ptr<IkeNotifySubstructure> retval = Create<IkeNotifySubstructure>();
 	retval->m_protocol_id = IPsec::AH;
 	retval->m_spi = spi;
 	retval->m_notify_message_type = IkeNotifySubstructure::GSA_Q_SPI_NOTIFICATION;
 	return retval;
 }
 
-IkeNotifySubstructure*
+Ptr<IkeNotifySubstructure>
 IkeNotifySubstructure::GenerateGsaRNotification (Spi spi)
 {
-	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
+	Ptr<IkeNotifySubstructure> retval = Create<IkeNotifySubstructure>();
 	retval->m_protocol_id = IPsec::AH;
 	retval->m_spi = spi;
 	retval->m_notify_message_type = IkeNotifySubstructure::GSA_R_SPI_NOTIFICATION;
 	return retval;
 }
 
-IkeNotifySubstructure*
+Ptr<IkeNotifySubstructure>
 IkeNotifySubstructure::GenerateGsaAcknowledgedment (void)
 {
-	IkeNotifySubstructure* retval = new IkeNotifySubstructure();
+	Ptr<IkeNotifySubstructure> retval = Create<IkeNotifySubstructure>();
 	retval->m_protocol_id = IPsec::AH;
 	retval->m_notify_message_type = IkeNotifySubstructure::GSA_ACKNOWLEDGEDMENT;
 	return retval;
@@ -3398,10 +3405,10 @@ IkeTrafficSelectorSubstructure::Print (std::ostream &os) const
 	os << "IkeTrafficSelectorSubstructure: " << this << std::endl;
 }
 
-IkeTrafficSelectorSubstructure*
+Ptr<IkeTrafficSelectorSubstructure>
 IkeTrafficSelectorSubstructure::GenerateEmptySubstructure (bool is_responder)
 {
-	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+	Ptr<IkeTrafficSelectorSubstructure> retval = Create<IkeTrafficSelectorSubstructure>();
 
 	if (true == is_responder)
 	{
@@ -3411,10 +3418,10 @@ IkeTrafficSelectorSubstructure::GenerateEmptySubstructure (bool is_responder)
 	return retval;
 }
 
-IkeTrafficSelectorSubstructure*
+Ptr<IkeTrafficSelectorSubstructure>
 IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_address, bool is_responder)
 {
-	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+	Ptr<IkeTrafficSelectorSubstructure> retval = Create<IkeTrafficSelectorSubstructure>();
 
 	retval->m_num_of_tss = 1;
 	retval->m_lst_traffic_selectors.push_back(IkeTrafficSelector::GenerateDestSecureGroupTs(group_address));
@@ -3435,10 +3442,10 @@ IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_ad
 	return retval;
 }
 
-IkeTrafficSelectorSubstructure*
+Ptr<IkeTrafficSelectorSubstructure>
 IkeTrafficSelectorSubstructure::GenerateDefaultSubstructure (bool is_responder)
 {
-	IkeTrafficSelectorSubstructure* retval = new IkeTrafficSelectorSubstructure();
+	Ptr<IkeTrafficSelectorSubstructure> retval = Create<IkeTrafficSelectorSubstructure>();
 
 	retval->m_num_of_tss = 1;
 	retval->m_lst_traffic_selectors.push_back(IkeTrafficSelector::GenerateDefaultSigmpTs());

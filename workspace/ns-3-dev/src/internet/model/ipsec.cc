@@ -1349,6 +1349,13 @@ GsamSessionGroup::RemoveSession (Ptr<GsamSession> session)
 	this->m_lst_sessions.remove(session);
 }
 
+std::list<Ptr<GsamSession> >&
+GsamSessionGroup::GetSessions (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_sessions;
+}
+
 Ipv4Address
 GsamSessionGroup::GetGroupAddress (void) const
 {
@@ -1388,7 +1395,7 @@ GsamSessionGroup::GetRelatedPolicy (void) const
 }
 
 const std::list<Ptr<GsamSession> >&
-GsamSessionGroup::GetSessions (void) const
+GsamSessionGroup::GetSessionsConst (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_lst_sessions;
@@ -2373,6 +2380,14 @@ IpSecDatabase::GetSessionGroup (Ipv4Address group_address)
 	}
 
 	return retval;
+}
+
+std::list<Ptr<GsamSessionGroup> >&
+IpSecDatabase::GetSessionGroups (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_lst_ptr_session_groups
 }
 
 Ptr<GsamInfo>

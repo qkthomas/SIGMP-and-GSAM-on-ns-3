@@ -61,7 +61,9 @@ public:	//exchanges, added by Lin Chen
 	void Send_IKE_SA_AUTH (Ptr<GsamSession> session);
 	void Send_GSA_PUSH (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
+	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
+	void CarbonCopyToNQs (Ptr<Packet> packet);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
 private:	//responing, added by Lin Chen
@@ -100,7 +102,15 @@ private:	//private staitc
 												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);
+	/*
+	 * \brief CreateIpSecPolicy
+	 * \Deprecated
+	 */
 	void CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSelector& tsi, const IkeTrafficSelector& tsr);
+	/*
+	 * \brief CreateIpSecPolicy
+	 * Deprecated
+	 */
 	void CreateIpSecPolicy (Ptr<GsamSession> session,
 							const std::list<IkeTrafficSelector>& tsi_selectors,
 							const std::list<IkeTrafficSelector>& tsr_selectors);

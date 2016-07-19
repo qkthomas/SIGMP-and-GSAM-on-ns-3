@@ -254,6 +254,7 @@ class Spi : public IkePayloadSubstructure {
 public:
 	static TypeId GetTypeId (void);
 	Spi ();
+	explicit Spi (uint32_t spi);
 	virtual ~Spi ();
 public:	//header override
 	virtual uint32_t GetSerializedSize (void) const;
@@ -616,7 +617,7 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:
-	static IkeKeyExchangeSubStructure* GetDummySubstructure (void);
+	static Ptr<IkeKeyExchangeSubStructure> GetDummySubstructure (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//const
@@ -673,7 +674,7 @@ public:	//const
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
-	static IkeIdSubstructure* GenerateIpv4Substructure (Ipv4Address address, bool is_responder);
+	static Ptr<IkeIdSubstructure> GenerateIpv4Substructure (Ipv4Address address, bool is_responder);
 private:
 	uint8_t m_id_type;
 	bool m_flag_initiator_responder;	//false for initiator, true for responder
@@ -718,7 +719,7 @@ public:
 public:	//const
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//static
-	static IkeAuthSubstructure* GenerateEmptyAuthSubstructure (void);
+	static Ptr<IkeAuthSubstructure> GenerateEmptyAuthSubstructure (void);
 private:
 	uint8_t m_auth_method;
 	std::list<uint8_t> m_lst_id_data;
@@ -749,7 +750,7 @@ public:	//Header Override
 public:	//override IkePayloadSubstructure
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void);
 public:	//static
-	static IkeNonceSubstructure* GenerateNonceSubstructure (void);
+	static Ptr<IkeNonceSubstructure> GenerateNonceSubstructure (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
@@ -828,9 +829,9 @@ public:	//const
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//
-	static IkeNotifySubstructure* GenerateGsaQNotification (Spi spi);
-	static IkeNotifySubstructure* GenerateGsaRNotification (Spi spi);
-	static IkeNotifySubstructure* GenerateGsaAcknowledgedment (void);
+	static Ptr<IkeNotifySubstructure> GenerateGsaQNotification (Spi spi);
+	static Ptr<IkeNotifySubstructure> GenerateGsaRNotification (Spi spi);
+	static Ptr<IkeNotifySubstructure> GenerateGsaAcknowledgedment (void);
 private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;
@@ -957,9 +958,9 @@ public:	//Header Override
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
-	static IkeTrafficSelectorSubstructure* GenerateEmptySubstructure (bool is_responder);
-	static IkeTrafficSelectorSubstructure* GetSecureGroupSubstructure (Ipv4Address group_address, bool is_responder);
-	static IkeTrafficSelectorSubstructure* GenerateDefaultSubstructure (bool is_responder);
+	static Ptr<IkeTrafficSelectorSubstructure> GenerateEmptySubstructure (bool is_responder);
+	static Ptr<IkeTrafficSelectorSubstructure> GetSecureGroupSubstructure (Ipv4Address group_address, bool is_responder);
+	static Ptr<IkeTrafficSelectorSubstructure> GenerateDefaultSubstructure (bool is_responder);
 public:	//non-const
 	void SetResponder (void);
 public:	//const
