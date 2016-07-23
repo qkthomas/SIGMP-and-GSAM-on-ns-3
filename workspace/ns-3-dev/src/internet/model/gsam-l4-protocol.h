@@ -63,7 +63,7 @@ public:	//exchanges, added by Lin Chen
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
-	void CarbonCopyToNQs (Ptr<Packet> packet);
+	void CarbonCopyToNQs (const IkePayload& gsa_push_proposal_payload);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
 private:	//responing, added by Lin Chen
@@ -91,7 +91,10 @@ private:	//responing, added by Lin Chen
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessGsaPush (Ptr<GsamSession> session, const Ptr<IkeSAProposal> gsa_q_proposal, const Ptr<IkeSAProposal> gsa_r_proposal);
+	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGSAProposal> gsa_q_proposal, const Ptr<IkeGSAProposal> gsa_r_proposal);
+	void ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSAProposal> >& gsa_proposals);
 	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;

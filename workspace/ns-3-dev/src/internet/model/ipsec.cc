@@ -1172,7 +1172,7 @@ GsamSession::IsHostQuerier (void) const
 }
 
 bool
-GsamSession::IsHostHost (void) const
+GsamSession::IsHostGroupMember (void) const
 {
 	NS_LOG_FUNCTION (this);
 

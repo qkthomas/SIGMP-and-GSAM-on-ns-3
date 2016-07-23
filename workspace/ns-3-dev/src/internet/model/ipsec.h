@@ -155,6 +155,27 @@ private:
 	virtual void DoDispose (void);
 };
 
+class GsaPushSession : public Object {
+public:	//Object override
+	static TypeId GetTypeId (void);
+	GsaPushSession ();
+	virtual ~GsaPushSession();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+
+private:	//fields
+	std::list<Ptr<GsamSession> > m_lst_ptr_sessions_sent;
+	Ptr<GsamSessionGroup> m_ptr_gsa_session_group;
+};
+
 class GsamSession : public Object {
 public:
 	enum PHASE_ONE_ROLE {
@@ -228,7 +249,7 @@ public: //const
 	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
 	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
 	bool IsHostQuerier (void) const;
-	bool IsHostHost (void) const;
+	bool IsHostGroupMember (void) const;
 	bool IsHostNonQuerier (void) const;
 private:
 	void TimeoutAction (void);
@@ -243,7 +264,6 @@ private:	//fields
 	Ptr<IpSecDatabase> m_ptr_database;
 	Timer m_timer_retransmit;
 	Timer m_timer_timeout;
-	//Issues, NQ can have multiple related gsa for a group
 	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
 };
 

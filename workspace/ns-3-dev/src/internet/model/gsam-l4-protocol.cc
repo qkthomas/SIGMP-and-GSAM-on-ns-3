@@ -181,6 +181,15 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session)
 	//rfc 5996 page 10
 	NS_LOG_FUNCTION (this);
 
+	if (0 != session->GetCurrentMessageId())
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		session->SetMessageId(0);
+	}
+
 	//setting up Ni
 	IkePayload nonce_payload_init;
 	nonce_payload_init.SetPayload(IkeNonceSubstructure::GenerateNonceSubstructure());
@@ -225,6 +234,15 @@ void
 GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (0 != session->GetCurrentMessageId())
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		session->SetMessageId(1);
+	}
 
 	//Setting up TSr
 	IkePayload tsr;
@@ -283,6 +301,15 @@ GsamL4Protocol::Send_GSA_PUSH (Ptr<GsamSession> session)
 
 	NS_LOG_FUNCTION (this);
 
+	if (1 < session->GetCurrentMessageId())
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		session->IncrementMessageId();
+	}
+
 	if (false == session->IsHostQuerier())
 	{
 		NS_ASSERT(false);
@@ -312,8 +339,8 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	{
 		suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
 		// do not etablish gsa yet
-		//gsa_q = this->CreateOutBoundSa(session, suggested_gsa_q_spi);
-		//session->AssociateGsaQ(gsa_q);
+		gsa_q = this->CreateOutBoundSa(session, suggested_gsa_q_spi);
+		session->AssociateGsaQ(gsa_q);
 	}
 	else
 	{
@@ -327,8 +354,8 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	{
 		suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
 		// do not etablish gsa yet
-		//gsa_r = this->CreateInBoundSa(session, suggested_gsa_r_spi);
-		//session->SetRelatedGsaR(gsa_r);
+		gsa_r = this->CreateInBoundSa(session, suggested_gsa_r_spi);
+		session->SetRelatedGsaR(gsa_r);
 	}
 	else
 	{
@@ -359,8 +386,11 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	packet->AddHeader(gsa_push_proposal_payload);
 	packet->AddHeader(ikeheader);
 
+	Ptr<Packet> packet_without_ikeheader = Create<Packet>();
+	packet_without_ikeheader->AddHeader(gsa_push_proposal_payload);
+
 	this->SendMessage(session, packet, true);
-	this->CarbonCopyToNQs(packet);
+	this->CarbonCopyToNQs(gsa_push_proposal_payload);
 }
 
 void
@@ -419,6 +449,26 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 	}
 
 	//now we have a SA payload with  spis from all GMs' sessions
+
+	//setting up HDR
+	IkeHeader ikeheader;
+	ikeheader.SetInitiatorSpi(session->GetKekSaInitiatorSpi());
+	ikeheader.SetResponderSpi(session->GetKekSaResponderSpi());
+	ikeheader.SetIkev2Version();
+	ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
+	ikeheader.SetAsInitiator();
+
+	ikeheader.SetMessageId(session->GetCurrentMessageId());
+	ikeheader.SetNextPayloadType(payload_gsa_nq.GetPayloadType());
+	ikeheader.SetLength(ikeheader.GetSerializedSize() +
+				payload_gsa_nq.GetSerializedSize());
+
+	Ptr<Packet> packet = Create<Packet>();
+
+	packet->AddHeader(payload_gsa_nq);
+	packet->AddHeader(ikeheader);
+
+	this->SendMessage(session, packet, true);
 }
 
 void
@@ -428,7 +478,7 @@ GsamL4Protocol::Send_GSA_Acknowledgedment (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::CarbonCopyToNQs (Ptr<Packet> packet)
+GsamL4Protocol::CarbonCopyToNQs (const IkePayload& gsa_push_proposal_payload)
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<GsamSessionGroup> session_group_nq = this->GetIpSecDatabase()->GetSessionGroup(GsamConfig::GetIgmpv3DestGrpReportAddress());
@@ -439,6 +489,23 @@ GsamL4Protocol::CarbonCopyToNQs (Ptr<Packet> packet)
 			it != lst_sessions_nq.end();
 			it++)
 	{
+		Ptr<Packet> packet = Create<Packet>();
+
+		//setting up HDR
+		IkeHeader ikeheader;
+		ikeheader.SetInitiatorSpi((*it)->GetKekSaInitiatorSpi());
+		ikeheader.SetResponderSpi((*it)->GetKekSaResponderSpi());
+		ikeheader.SetIkev2Version();
+		ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
+		ikeheader.SetAsInitiator();
+
+		ikeheader.SetMessageId((*it)->GetCurrentMessageId());
+		ikeheader.SetNextPayloadType(gsa_push_proposal_payload.GetPayloadType());
+		ikeheader.SetLength(ikeheader.GetSerializedSize() +
+				packet->GetSize());
+
+		packet->AddHeader(gsa_push_proposal_payload);
+		packet->AddHeader(ikeheader);
 		this->SendMessage(*it, packet, true);
 	}
 
@@ -618,7 +685,6 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 		}
 
 		session->SetInitSaResponderSpi(responder_spi);
-		session->IncrementMessageId();
 
 		this->Send_IKE_SA_AUTH(session);
 	}
@@ -858,7 +924,6 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 
 	this->ProcessIkeSaAuthResponse(session, sar2.GetSAProposals(), tsi.GetTrafficSelectors(), tsr.GetTrafficSelectors());
 
-	session->IncrementMessageId();
 }
 
 void
@@ -978,6 +1043,29 @@ GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, P
 
 	NS_ASSERT (message_id >= 2);
 
+	if (true == session->IsHostNonQuerier())
+	{
+		this->HandleGsaPushNQ(packet, ikeheader, session);
+	}
+	else if (true == session->IsHostGroupMember())
+	{
+		this->HandleGsaPushGM(packet, ikeheader, session);
+	}
+	else if (true == session->IsHostQuerier())
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
 	IkePayload pushed_sa_payload;
 	pushed_sa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
 
@@ -990,69 +1078,75 @@ GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, P
 		NS_ASSERT (false);
 	}
 
-	Ptr<IkeSAProposal> gsa_q_proposal = proposals.front();
-	Ptr<IkeSAProposal> gsa_r_proposal = proposals.back();
+	Ptr<IkeGSAProposal> gsa_q_proposal = DynamicCast<IkeGSAProposal>(proposals.front());
+	Ptr<IkeGSAProposal> gsa_r_proposal = DynamicCast<IkeGSAProposal>(proposals.back());
 
-	this->ProcessGsaPush(session, gsa_q_proposal, gsa_r_proposal);
+	this->ProcessGsaPushGM(session, gsa_q_proposal, gsa_r_proposal);
+}
+void
+GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
 }
 
 void
-GsamL4Protocol::ProcessGsaPush (Ptr<GsamSession> session, const Ptr<IkeSAProposal> gsa_q_proposal, const Ptr<IkeSAProposal> gsa_r_proposal)
+GsamL4Protocol::ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGSAProposal> gsa_q_proposal, const Ptr<IkeGSAProposal> gsa_r_proposal)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (true == session->IsHostNonQuerier())
-	{
-		//need information of group address or policy entry
-	}
-	else if (true == session->IsHostHost())
-	{
-		Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
-		Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
+	Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
+	Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
 
-		if (local_gsa_q == 0)
+	if (local_gsa_q == 0)
+	{
+		if (local_gsa_r == 0)
 		{
-			if (local_gsa_r == 0)
+			//new GM
+			uint32_t pushed_gsa_q_spi = gsa_q_proposal->GetSpi().ToUint32();
+			uint32_t pushed_gsa_r_spi = gsa_r_proposal->GetSpi().ToUint32();
+
+			if (true == session->GetInfo()->IsIpsecSpiOccupied(pushed_gsa_q_spi))
 			{
-				//new GM
-		//			uint32_t pushed_gsa_q_spi = gsa_q_proposal.GetSpi().ToUint32();
-		//			uint32_t pushed_gsa_r_spi = gsa_r_proposal.GetSpi().ToUint32();
+				//reject
 			}
 			else
 			{
-				//weird
+				//no reject and install gsa pair
+
 			}
 		}
 		else
 		{
-			if (local_gsa_r == 0)
-			{
-				//weird
-			}
-			else
-			{
-				//duplicate gsa push?
-
-				if (local_gsa_q->GetSpi() != gsa_q_proposal->GetSpi().ToUint32())
-				{
-					//weird
-				}
-
-				if (local_gsa_r->GetSpi() != gsa_r_proposal->GetSpi().ToUint32())
-				{
-					//weird
-				}
-			}
+			//weird
 		}
-	}
-	else if (true == session->IsHostQuerier())
-	{
-		NS_ASSERT (false);
 	}
 	else
 	{
-		NS_ASSERT (false);
+		if (local_gsa_r == 0)
+		{
+			//weird
+		}
+		else
+		{
+			//duplicate gsa push?
+
+			if (local_gsa_q->GetSpi() != gsa_q_proposal->GetSpi().ToUint32())
+			{
+				//weird
+			}
+
+			if (local_gsa_r->GetSpi() != gsa_r_proposal->GetSpi().ToUint32())
+			{
+				//weird
+			}
+		}
 	}
+}
+
+void
+GsamL4Protocol::ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSAProposal> >& gsa_proposals)
+{
+	NS_LOG_FUNCTION (this);
 }
 
 void
