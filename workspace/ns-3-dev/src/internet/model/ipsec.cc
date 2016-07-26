@@ -601,8 +601,82 @@ EncryptionFunction::DoDispose (void)
 	NS_LOG_FUNCTION (this);
 }
 
+
 /********************************************************
- *        IpSecSession
+ *        GsaPushSession
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (GsaPushSession);
+
+TypeId
+GsaPushSession::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::GsaPushSession")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<GsaPushSession> ()
+			;
+	return tid;
+}
+
+GsaPushSession::GsaPushSession ()
+  :  m_ptr_database (0),
+	 m_ptr_gm_session (0),
+	 m_ptr_gsa_session_group (0),
+	 m_ptr_gsa_q (0),
+	 m_ptr_gsa_r (0),
+	 m_ptr_policy (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+GsaPushSession::~GsaPushSession()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ptr_gm_session = 0;
+	this->m_lst_ptr_nq_sessions_sent.clear();
+	this->m_lst_ptr_nq_sessions_replied.clear();
+	this->m_ptr_gsa_session_group = 0;
+	this->m_ptr_gsa_q = 0;
+	this->m_ptr_gsa_r = 0;
+	this->m_ptr_policy = 0;
+	this->m_ptr_database = 0;
+}
+
+TypeId
+GsaPushSession::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return GsaPushSession::GetTypeId();
+}
+
+void
+GsaPushSession::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsaPushSession::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsaPushSession::SetDatabase (Ptr<IpSecDatabase> database)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_database = database;
+}
+
+/********************************************************
+ *        GsamSession
  ********************************************************/
 
 NS_OBJECT_ENSURE_REGISTERED (GsamSession);
@@ -626,7 +700,8 @@ GsamSession::GsamSession ()
 	 m_ptr_init_sa (0),
 	 m_ptr_kek_sa (0),
 	 m_ptr_database (0),
-	 m_ptr_related_gsa_r (0)
+	 m_ptr_related_gsa_r (0),
+	 m_ptr_push_session (0)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -656,6 +731,7 @@ GsamSession::~GsamSession()
 	this->m_timer_timeout.Cancel();
 
 	this->m_ptr_related_gsa_r = 0;
+	m_ptr_push_session = 0;
 }
 
 TypeId
@@ -2221,6 +2297,7 @@ IpSecDatabase::~IpSecDatabase()
 	this->m_ptr_sad = 0;
 	this->m_ptr_info = 0;
 	this->m_lst_ptr_session_groups.clear();
+	this->m_lst_ptr_gsa_push_sessions.clear();
 }
 
 TypeId
@@ -2472,6 +2549,14 @@ IpSecDatabase::CreateSession (Ipv4Address group_address, Ipv4Address peer_addres
 	this->m_lst_ptr_all_sessions.push_back(session);
 
 	return session;
+}
+
+Ptr<GsaPushSession>
+IpSecDatabase::CreateGsaPushSession (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<>
 }
 
 Ptr<GsamSessionGroup>

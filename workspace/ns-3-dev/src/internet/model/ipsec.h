@@ -170,10 +170,17 @@ protected:
 
 private:
 	virtual void DoDispose (void);
-
+public:	//non-const
+	void SetDatabase (Ptr<IpSecDatabase> database);
 private:	//fields
-	std::list<Ptr<GsamSession> > m_lst_ptr_sessions_sent;
+	Ptr<IpSecDatabase> m_ptr_database;
+	Ptr<GsamSession> m_ptr_gm_session;
+	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent;
+	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_replied;
 	Ptr<GsamSessionGroup> m_ptr_gsa_session_group;
+	Ptr<IpSecSAEntry> m_ptr_gsa_q;
+	Ptr<IpSecSAEntry> m_ptr_gsa_r;
+	Ptr<IpSecPolicyEntry> m_ptr_policy;
 };
 
 class GsamSession : public Object {
@@ -265,6 +272,7 @@ private:	//fields
 	Timer m_timer_retransmit;
 	Timer m_timer_timeout;
 	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
+	Ptr<GsaPushSession> m_ptr_push_session;
 };
 
 class GsamSessionGroup : public Object {
@@ -497,6 +505,7 @@ private:
 public:	//self defined
 	Ptr<GsamSession> CreateSession (void);
 	Ptr<GsamSession> CreateSession (Ipv4Address group_address, Ipv4Address peer_address);
+	Ptr<GsaPushSession> CreateGsaPushSession (void);
 	Ptr<GsamSessionGroup> GetSessionGroup (Ipv4Address group_address);
 	std::list<Ptr<GsamSessionGroup> >& GetSessionGroups (void);
 	void RemoveSession (Ptr<GsamSession> session);
@@ -519,6 +528,7 @@ private:
 private:	//fields
 	std::list<Ptr<GsamSession> > m_lst_ptr_all_sessions;
 	std::list<Ptr<GsamSessionGroup> > m_lst_ptr_session_groups;
+	std::list<Ptr<GsaPushSession> > m_lst_ptr_gsa_push_sessions;
 	uint32_t m_window_size;
 	Ptr<IpSecPolicyDatabase> m_ptr_spd;
 	Ptr<IpSecSADatabase> m_ptr_sad;

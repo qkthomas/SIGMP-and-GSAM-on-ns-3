@@ -339,7 +339,8 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	{
 		suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
 		// do not etablish gsa yet
-		gsa_q = this->CreateOutBoundSa(session, suggested_gsa_q_spi);
+		gsa_q = Create<IpSecSAEntry>();
+		gsa_q->SetSpi(suggested_gsa_q_spi.ToUint32());
 		session->AssociateGsaQ(gsa_q);
 	}
 	else
@@ -354,7 +355,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	{
 		suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
 		// do not etablish gsa yet
-		gsa_r = this->CreateInBoundSa(session, suggested_gsa_r_spi);
+		gsa_r = this->CreateInboundSa(session, suggested_gsa_r_spi);
 		session->SetRelatedGsaR(gsa_r);
 	}
 	else
@@ -1274,7 +1275,7 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 }
 
 Ptr<IpSecSAEntry>
-GsamL4Protocol::CreateOutBoundSa (Ptr<GsamSession> session, Spi spi)
+GsamL4Protocol::CreateOutboundSa (Ptr<GsamSession> session, Spi spi)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1289,7 +1290,7 @@ GsamL4Protocol::CreateOutBoundSa (Ptr<GsamSession> session, Spi spi)
 }
 
 Ptr<IpSecSAEntry>
-GsamL4Protocol::CreateInBoundSa (Ptr<GsamSession> session, Spi spi)
+GsamL4Protocol::CreateInboundSa (Ptr<GsamSession> session, Spi spi)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1301,6 +1302,30 @@ GsamL4Protocol::CreateInBoundSa (Ptr<GsamSession> session, Spi spi)
 	retval = inbound_sad->CreateIpSecSAEntry(spi);
 
 	return retval;
+}
+
+void
+GsamL4Protocol::SetOutbountSa (Ptr<GsamSession> session, Ptr<IpSecSAEntry> outbound_sa)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
+	Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
+
+	outbound_sad->PushBackEntry(outbound_sa);
+}
+
+void
+GsamL4Protocol::SetInbountSa (Ptr<GsamSession> session, Ptr<IpSecSAEntry> inbound_sa)
+{
+	NS_LOG_FUNCTION (this);
+
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
+	Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
+
+	inbound_sad->PushBackEntry(inbound_sa);
 }
 
 void
