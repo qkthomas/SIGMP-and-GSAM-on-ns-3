@@ -622,7 +622,7 @@ GsaPushSession::GetTypeId (void)
 GsaPushSession::GsaPushSession ()
   :  m_ptr_database (0),
 	 m_ptr_gm_session (0),
-	 m_ptr_gsa_session_group (0),
+	 m_flag_gm_session_replied (false),
 	 m_ptr_gsa_q (0),
 	 m_ptr_gsa_r (0),
 	 m_ptr_policy (0)
@@ -636,7 +636,6 @@ GsaPushSession::~GsaPushSession()
 	this->m_ptr_gm_session = 0;
 	this->m_lst_ptr_nq_sessions_sent.clear();
 	this->m_lst_ptr_nq_sessions_replied.clear();
-	this->m_ptr_gsa_session_group = 0;
 	this->m_ptr_gsa_q = 0;
 	this->m_ptr_gsa_r = 0;
 	this->m_ptr_policy = 0;
@@ -662,10 +661,49 @@ GsaPushSession::DoDispose (void)
 	NS_LOG_FUNCTION (this);
 }
 
+bool
+operator == (GsaPushSession const& lhs, GsaPushSession const& rhs)
+{
+	bool retval = true;
+
+	if (lhs.m_ptr_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (rhs.m_ptr_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+
+	if (lhs.m_ptr_gm_session != rhs.m_ptr_gm_session)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_lst_ptr_nq_sessions_sent.size() != rhs.m_lst_ptr_nq_sessions_sent.size())
+	{
+		retval = false;
+	}
+
+	if (lhs.m_lst_ptr_nq_sessions_replied.size() != rhs.m_lst_ptr_nq_sessions_replied.size())
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
 void
 GsaPushSession::SetDatabase (Ptr<IpSecDatabase> database)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (database == 0)
+	{
+		NS_ASSERT (false);
+	}
 
 	if (this->m_ptr_database != 0)
 	{
@@ -673,6 +711,111 @@ GsaPushSession::SetDatabase (Ptr<IpSecDatabase> database)
 	}
 
 	this->m_ptr_database = database;
+}
+
+void
+GsaPushSession::SetGmSession (Ptr<GsamSession> gsam_gm_session)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (gsam_gm_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (this->m_ptr_gm_session != 0)
+	{
+		NS_ASSERT (0);
+	}
+
+	this->m_ptr_gm_session = gsam_gm_session;
+}
+
+void
+GsaPushSession::SelfRemoval (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_database->RemoveGsaPushSession(this);
+}
+
+void
+GsaPushSession::MarkGmSessionReplied (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_flag_gm_session_replied = true;
+}
+
+void
+GsaPushSession::MarkNqSessionReplied (Ptr<GsamSession> nq_session)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (nq_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	std::size_t total_size = this->m_lst_ptr_nq_sessions_sent.size() + this->m_lst_ptr_nq_sessions_replied.size();
+
+	this->m_lst_ptr_nq_sessions_sent.remove(nq_session);
+
+	this->m_lst_ptr_nq_sessions_replied.push_back(nq_session);
+
+	if (total_size != (this->m_lst_ptr_nq_sessions_sent.size() + this->m_lst_ptr_nq_sessions_replied.size()))
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsaPushSession::PushBackNqSession (Ptr<GsamSession> nq_session)
+{
+	NS_LOG_FUNCTION (this);
+	if (nq_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_lst_ptr_nq_sessions_sent.push_back(nq_session);
+}
+
+Ptr<IpSecPolicyEntry>
+GsaPushSession::CreatePolicy (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecPolicyEntry> retval = Create<IpSecPolicyEntry>();
+
+	return retval;
+}
+
+Ptr<IpSecSAEntry>
+GsaPushSession::CreateGsaQ (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
+	retval->SetSpi(spi);
+
+	return retval;
+}
+
+Ptr<IpSecSAEntry>
+GsaPushSession::CreateGsaR (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
+	retval->SetSpi(spi);
+
+	return retval;
 }
 
 /********************************************************
@@ -1142,6 +1285,11 @@ GsamSession::AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group)
 		NS_ASSERT (false);
 	}
 
+	if (this->m_ptr_session_group != 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	this->m_ptr_session_group = session_group;
 }
 
@@ -1153,7 +1301,31 @@ GsamSession::AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy)
 		NS_ASSERT (false);
 	}
 
+	if (this->m_ptr_session_group == 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	this->m_ptr_session_group->AssociateWithPolicy (policy);
+}
+
+void
+GsamSession::SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
+{
+	if (gsa_push_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (this->m_ptr_push_session != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_push_session = gsa_push_session;
+
+	gsa_push_session->SetGmSession(this);
+
 }
 
 Ptr<GsamInfo>
@@ -2556,7 +2728,9 @@ IpSecDatabase::CreateGsaPushSession (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<>
+	Ptr<GsaPushSession> retval = Create<GsaPushSession>();
+	retval->SetDatabase(this);
+	return retval;
 }
 
 Ptr<GsamSessionGroup>
@@ -2595,6 +2769,14 @@ IpSecDatabase::RemoveSessionGroup (Ptr<GsamSessionGroup> session_group)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_lst_ptr_session_groups.remove(session_group);
+}
+
+void
+IpSecDatabase::RemoveGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_lst_ptr_gsa_push_sessions.remove(gsa_push_session);
 }
 
 Time

@@ -332,16 +332,21 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
+	Ptr<GsaPushSession> gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
+	session->SetGsaPushSession(gsa_push_session);
+
+	//need to setup policy from gsa_push_session first
+	//**********************************
+	//but when?
+	Ptr<IpSecPolicyEntry> policy = gsa_push_session->CreatePolicy();
+
 	//setting up gsa_q
 	Spi suggested_gsa_q_spi;
 	Ptr<IpSecSAEntry> gsa_q = session->GetRelatedGsaQ();
 	if (gsa_q == 0)
 	{
 		suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
-		// do not etablish gsa yet
-		gsa_q = Create<IpSecSAEntry>();
-		gsa_q->SetSpi(suggested_gsa_q_spi.ToUint32());
-		session->AssociateGsaQ(gsa_q);
+		gsa_q = gsa_push_session->CreateGsaQ(suggested_gsa_q_spi.ToUint32());
 	}
 	else
 	{
@@ -354,9 +359,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	if (gsa_r == 0)
 	{
 		suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
-		// do not etablish gsa yet
-		gsa_r = this->CreateInboundSa(session, suggested_gsa_r_spi);
-		session->SetRelatedGsaR(gsa_r);
+		gsa_r = gsa_push_session->CreateGsaR(suggested_gsa_r_spi.ToUint32());
 	}
 	else
 	{

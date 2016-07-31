@@ -170,14 +170,24 @@ protected:
 
 private:
 	virtual void DoDispose (void);
+public:	//operator
+	friend bool operator == (GsaPushSession const& lhs, GsaPushSession const& rhs);
 public:	//non-const
 	void SetDatabase (Ptr<IpSecDatabase> database);
+	void SetGmSession (Ptr<GsamSession> gsam_gm_session);
+	void SelfRemoval (void);
+	void MarkGmSessionReplied (void);
+	void MarkNqSessionReplied (Ptr<GsamSession> nq_session);
+	void PushBackNqSession (Ptr<GsamSession> nq_session);
+	Ptr<IpSecPolicyEntry> CreatePolicy (void);
+	Ptr<IpSecSAEntry> CreateGsaQ (uint32_t spi);
+	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
 private:	//fields
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;
+	bool m_flag_gm_session_replied;
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent;
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_replied;
-	Ptr<GsamSessionGroup> m_ptr_gsa_session_group;
 	Ptr<IpSecSAEntry> m_ptr_gsa_q;
 	Ptr<IpSecSAEntry> m_ptr_gsa_r;
 	Ptr<IpSecPolicyEntry> m_ptr_policy;
@@ -239,6 +249,7 @@ public:	//self defined
 	void AssociateGsaQ (Ptr<IpSecSAEntry> gsa_q);
 	void AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group);
 	void AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy);
+	void SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -510,6 +521,7 @@ public:	//self defined
 	std::list<Ptr<GsamSessionGroup> >& GetSessionGroups (void);
 	void RemoveSession (Ptr<GsamSession> session);
 	void RemoveSessionGroup (Ptr<GsamSessionGroup> session_group);
+	void RemoveGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
 	Time GetRetransmissionDelay (void);
 	Ptr<IpSecPolicyDatabase> GetSPD (void);
 	Ptr<IpSecSADatabase> GetSAD (void);
