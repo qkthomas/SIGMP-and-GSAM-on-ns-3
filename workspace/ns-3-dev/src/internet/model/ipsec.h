@@ -179,7 +179,7 @@ public:	//non-const
 	void MarkGmSessionReplied (void);
 	void MarkNqSessionReplied (Ptr<GsamSession> nq_session);
 	void PushBackNqSession (Ptr<GsamSession> nq_session);
-	Ptr<IpSecPolicyEntry> CreatePolicy (void);
+	Ptr<IpSecPolicyEntry> CreateAndInitializePolicy (Ipv4Address group_address);
 	Ptr<IpSecSAEntry> CreateGsaQ (uint32_t spi);
 	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
 private:	//fields
@@ -431,6 +431,8 @@ public:	//const
 	Ipv4Address GetSrcAddress (void) const;
 	Ipv4Address GetDestAddress () const;
 	Ptr<IpSecPolicyDatabase> GetSPD (void) const;
+	IkeTrafficSelector GetTrafficSelectorSrc (void) const;
+	IkeTrafficSelector GetTrafficSelectorDest (void) const;
 public:
 	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
 	void SetProtocolNum (uint8_t protocol_id);

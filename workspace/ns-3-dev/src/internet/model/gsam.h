@@ -555,7 +555,7 @@ public:	//Header Override
 public:	//static
 	static Ptr<IkeSAPayloadSubstructure > GenerateInitIkeProposal (void);
 	static Ptr<IkeSAPayloadSubstructure > GenerateAuthIkeProposal (Spi spi);
-	static Ptr<IkeSAPayloadSubstructure > GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r);
+	static Ptr<IkeSAPayloadSubstructure > GenerateGsaProposals (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
 public:	//self-defined
 	void PushBackProposal (Ptr<IkeSAProposal> proposal);
 	void PushBackProposals (const std::list<Ptr<IkeSAProposal> >& proposals);
@@ -911,6 +911,13 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//non-const
+	void SetTsType (IkeTrafficSelector::TS_TYPE ts_type);
+	void SetProtocolId (uint8_t protocol_id);
+	void SetStartPort (uint16_t start_port);
+	void SetEndPort (uint16_t end_port);
+	void SetStartingAddress (Ipv4Address starting_address);
+	void SetEndingAddress (Ipv4Address ending_address);
 public:	//const
 	uint8_t GetTsType (void) const;
 	uint8_t GetProtocolId (void) const;
@@ -1150,7 +1157,7 @@ public:	//const
 	bool IsGsaQ (void) const;
 	bool IsGsaR (void) const;
 public:
-	static Ptr<IkeGSAProposal> GenerateGsaProposal (Spi spi, IkeGSAProposal::GSA_TYPE gsa_type);
+	static Ptr<IkeGSAProposal> GenerateGsaProposal (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi, IkeGSAProposal::GSA_TYPE gsa_type);
 private:
 	IkeGSAProposal::GSA_TYPE m_gsa_type;
 	IkeTrafficSelector m_src_ts;

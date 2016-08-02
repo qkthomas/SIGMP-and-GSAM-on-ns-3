@@ -63,7 +63,7 @@ public:	//exchanges, added by Lin Chen
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
-	void CarbonCopyToNQs (const IkePayload& gsa_push_proposal_payload);
+	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
 private:	//responing, added by Lin Chen

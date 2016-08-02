@@ -2041,12 +2041,12 @@ IkeSAPayloadSubstructure::GenerateAuthIkeProposal (Spi spi)
 	return retval;
 }
 Ptr<IkeSAPayloadSubstructure>
-IkeSAPayloadSubstructure::GenerateGsaProposals (Spi spi_gsa_q, Spi spi_gsa_r)
+IkeSAPayloadSubstructure::GenerateGsaProposals (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r)
 {
 	Ptr<IkeSAPayloadSubstructure> retval = Create<IkeSAPayloadSubstructure>();
 
-	retval->PushBackProposal(IkeGSAProposal::GenerateGsaProposal(spi_gsa_q, IkeGSAProposal::GSA_Q));
-	retval->PushBackProposal(IkeGSAProposal::GenerateGsaProposal(spi_gsa_r, IkeGSAProposal::GSA_R));
+	retval->PushBackProposal(IkeGSAProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_q, IkeGSAProposal::GSA_Q));
+	retval->PushBackProposal(IkeGSAProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_r, IkeGSAProposal::GSA_R));
 
 	retval->SetLastProposal();
 	retval->SetProposalNum();
@@ -3200,6 +3200,48 @@ IkeTrafficSelector::Print (std::ostream &os) const
 	os << "IkeTrafficSelector: " << this << std::endl;
 }
 
+void
+IkeTrafficSelector::SetTsType (IkeTrafficSelector::TS_TYPE ts_type)
+{
+	this->m_ts_type = ts_type;
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IkeTrafficSelector::SetProtocolId (uint8_t protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ip_protocol_id = protocol_id;
+}
+
+void
+IkeTrafficSelector::SetStartPort (uint16_t start_port)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_start_port;
+}
+
+void
+IkeTrafficSelector::SetEndPort (uint16_t end_port)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_end_port = end_port;
+}
+
+void
+IkeTrafficSelector::SetStartingAddress (Ipv4Address starting_address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_starting_address = starting_address;
+}
+
+void
+IkeTrafficSelector::SetEndingAddress (Ipv4Address ending_address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_ending_address = ending_address;
+}
+
 uint8_t
 IkeTrafficSelector::GetTsType (void) const
 {
@@ -4264,12 +4306,14 @@ IkeGSAProposal::IsGsaR (void) const
 }
 
 Ptr<IkeGSAProposal>
-IkeGSAProposal::GenerateGsaProposal (Spi spi, IkeGSAProposal::GSA_TYPE gsa_type)
+IkeGSAProposal::GenerateGsaProposal (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi, IkeGSAProposal::GSA_TYPE gsa_type)
 {
 	Ptr<IkeGSAProposal> retval = Create<IkeGSAProposal>();
 	retval->SetProtocolId(GsamConfig::GetDefaultGSAProposalId());
 	retval->SetGsaType(gsa_type);
 	retval->SetSPI(spi);
+	retval->m_src_ts = ts_src;
+	retval->m_dest_ts = ts_dest;
 	return retval;
 }
 

@@ -787,13 +787,19 @@ GsaPushSession::PushBackNqSession (Ptr<GsamSession> nq_session)
 }
 
 Ptr<IpSecPolicyEntry>
-GsaPushSession::CreatePolicy (void)
+GsaPushSession::CreateAndInitializePolicy (Ipv4Address group_address)
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<IpSecPolicyEntry> retval = Create<IpSecPolicyEntry>();
+	this->m_ptr_policy = Create<IpSecPolicyEntry>();
+	this->m_ptr_policy->SetProcessChoice(IpSecPolicyEntry::PROTECT);
+	this->m_ptr_policy->SetIpsecMode(GsamConfig::GetDefaultIpsecMode());
+	this->m_ptr_policy->SetProtocolNum(IpSecPolicyEntry::AH);
+	this->m_ptr_policy->SetSingleSrcAddress(Ipv4Address("0.0.0.0"));
+	this->m_ptr_policy->SetTranSrcPortRange(0, 0);
+	this->m_ptr_policy->SetSingleDestAddress(group_address);
+	this->m_ptr_policy->SetTranDestPortRange(0, 0);
 
-	return retval;
 }
 
 Ptr<IpSecSAEntry>
@@ -2316,6 +2322,38 @@ bool operator == (IpSecPolicyEntry const& lhs, IpSecPolicyEntry const& rhs)
 	{
 		retval = false;
 	}
+
+	return retval;
+}
+
+IkeTrafficSelector
+IpSecPolicyEntry::GetTrafficSelectorSrc (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	IkeTrafficSelector retval;
+	retval.SetStartingAddress(this->m_src_starting_address);
+	retval.SetEndingAddress(this->m_src_ending_address);
+	retval.SetStartPort(this->m_src_transport_protocol_starting_num);
+	retval.SetEndPort(this->m_src_transport_protocol_ending_num);
+	retval.SetProtocolId(this->m_ip_protocol_num);
+	retval.SetTsType(IkeTrafficSelector::TS_IPV4_ADDR_RANGE);
+
+	return retval;
+}
+
+IkeTrafficSelector
+IpSecPolicyEntry::GetTrafficSelectorDest (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	IkeTrafficSelector retval;
+	retval.SetStartingAddress(this->m_dest_starting_address);
+	retval.SetEndingAddress(this->m_dest_ending_address);
+	retval.SetStartPort(this->m_dest_transport_protocol_starting_num);
+	retval.SetEndPort(this->m_dest_transport_protocol_ending_num);
+	retval.SetProtocolId(this->m_ip_protocol_num);
+	retval.SetTsType(IkeTrafficSelector::TS_IPV4_ADDR_RANGE);
 
 	return retval;
 }

@@ -338,7 +338,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	//need to setup policy from gsa_push_session first
 	//**********************************
 	//but when?
-	Ptr<IpSecPolicyEntry> policy = gsa_push_session->CreatePolicy();
+	Ptr<IpSecPolicyEntry> policy = gsa_push_session->CreateAndInitializePolicy(session->GetGroupAddress());
 
 	//setting up gsa_q
 	Spi suggested_gsa_q_spi;
@@ -371,7 +371,10 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 
 	//setting up remote spi notification proposal payload
 	IkePayload gsa_push_proposal_payload;
-	gsa_push_proposal_payload.SetPayload(IkeSAPayloadSubstructure::GenerateGsaProposals(suggested_gsa_q_spi, suggested_gsa_r_spi));
+	gsa_push_proposal_payload.SetPayload(IkeSAPayloadSubstructure::GenerateGsaProposals(policy->GetTrafficSelectorSrc(),
+																						policy->GetTrafficSelectorDest(),
+																						suggested_gsa_q_spi,
+																						suggested_gsa_r_spi));
 
 	//setting up HDR
 	IkeHeader ikeheader;
@@ -394,7 +397,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	packet_without_ikeheader->AddHeader(gsa_push_proposal_payload);
 
 	this->SendMessage(session, packet, true);
-	this->CarbonCopyToNQs(gsa_push_proposal_payload);
+	this->DeliverToNQs(gsa_push_session, gsa_push_proposal_payload);
 }
 
 void
@@ -482,7 +485,7 @@ GsamL4Protocol::Send_GSA_Acknowledgedment (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::CarbonCopyToNQs (const IkePayload& gsa_push_proposal_payload)
+GsamL4Protocol::DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload)
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<GsamSessionGroup> session_group_nq = this->GetIpSecDatabase()->GetSessionGroup(GsamConfig::GetIgmpv3DestGrpReportAddress());
@@ -493,24 +496,28 @@ GsamL4Protocol::CarbonCopyToNQs (const IkePayload& gsa_push_proposal_payload)
 			it != lst_sessions_nq.end();
 			it++)
 	{
+		Ptr<GsamSession> nq_session = (*it);
+		gsa_push_session->PushBackNqSession(nq_session);
+		nq_session->SetGsaPushSession(gsa_push_session);
+
 		Ptr<Packet> packet = Create<Packet>();
 
 		//setting up HDR
 		IkeHeader ikeheader;
-		ikeheader.SetInitiatorSpi((*it)->GetKekSaInitiatorSpi());
-		ikeheader.SetResponderSpi((*it)->GetKekSaResponderSpi());
+		ikeheader.SetInitiatorSpi(nq_session->GetKekSaInitiatorSpi());
+		ikeheader.SetResponderSpi(nq_session->GetKekSaResponderSpi());
 		ikeheader.SetIkev2Version();
 		ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
 		ikeheader.SetAsInitiator();
 
-		ikeheader.SetMessageId((*it)->GetCurrentMessageId());
+		ikeheader.SetMessageId(nq_session->GetCurrentMessageId());
 		ikeheader.SetNextPayloadType(gsa_push_proposal_payload.GetPayloadType());
 		ikeheader.SetLength(ikeheader.GetSerializedSize() +
 				packet->GetSize());
 
 		packet->AddHeader(gsa_push_proposal_payload);
 		packet->AddHeader(ikeheader);
-		this->SendMessage(*it, packet, true);
+		this->SendMessage(nq_session, packet, true);
 	}
 
 
@@ -1207,7 +1214,7 @@ GsamL4Protocol::CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSel
 	policy_entry->SetTranSrcPortRange(tsi.GetStartPort(), tsi.GetEndPort());
 	policy_entry->SetProtocolNum(tsr.GetProtocolId());
 	policy_entry->SetDestAddressRange(tsr.GetStartingAddress(), tsr.GetStartingAddress());
-	policy_entry->SetTranSrcPortRange(tsr.GetStartPort(), tsr.GetEndPort());
+	policy_entry->SetTranDestPortRange(tsr.GetStartPort(), tsr.GetEndPort());
 
 	if (policy_entry->GetDestAddress() == session->GetGroupAddress())
 	{
