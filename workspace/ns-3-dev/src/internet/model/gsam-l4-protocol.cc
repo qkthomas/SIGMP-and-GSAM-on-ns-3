@@ -414,6 +414,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 			it++)
 	{
 		Ptr<GsamSessionGroup> session_group = (*it);
+		Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
 		if (session_group->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
 		{
 			//non nq session group
@@ -431,7 +432,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 			}
 			else
 			{
-				payload_gsa_nq.PushBackProposal(IkeGSAProposal::GenerateGsaProposal(Spi(gsa_q->GetSpi()), IkeGSAProposal::GSA_Q));
+				payload_gsa_nq.PushBackProposal(IkeGSAProposal::GenerateGsaProposal(policy->GetTrafficSelectorSrc(), policy->GetTrafficSelectorDest(), Spi(gsa_q->GetSpi()), IkeGSAProposal::GSA_Q));
 
 				const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
 
@@ -448,7 +449,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 					}
 					else
 					{
-						payload_gsa_nq.PushBackProposal(IkeGSAProposal::GenerateGsaProposal(Spi(gsa_r->GetSpi()), IkeGSAProposal::GSA_R));
+						payload_gsa_nq.PushBackProposal(IkeGSAProposal::GenerateGsaProposal(policy->GetTrafficSelectorSrc(), policy->GetTrafficSelectorDest(), Spi(gsa_r->GetSpi()), IkeGSAProposal::GSA_R));
 					}
 				}
 			}
@@ -1098,6 +1099,15 @@ void
 GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	IkePayload pushed_sa_payload;
+	pushed_sa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+
+	packet->RemoveHeader(pushed_sa_payload);
+
+	std::list<Ptr<IkeSAProposal> > proposals = pushed_sa_payload.GetSAProposals();
+
+	this->ProcessGsaPushNQ(session, proposals);
 }
 
 void
@@ -1158,6 +1168,17 @@ void
 GsamL4Protocol::ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSAProposal> >& gsa_proposals)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (gsa_proposals.size() == 0)
+	{
+		//ok
+	}
+
+	if (gsa_proposals.size() == 1)
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
 }
 
 void
