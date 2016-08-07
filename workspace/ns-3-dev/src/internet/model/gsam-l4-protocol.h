@@ -77,30 +77,30 @@ private:	//responing, added by Lin Chen
 	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessIkeSaAuthInvitation (	Ptr<GsamSession> session,
 										Ipv4Address group_address,
-										const Ptr<IkeSAProposal> proposal,
+										const Ptr<IkeSaProposal> proposal,
 										const std::list<IkeTrafficSelector>& tsi_selectors,
 										const std::list<IkeTrafficSelector>& tsr_selectors);
 	void ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
-									const std::list<Ptr<IkeSAProposal> >& sar2_proposals,
+									const std::list<Ptr<IkeSaProposal> >& sar2_proposals,
 									const std::list<IkeTrafficSelector>& tsi_selectors,
 									const std::list<IkeTrafficSelector>& tsr_selectors);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void RespondIkeSaAuth (	Ptr<GsamSession> session,
-							Ptr<IkeSAProposal> chosen_proposal,
+							Ptr<IkeSaProposal> chosen_proposal,
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGSAProposal> gsa_q_proposal, const Ptr<IkeGSAProposal> gsa_r_proposal);
-	void ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSAProposal> >& gsa_proposals);
+	void ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProposal> gsa_q_proposal, const Ptr<IkeGsaProposal> gsa_r_proposal);
+	void ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
 	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc
-	static void ChooseSAProposalOffer (	const std::list<Ptr<IkeSAProposal> >& proposals,
-										Ptr<IkeSAProposal> retval_chosen_proposal);
+	static void ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals,
+										Ptr<IkeSaProposal> retval_chosen_proposal);
 	static void NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
 												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation

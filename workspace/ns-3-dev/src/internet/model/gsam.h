@@ -32,9 +32,9 @@ namespace ns3 {
 
 class GsamInfo;
 class Spi;
-class IkeSAProposal;
+class IkeSaProposal;
 class IkeTrafficSelector;
-class IkeGSAProposal;
+class IkeGsaProposal;
 
 class IPsec {
 public:
@@ -302,15 +302,15 @@ public:	//const
 	IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
 	const Ptr<IkePayloadSubstructure> GetSubstructure (void) const;
-	const std::list<Ptr<IkeSAProposal> >& GetSAProposals (void) const;
+	const std::list<Ptr<IkeSaProposal> >& GetSAProposals (void) const;
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
 	Ipv4Address GetIpv4AddressId (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
 	void SetPayload (Ptr<IkePayloadSubstructure> substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
-	void PushBackProposal (Ptr<IkeSAProposal> proposal);
-	void PushBackProposals (const std::list<Ptr<IkeSAProposal> >& proposals);
+	void PushBackProposal (Ptr<IkeSaProposal> proposal);
+	void PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals);
 	void PushBackTrafficSelector (IkeTrafficSelector ts);
 	void PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss);
 public:	//static
@@ -471,7 +471,7 @@ private:
 	std::list<IkeTransformAttribute> m_lst_transform_attributes;
 };
 
-class IkeSAProposal : public Object {
+class IkeSaProposal : public Object {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -491,8 +491,8 @@ class IkeSAProposal : public Object {
 
 public:
 	static TypeId GetTypeId (void);
-	IkeSAProposal ();
-	virtual ~IkeSAProposal ();
+	IkeSaProposal ();
+	virtual ~IkeSaProposal ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
@@ -517,8 +517,8 @@ protected:
 	void SetLastTransform (void);
 	void ClearLastTranform (void);
 public:
-	static Ptr<IkeSAProposal> GenerateInitIkeProposal ();
-	static Ptr<IkeSAProposal> GenerateAuthIkeProposal (Spi spi);
+	static Ptr<IkeSaProposal> GenerateInitIkeProposal ();
+	static Ptr<IkeSaProposal> GenerateAuthIkeProposal (Spi spi);
 protected:
 	bool m_flag_last;
 	uint16_t m_proposal_length;	//for deserialization
@@ -530,7 +530,7 @@ protected:
 	std::list<IkeTransformSubStructure> m_lst_transforms;
 };
 
-class IkeSAPayloadSubstructure : public IkePayloadSubstructure {
+class IkeSaPayloadSubstructure : public IkePayloadSubstructure {
 
 	/*
 	 *                      1                   2                   3
@@ -544,8 +544,8 @@ class IkeSAPayloadSubstructure : public IkePayloadSubstructure {
 
 public:
 	static TypeId GetTypeId (void);
-	IkeSAPayloadSubstructure ();
-	virtual ~IkeSAPayloadSubstructure ();
+	IkeSaPayloadSubstructure ();
+	virtual ~IkeSaPayloadSubstructure ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
@@ -553,16 +553,16 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//static
-	static Ptr<IkeSAPayloadSubstructure > GenerateInitIkeProposal (void);
-	static Ptr<IkeSAPayloadSubstructure > GenerateAuthIkeProposal (Spi spi);
-	static Ptr<IkeSAPayloadSubstructure > GenerateGsaProposals (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
+	static Ptr<IkeSaPayloadSubstructure > GenerateInitIkeProposal (void);
+	static Ptr<IkeSaPayloadSubstructure > GenerateAuthIkeProposal (Spi spi);
+	static Ptr<IkeSaPayloadSubstructure > GenerateGsaProposals (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
 public:	//self-defined
-	void PushBackProposal (Ptr<IkeSAProposal> proposal);
-	void PushBackProposals (const std::list<Ptr<IkeSAProposal> >& proposals);
+	void PushBackProposal (Ptr<IkeSaProposal> proposal);
+	void PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals);
 public:	//const
-	const std::list<Ptr<IkeSAProposal> >& GetProposals (void) const;
+	const std::list<Ptr<IkeSaProposal> >& GetProposals (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
-private:
+protected:
 	/*
 	 * Iterate the list of proposals and set the last one's "field last"
 	 */
@@ -574,8 +574,44 @@ private:
 	void SetProposalNum (void);
 public:
 	using IkePayloadSubstructure::Deserialize;
+protected:
+	std::list<Ptr<IkeSaProposal> > m_lst_proposal;	//proposals? Since it can be more than one.
+};
+
+class IkeGsaPayloadSubstructure : public IkeSaProposal {
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                   <Source Traffic Selector>                   ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                <Destination Traffic Selector>                 ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                          <Proposals>                          ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+public:
+	static TypeId GetTypeId (void);
+	IkeGsaPayloadSubstructure ();
+	virtual ~IkeGsaPayloadSubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+public:	//static
+	static Ptr<IkeGsaProposal> GenerateGsaProposal (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi);
+public:
+	IkeTrafficSelector& GetSourceTrafficSelector (void);
+	IkeTrafficSelector& GetDestTrafficSelector (void);
 private:
-	std::list<Ptr<IkeSAProposal> > m_lst_proposal;	//proposals? Since it can be more than one.
+	IkeTrafficSelector m_src_ts;
+	IkeTrafficSelector m_dest_ts;
 };
 
 class IkeKeyExchangeSubStructure : public IkePayloadSubstructure {
@@ -1108,7 +1144,7 @@ private:
 	std::list<IkeConfigAttribute> m_lst_config_attributes;
 };
 
-class IkeGSAProposal : public IkeSAProposal {
+class IkeGsaProposal : public IkeSaProposal {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1138,8 +1174,8 @@ public:
 
 public:
 	static TypeId GetTypeId (void);
-	IkeGSAProposal ();
-	virtual ~IkeGSAProposal ();
+	IkeGsaProposal ();
+	virtual ~IkeGsaProposal ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
@@ -1149,7 +1185,7 @@ public:	//Header Override
 public:	//non-const
 	void SetAsGsaQ (void);
 	void SetAsGsaR (void);
-	void SetGsaType (IkeGSAProposal::GSA_TYPE gsa_type);
+	void SetGsaType (IkeGsaProposal::GSA_TYPE gsa_type);
 	IkeTrafficSelector& GetSourceTrafficSelector (void);
 	IkeTrafficSelector& GetDestTrafficSelector (void);
 public:	//const
@@ -1157,9 +1193,9 @@ public:	//const
 	bool IsGsaQ (void) const;
 	bool IsGsaR (void) const;
 public:
-	static Ptr<IkeGSAProposal> GenerateGsaProposal (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi, IkeGSAProposal::GSA_TYPE gsa_type);
+	static Ptr<IkeGsaProposal> GenerateGsaProposal (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi, IkeGsaProposal::GSA_TYPE gsa_type);
 private:
-	IkeGSAProposal::GSA_TYPE m_gsa_type;
+	IkeGsaProposal::GSA_TYPE m_gsa_type;
 	IkeTrafficSelector m_src_ts;
 	IkeTrafficSelector m_dest_ts;
 };
