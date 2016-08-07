@@ -882,7 +882,7 @@ IkePayload::IkePayload ()
 IkePayload::~IkePayload ()
 {
 	NS_LOG_FUNCTION (this);
-	this->DeletePayloadSubstructure();
+	this->ClearPayloadSubstructure();
 }
 
 uint32_t
@@ -1035,6 +1035,7 @@ IkePayload::GetTrafficSelectors (void) const
 Ipv4Address
 IkePayload::GetIpv4AddressId (void) const
 {
+	NS_LOG_FUNCTION (this);
 	if (this->GetPayloadType() != IkePayloadHeader::IDENTIFICATION_INITIATOR)
 	{
 		NS_ASSERT (false);
@@ -1043,6 +1044,17 @@ IkePayload::GetIpv4AddressId (void) const
 	Ptr<IkeIdSubstructure> ptr_derived = DynamicCast<IkeIdSubstructure>(this->m_ptr_substructure);
 
 	return ptr_derived->GetIpv4AddressFromData();
+}
+
+Ptr<IkePayloadSubstructure>
+IkePayload::GetPayloadSubstructure (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_substructure == 0)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_ptr_substructure;
 }
 
 //void
@@ -1060,7 +1072,7 @@ IkePayload::SetPayload (Ptr<IkePayloadSubstructure> substructure)
 {
 	NS_LOG_FUNCTION (this);
 
-	this->DeletePayloadSubstructure();
+	this->ClearPayloadSubstructure();
 
 	this->m_ptr_substructure = substructure;
 	this->m_header.SetPayloadLength(this->m_ptr_substructure->GetSerializedSize() + this->m_header.GetSerializedSize());
@@ -1071,59 +1083,6 @@ IkePayload::SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_header.SetNextPayloadType(payload_type);
-}
-
-void
-IkePayload::PushBackProposal (Ptr<IkeSaProposal> proposal)
-{
-	NS_LOG_FUNCTION (this);
-	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
-	{
-		NS_ASSERT (false);
-	}
-	Ptr<IkeSaPayloadSubstructure> ptr_derived = DynamicCast<IkeSaPayloadSubstructure>(this->m_ptr_substructure);
-	ptr_derived->PushBackProposal(proposal);
-}
-void
-IkePayload::PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals)
-{
-	NS_LOG_FUNCTION (this);
-	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
-	{
-		NS_ASSERT (false);
-	}
-	Ptr<IkeSaPayloadSubstructure> ptr_derived = DynamicCast<IkeSaPayloadSubstructure>(this->m_ptr_substructure);
-	ptr_derived->PushBackProposals(proposals);
-}
-
-void
-IkePayload::PushBackTrafficSelector (IkeTrafficSelector ts)
-{
-	NS_LOG_FUNCTION (this);
-
-		if ((this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR) &&
-				(this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER))
-		{
-			NS_ASSERT (false);
-		}
-
-		Ptr<IkeTrafficSelectorSubstructure> ptr_derived = DynamicCast<IkeTrafficSelectorSubstructure>(this->m_ptr_substructure);
-		ptr_derived->PushBackTrafficSelector(ts);
-}
-
-void
-IkePayload::PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss)
-{
-	NS_LOG_FUNCTION (this);
-
-		if ((this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR) &&
-				(this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER))
-		{
-			NS_ASSERT (false);
-		}
-
-		Ptr<IkeTrafficSelectorSubstructure> ptr_derived = DynamicCast<IkeTrafficSelectorSubstructure>(this->m_ptr_substructure);
-		ptr_derived->PushBackTrafficSelectors(tss);
 }
 
 IkePayload
@@ -1204,7 +1163,7 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 }
 
 void
-IkePayload::DeletePayloadSubstructure (void)
+IkePayload::ClearPayloadSubstructure (void)
 {
 	NS_LOG_FUNCTION (this);
 

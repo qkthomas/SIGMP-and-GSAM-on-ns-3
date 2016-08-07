@@ -408,6 +408,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 	std::list<Ptr<GsamSessionGroup> > lst_session_groups = ipsec_root_db->GetSessionGroups();
 
 	IkePayload payload_gsa_nq = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+	Ptr<IkeSaPayloadSubstructure> sa_payload_sub = DynamicCast<IkeSaPayloadSubstructure>(payload_gsa_nq.GetSubstructure());
 
 	for (	std::list<Ptr<GsamSessionGroup> >::iterator it = lst_session_groups.begin();
 			it != lst_session_groups.end();
@@ -432,7 +433,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 			}
 			else
 			{
-				payload_gsa_nq.PushBackProposal(IkeGsaProposal::GenerateGsaProposal(policy->GetTrafficSelectorSrc(), policy->GetTrafficSelectorDest(), Spi(gsa_q->GetSpi()), IkeGsaProposal::GSA_Q));
+				sa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(policy->GetTrafficSelectorSrc(), policy->GetTrafficSelectorDest(), Spi(gsa_q->GetSpi()), IkeGsaProposal::GSA_Q));
 
 				const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
 
@@ -449,7 +450,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 					}
 					else
 					{
-						payload_gsa_nq.PushBackProposal(IkeGsaProposal::GenerateGsaProposal(policy->GetTrafficSelectorSrc(), policy->GetTrafficSelectorDest(), Spi(gsa_r->GetSpi()), IkeGsaProposal::GSA_R));
+						sa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(policy->GetTrafficSelectorSrc(), policy->GetTrafficSelectorDest(), Spi(gsa_r->GetSpi()), IkeGsaProposal::GSA_R));
 					}
 				}
 			}
@@ -971,16 +972,19 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 	//Setting up TSr
 	IkePayload tsr;
 	tsr.GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER);
-	tsr.PushBackTrafficSelectors(narrowed_tssr);
+	Ptr<IkeTrafficSelectorSubstructure> tsr_payload_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsr.GetSubstructure());
+	tsr_payload_sub->PushBackTrafficSelectors(narrowed_tssr);
 	//settuping up tsi
 	IkePayload tsi;
 	tsi.GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR);
-	tsi.PushBackTrafficSelectors(narrowed_tssi);
+	Ptr<IkeTrafficSelectorSubstructure> tsi_payload_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsi.GetSubstructure());
+	tsi_payload_sub->PushBackTrafficSelectors(narrowed_tssi);
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sar2
 	IkePayload sar2;
 	sar2.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
-	sar2.PushBackProposal(chosen_proposal);
+	Ptr<IkeSaPayloadSubstructure> sar2_payload_sub = DynamicCast<IkeSaPayloadSubstructure>(sar2.GetSubstructure());
+	sar2_payload_sub->PushBackProposal(chosen_proposal);
 	sar2.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up auth
 	IkePayload auth;

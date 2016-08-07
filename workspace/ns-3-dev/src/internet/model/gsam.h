@@ -305,21 +305,18 @@ public:	//const
 	const std::list<Ptr<IkeSaProposal> >& GetSAProposals (void) const;
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
 	Ipv4Address GetIpv4AddressId (void) const;
+	Ptr<IkePayloadSubstructure> GetPayloadSubstructure (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
 	void SetPayload (Ptr<IkePayloadSubstructure> substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
-	void PushBackProposal (Ptr<IkeSaProposal> proposal);
-	void PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals);
-	void PushBackTrafficSelector (IkeTrafficSelector ts);
-	void PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss);
 public:	//static
 	/*
 	 * For Deserilization Only
 	 */
 	static IkePayload GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 private:	//non-const
-	void DeletePayloadSubstructure (void);
+	void ClearPayloadSubstructure (void);
 private:
 	IkePayloadHeader m_header;
 	Ptr<IkePayloadSubstructure> m_ptr_substructure;
