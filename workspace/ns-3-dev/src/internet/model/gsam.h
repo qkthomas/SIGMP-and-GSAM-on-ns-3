@@ -82,7 +82,9 @@ public:	//Header override
 		TRAFFIC_SELECTOR_RESPONDER = 45,
 		ENCRYPTED_AND_AUTHENTICATED = 46,
 		CONFIGURATION = 47,
-		EXTENSIBLE_AUTHENTICATION = 48
+		EXTENSIBLE_AUTHENTICATION = 48,
+		//added by Lin Chen, GSA type
+		GROUP_SECURITY_ASSOCIATION = 49
 	};
 public:	//translate enum
 	static uint8_t PayloadTypeToUnit8 (IkePayloadHeader::PAYLOAD_TYPE payload_type);
@@ -550,9 +552,9 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//static
-	static Ptr<IkeSaPayloadSubstructure > GenerateInitIkeProposal (void);
-	static Ptr<IkeSaPayloadSubstructure > GenerateAuthIkeProposal (Spi spi);
-	static Ptr<IkeSaPayloadSubstructure > GenerateGsaProposals (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
+	static Ptr<IkeSaPayloadSubstructure > GenerateInitIkePayload (void);
+	static Ptr<IkeSaPayloadSubstructure > GenerateAuthIkePayload (Spi spi);
+	static Ptr<IkeSaPayloadSubstructure > GenerateGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
 public:	//self-defined
 	void PushBackProposal (Ptr<IkeSaProposal> proposal);
 	void PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals);
@@ -575,7 +577,7 @@ protected:
 	std::list<Ptr<IkeSaProposal> > m_lst_proposal;	//proposals? Since it can be more than one.
 };
 
-class IkeGsaPayloadSubstructure : public IkeSaProposal {
+class IkeGsaPayloadSubstructure : public IkeSaPayloadSubstructure {
 	/*
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -602,10 +604,12 @@ public:	//Header Override
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
-	static Ptr<IkeGsaProposal> GenerateGsaProposal (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi);
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest);
+public:	//const
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
-	IkeTrafficSelector& GetSourceTrafficSelector (void);
-	IkeTrafficSelector& GetDestTrafficSelector (void);
+	const IkeTrafficSelector& GetSourceTrafficSelector (void) const;
+	const IkeTrafficSelector& GetDestTrafficSelector (void) const;
 private:
 	IkeTrafficSelector m_src_ts;
 	IkeTrafficSelector m_dest_ts;
@@ -1152,10 +1156,6 @@ class IkeGsaProposal : public IkeSaProposal {
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * ~                        SPI (variable)                         ~
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * ~                   <Source Traffic Selector>                   ~
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * ~                <Destination Traffic Selector>                 ~
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * |                                                               |
      * ~                        <Transforms>                           ~
      * |                                                               |
@@ -1183,18 +1183,14 @@ public:	//non-const
 	void SetAsGsaQ (void);
 	void SetAsGsaR (void);
 	void SetGsaType (IkeGsaProposal::GSA_TYPE gsa_type);
-	IkeTrafficSelector& GetSourceTrafficSelector (void);
-	IkeTrafficSelector& GetDestTrafficSelector (void);
 public:	//const
 	bool IsGsa (void) const;
 	bool IsGsaQ (void) const;
 	bool IsGsaR (void) const;
 public:
-	static Ptr<IkeGsaProposal> GenerateGsaProposal (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi, IkeGsaProposal::GSA_TYPE gsa_type);
+	static Ptr<IkeGsaProposal> GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type);
 private:
 	IkeGsaProposal::GSA_TYPE m_gsa_type;
-	IkeTrafficSelector m_src_ts;
-	IkeTrafficSelector m_dest_ts;
 };
 
 }  // namespace ns3

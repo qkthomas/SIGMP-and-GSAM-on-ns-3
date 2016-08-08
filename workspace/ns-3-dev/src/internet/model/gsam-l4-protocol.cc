@@ -199,7 +199,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session)
 	key_payload_init.SetNextPayloadType(nonce_payload_init.GetPayloadType());
 	//setting up SAi1
 	IkePayload sa_payload_init;
-	sa_payload_init.SetPayload(IkeSaPayloadSubstructure::GenerateInitIkeProposal());
+	sa_payload_init.SetPayload(IkeSaPayloadSubstructure::GenerateInitIkePayload());
 	sa_payload_init.SetNextPayloadType(key_payload_init.GetPayloadType());
 	//setting up HDR
 	IkeHeader ikeheader;
@@ -255,7 +255,7 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 	IkePayload sai2;
 	Spi kek_sa_spi;
 	kek_sa_spi.SetValueFromUint64(session->GetInfo()->RegisterGsamSpi());
-	sai2.SetPayload(IkeSaPayloadSubstructure::GenerateAuthIkeProposal(kek_sa_spi));
+	sai2.SetPayload(IkeSaPayloadSubstructure::GenerateAuthIkePayload(kek_sa_spi));
 	sai2.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up auth
 	IkePayload auth;
@@ -370,11 +370,12 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	}
 
 	//setting up remote spi notification proposal payload
+	Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(	policy->GetTrafficSelectorSrc(),
+																													policy->GetTrafficSelectorDest());
+	gsa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(suggested_gsa_q_spi, IkeGsaProposal::GSA_Q));
+	gsa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(suggested_gsa_r_spi, IkeGsaProposal::GSA_R));
 	IkePayload gsa_push_proposal_payload;
-	gsa_push_proposal_payload.SetPayload(IkeSaPayloadSubstructure::GenerateGsaProposals(policy->GetTrafficSelectorSrc(),
-																						policy->GetTrafficSelectorDest(),
-																						suggested_gsa_q_spi,
-																						suggested_gsa_r_spi));
+	gsa_push_proposal_payload.SetPayload(gsa_payload_substructure);
 
 	//setting up HDR
 	IkeHeader ikeheader;
@@ -719,7 +720,7 @@ GsamL4Protocol::RespondIkeSaInit (Ptr<GsamSession> session)
 
 	//setting up SAr1
 	IkePayload sa_r_1;
-	sa_r_1.SetPayload(IkeSaPayloadSubstructure::GenerateInitIkeProposal());
+	sa_r_1.SetPayload(IkeSaPayloadSubstructure::GenerateInitIkePayload());
 	sa_r_1.SetNextPayloadType(ke_r.GetPayloadType());
 
 	IkeHeader header;
