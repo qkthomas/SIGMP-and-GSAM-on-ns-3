@@ -63,16 +63,19 @@ public:	//exchanges, added by Lin Chen
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
-	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
-private:	//responing, added by Lin Chen
-	//HandleIkeSaInit
+private:	//phase 1, initiator
+	void HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
+	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
+									const std::list<Ptr<IkeSaProposal> >& sar2_proposals,
+									const std::list<IkeTrafficSelector>& tsi_selectors,
+									const std::list<IkeTrafficSelector>& tsr_selectors);
+private:	//phase 1, responder
 	void HandleIkeSaInit (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
-	void HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void RespondIkeSaInit (Ptr<GsamSession> session);
-	//HandleIkeSaAuth
 	void HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessIkeSaAuthInvitation (	Ptr<GsamSession> session,
@@ -80,22 +83,27 @@ private:	//responing, added by Lin Chen
 										const Ptr<IkeSaProposal> proposal,
 										const std::list<IkeTrafficSelector>& tsi_selectors,
 										const std::list<IkeTrafficSelector>& tsr_selectors);
-	void ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
-									const std::list<Ptr<IkeSaProposal> >& sar2_proposals,
-									const std::list<IkeTrafficSelector>& tsi_selectors,
-									const std::list<IkeTrafficSelector>& tsr_selectors);
-	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void RespondIkeSaAuth (	Ptr<GsamSession> session,
 							Ptr<IkeSaProposal> chosen_proposal,
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
+private:	//phase 2, Q
+	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload);
+private:	//phase 2, GM, NQ
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi);
+private:	//phase 2, GM
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProposal> gsa_q_proposal, const Ptr<IkeGsaProposal> gsa_r_proposal);
+	void RejectGsaQ (Ptr<GsamSession> session, uint32_t spi);
+	void AcceptGsaPair (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
+	void InstallGsaPair (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
+	void SendAcceptAck (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
+private:	//phase 2, NQ
+	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
-	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc

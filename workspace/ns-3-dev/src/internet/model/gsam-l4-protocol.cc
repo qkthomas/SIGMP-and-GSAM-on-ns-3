@@ -1079,16 +1079,24 @@ GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, P
 }
 
 void
+GsamL4Protocol::RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
 GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
-	IkePayload pushed_sa_payload;
-	pushed_sa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+	IkePayload pushed_gsa_payload;
+	pushed_gsa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
 
-	packet->RemoveHeader(pushed_sa_payload);
+	packet->RemoveHeader(pushed_gsa_payload);
 
-	std::list<Ptr<IkeSaProposal> > proposals = pushed_sa_payload.GetSAProposals();
+	Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = DynamicCast<IkeGsaPayloadSubstructure>(pushed_gsa_payload.GetSubstructure());
+
+	std::list<Ptr<IkeSaProposal> > proposals = gsa_payload_substructure->GetProposals();
 
 	if (proposals.size() != 2)
 	{
@@ -1105,12 +1113,14 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 {
 	NS_LOG_FUNCTION (this);
 
-	IkePayload pushed_sa_payload;
-	pushed_sa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+	IkePayload pushed_gsa_payload;
+	pushed_gsa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
 
-	packet->RemoveHeader(pushed_sa_payload);
+	packet->RemoveHeader(pushed_gsa_payload);
 
-	std::list<Ptr<IkeSaProposal> > proposals = pushed_sa_payload.GetSAProposals();
+	Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = DynamicCast<IkeGsaPayloadSubstructure>(pushed_gsa_payload.GetSubstructure());
+
+	std::list<Ptr<IkeSaProposal> > proposals = gsa_payload_substructure->GetProposals();
 
 	this->ProcessGsaPushNQ(session, proposals);
 }
@@ -1123,27 +1133,32 @@ GsamL4Protocol::ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProp
 	Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
 	Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
 
+	uint32_t pushed_gsa_q_spi = gsa_q_proposal->GetSpi().ToUint32();
+	uint32_t pushed_gsa_r_spi = gsa_r_proposal->GetSpi().ToUint32();
+
+	//checking received gsa_q
 	if (local_gsa_q == 0)
 	{
+		//checking received gsa_r
 		if (local_gsa_r == 0)
 		{
 			//new GM
-			uint32_t pushed_gsa_q_spi = gsa_q_proposal->GetSpi().ToUint32();
-			uint32_t pushed_gsa_r_spi = gsa_r_proposal->GetSpi().ToUint32();
-
+			//process received gsa_q
 			if (true == session->GetInfo()->IsIpsecSpiOccupied(pushed_gsa_q_spi))
 			{
-				//reject
+				//reject gsa_q
+				this->RejectGsaQ(session, pushed_gsa_q_spi);
 			}
 			else
 			{
 				//no reject and install gsa pair
-
+				this->AcceptGsaPair(session, pushed_gsa_q_spi, pushed_gsa_r_spi);
 			}
 		}
 		else
 		{
 			//weird
+			NS_ASSERT (false);
 		}
 	}
 	else
@@ -1151,6 +1166,7 @@ GsamL4Protocol::ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProp
 		if (local_gsa_r == 0)
 		{
 			//weird
+			NS_ASSERT (false);
 		}
 		else
 		{
@@ -1159,14 +1175,31 @@ GsamL4Protocol::ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProp
 			if (local_gsa_q->GetSpi() != gsa_q_proposal->GetSpi().ToUint32())
 			{
 				//weird
+				NS_ASSERT (false);
 			}
 
 			if (local_gsa_r->GetSpi() != gsa_r_proposal->GetSpi().ToUint32())
 			{
 				//weird
+				NS_ASSERT (false);
 			}
+
+			//have to respond
+			this->SendAcceptAck(session, pushed_gsa_q_spi, pushed_gsa_r_spi);
 		}
 	}
+}
+
+void
+GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session, uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamL4Protocol::AcceptGsaPair (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi)
+{
+	NS_LOG_FUNCTION (this);
 }
 
 void
