@@ -1209,10 +1209,11 @@ class IkeGroupNotifySubstructure : public IkePayloadSubstructure {
 	 */
 public:
 	enum NOTIFY_MESSAGE_TYPE {
-		SPI_REJECTION = 1,
-		GSA_Q_SPI_NOTIFICATION = 2,
-		GSA_R_SPI_NOTIFICATION = 3,
-		GSA_ACKNOWLEDGEDMENT = 4
+		GSA_Q_SPI_REJECTION = 1,
+		GSA_R_SPI_REJECTION = 2,
+		GSA_Q_SPI_NOTIFICATION = 3,
+		GSA_R_SPI_NOTIFICATION = 4,
+		GSA_ACKNOWLEDGEDMENT = 5
 	};
 public:
 	static TypeId GetTypeId (void);
@@ -1227,16 +1228,30 @@ public:	//Header Override
 public:	//non_const
 	void PushBackSpi (Ptr<Spi> ptr_spi);
 public:	//const
+	uint8_t GetProtocolId (void) const;
+	uint8_t GetSpiSize (void) const;
 	uint8_t GetNotifyMessageType (void) const;
+	IkeTrafficSelector GetTrafficSelectorSrc (void) const;
+	IkeTrafficSelector GetTrafficSelectorDest (void) const;
 	const std::list<Ptr<Spi> >& GetSpis (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
+public:	//static
+	static Ptr<IkeGroupNotifySubstructure> GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
+														uint8_t spi_size,
+														IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
+														IkeTrafficSelector ts_src,
+														IkeTrafficSelector ts_dest);
 public:
 	using IkePayloadSubstructure::Deserialize;
+protected:	//non_const
+	void SetProtocolId (uint8_t protocol_id);
+	void SetNotifyMessageType (uint8_t notify_message_type);
+	void SetSpiSize (uint8_t spi_size);
 private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;		//not "only" for Deserialization
 	uint8_t m_notify_message_type;
-	uint8_t m_num_spis;
+	uint8_t m_num_spis;		//for Deserialization
 	IkeTrafficSelector m_ts_src;
 	IkeTrafficSelector m_ts_dest;
 	std::list<Ptr<Spi> > m_lst_ptr_spis;

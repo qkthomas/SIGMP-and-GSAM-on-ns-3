@@ -1162,6 +1162,9 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 	case IkePayloadHeader::GROUP_SECURITY_ASSOCIATION:
 		retval.SetPayload(Create<IkeGsaPayloadSubstructure>());
 		break;
+	case IkePayloadHeader::GROUP_NOTIFY:
+		retval.SetPayload(Create<IkeGroupNotifySubstructure>());
+		break;
 	default:
 		NS_ASSERT (false);
 		break;
@@ -4606,6 +4609,79 @@ IkeGroupNotifySubstructure::Print (std::ostream &os) const
 }
 
 void
+IkeGroupNotifySubstructure::SetProtocolId (uint8_t protocol_id)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (protocol_id == IPsec::IKE)
+	{
+		//ok
+	}
+	else if (protocol_id == IPsec::AH)
+	{
+		//ok
+	}
+	else if (protocol_id == IPsec::ESP)
+	{
+		//ok
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
+	this->m_protocol_id = protocol_id;
+}
+
+void
+IkeGroupNotifySubstructure::SetNotifyMessageType (uint8_t notify_message_type)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (notify_message_type == IkeGroupNotifySubstructure::GSA_Q_SPI_REJECTION)
+	{
+		//ok
+	}
+	else if (notify_message_type == IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION)
+	{
+		//ok
+	}
+	else if (notify_message_type == IkeGroupNotifySubstructure::GSA_Q_SPI_NOTIFICATION)
+	{
+		//ok
+	}
+	else if (notify_message_type == IkeGroupNotifySubstructure::GSA_R_SPI_NOTIFICATION)
+	{
+		//ok
+	}
+	else if (notify_message_type == IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT)
+	{
+		//ok
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
+	this->m_notify_message_type = notify_message_type;
+}
+
+void
+IkeGroupNotifySubstructure::SetSpiSize (uint8_t spi_size)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (0 == spi_size)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_spi_size = spi_size;
+}
+
+void
 IkeGroupNotifySubstructure::PushBackSpi (Ptr<Spi> ptr_spi)
 {
 	NS_LOG_FUNCTION (this);
@@ -4619,17 +4695,89 @@ IkeGroupNotifySubstructure::PushBackSpi (Ptr<Spi> ptr_spi)
 }
 
 uint8_t
-IkeGroupNotifySubstructure::GetNotifyMessageType (void) const
+IkeGroupNotifySubstructure::GetProtocolId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_protocol_id == IPsec::IKE)
+	{
+		//ok
+	}
+	else if (this->m_protocol_id == IPsec::AH)
+	{
+		//ok
+	}
+	else if (this->m_protocol_id == IPsec::ESP)
+	{
+		//ok
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
+	return this->m_protocol_id;
+}
+
+uint8_t
+IkeGroupNotifySubstructure::GetSpiSize (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (	(0 >= this->m_notify_message_type) ||
-			(5 <= this->m_notify_message_type))
+	if(0 == this->m_spi_size)
 	{
 		NS_ASSERT (false);
 	}
 
+	return this->m_spi_size;
+}
+
+uint8_t
+IkeGroupNotifySubstructure::GetNotifyMessageType (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_notify_message_type == IkeGroupNotifySubstructure::GSA_Q_SPI_REJECTION)
+	{
+		//ok
+	}
+	else if (this->m_notify_message_type == IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION)
+	{
+		//ok
+	}
+	else if (this->m_notify_message_type == IkeGroupNotifySubstructure::GSA_Q_SPI_NOTIFICATION)
+	{
+		//ok
+	}
+	else if (this->m_notify_message_type == IkeGroupNotifySubstructure::GSA_R_SPI_NOTIFICATION)
+	{
+		//ok
+	}
+	else if (this->m_notify_message_type == IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT)
+	{
+		//ok
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
 	return this->m_notify_message_type;
+}
+
+IkeTrafficSelector
+IkeGroupNotifySubstructure::GetTrafficSelectorSrc (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ts_src;
+}
+
+IkeTrafficSelector
+IkeGroupNotifySubstructure::GetTrafficSelectorDest (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ts_dest;
 }
 
 const std::list<Ptr<Spi> >&
@@ -4644,6 +4792,22 @@ IkeGroupNotifySubstructure::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return IkePayloadHeader::GROUP_NOTIFY;
+}
+
+Ptr<IkeGroupNotifySubstructure>
+IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
+																	uint8_t spi_size,
+																	IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
+																	IkeTrafficSelector ts_src,
+																	IkeTrafficSelector ts_dest)
+{
+	Ptr<IkeGroupNotifySubstructure> retval = Create<IkeGroupNotifySubstructure>();
+	retval->SetProtocolId(protocol_id);
+	retval->SetSpiSize(spi_size);
+	retval->SetNotifyMessageType(msg_type);
+	retval->m_ts_src = ts_src;
+	retval->m_ts_dest = ts_dest;
+	return retval;
 }
 
 }  // namespace ns3
