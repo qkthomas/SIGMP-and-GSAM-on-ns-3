@@ -1191,9 +1191,12 @@ GsamL4Protocol::ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProp
 }
 
 void
-GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session, uint32_t spi)
+GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session, uint32_t gsa_q_spi)
 {
 	NS_LOG_FUNCTION (this);
+
+	Ptr<IkeNotifySubstructure> notify_substructure = Create<IkeNotifySubstructure>();
+	IkePayload reject_gsa_q_spi_notify_payload;
 }
 
 void

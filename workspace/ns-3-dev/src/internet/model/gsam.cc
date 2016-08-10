@@ -626,7 +626,7 @@ TypeId
 IkePayloadSubstructure::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkePayloadSubstructure")
-	    .SetParent<Header> ()
+	    .SetParent<Object> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkePayloadSubstructure> ();
 	  return tid;
@@ -728,7 +728,7 @@ TypeId
 Spi::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::Spi")
-	    .SetParent<IkePayloadSubstructure> ()
+	    .SetParent<Object> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<Spi> ();
 	  return tid;
@@ -1191,7 +1191,7 @@ TypeId
 IkeTransformAttribute::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeSATransformAttribute")
-	    .SetParent<Header> ()
+	    .SetParent<Object> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeTransformAttribute> ();
 	  return tid;
@@ -1555,7 +1555,7 @@ IkeTransformSubStructure::GetEmptyTransform (void)
 }
 
 /********************************************************
- *        IkeSAProposal
+ *        IkeSaProposal
  ********************************************************/
 
 NS_OBJECT_ENSURE_REGISTERED (IkeSaProposal);
@@ -1564,7 +1564,7 @@ TypeId
 IkeSaProposal::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeSAProposal")
-	    .SetParent<Header> ()
+	    .SetParent<Object> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeSaProposal> ();
 	  return tid;
@@ -1884,7 +1884,7 @@ IkeSaProposal::GenerateAuthIkeProposal (Spi spi)
 }
 
 /********************************************************
- *        IkeSAPayloadSubstructure
+ *        IkeSaPayloadSubstructure
  ********************************************************/
 
 NS_OBJECT_ENSURE_REGISTERED (IkeSaPayloadSubstructure);
@@ -3024,6 +3024,43 @@ IkeNotifySubstructure::Print (std::ostream &os) const
 	os << "IkeNotifySubstructure: " << this << std::endl;
 }
 
+void
+IkeNotifySubstructure::SetSpi (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == spi)
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+IkeNotifySubstructure::SetSpi (Spi spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (4 == spi.GetSerializedSize())
+	{
+		if (0 == spi.ToUint32())
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else if (8 == spi.GetSerializedSize())
+	{
+		if (8 == spi.ToUint32())
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_spi = spi;
+	this->m_spi_size = spi.GetSerializedSize();
+}
+
 uint8_t
 IkeNotifySubstructure::GetNotifyMessageType (void) const
 {
@@ -3219,7 +3256,7 @@ TypeId
 IkeTrafficSelector::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeTrafficSelector")
-	    .SetParent<IkePayloadSubstructure> ()
+	    .SetParent<Object> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeTrafficSelector> ();
 	  return tid;
@@ -3916,7 +3953,7 @@ TypeId
 IkeConfigAttribute::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeConfigAttribute")
-	    .SetParent<Header> ()
+	    .SetParent<Object> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeConfigAttribute> ();
 	  return tid;
@@ -4139,7 +4176,7 @@ IkeConfigPayloadSubstructure::GetPayloadType (void) const
 }
 
 /********************************************************
- *        IkeGSAProposal
+ *        IkeGsaProposal
  ********************************************************/
 
 NS_OBJECT_ENSURE_REGISTERED (IkeGsaProposal);
@@ -4148,7 +4185,7 @@ TypeId
 IkeGsaProposal::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeGSAProposal")
-	    .SetParent<Header> ()
+	    .SetParent<IkeSaProposal> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeGsaProposal> ();
 	  return tid;
@@ -4433,6 +4470,180 @@ IkeGsaProposal::GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type)
 	retval->SetGsaType(gsa_type);
 	retval->SetSPI(spi);
 	return retval;
+}
+
+/********************************************************
+ *        IkeGroupNotifySubstructure
+ ********************************************************/
+
+TypeId
+IkeGroupNotifySubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeGroupNotifySubstructure")
+	    .SetParent<IkePayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeGroupNotifySubstructure> ();
+	  return tid;
+}
+
+IkeGroupNotifySubstructure::IkeGroupNotifySubstructure ()
+  :  m_protocol_id (0),
+	 m_spi_size (0),
+	 m_notify_message_type (0),
+	 m_num_spis (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeGroupNotifySubstructure::~IkeGroupNotifySubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_ptr_spis.clear();
+}
+
+uint32_t
+IkeGroupNotifySubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint32_t size = 0;
+	size += 4;	//before two traffic selectors
+	size += this->m_ts_src.GetSerializedSize();
+	size += this->m_ts_dest.GetSerializedSize();
+	for (	std::list<Ptr<Spi> >::const_iterator const_it = this->m_lst_ptr_spis.begin();
+			const_it != this->m_lst_ptr_spis.end();
+			const_it++)
+	{
+		size += (*const_it)->GetSerializedSize();
+	}
+	return size;
+}
+
+TypeId
+IkeGroupNotifySubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkeGroupNotifySubstructure::GetTypeId();
+}
+
+void
+IkeGroupNotifySubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(this->m_protocol_id);
+	i.WriteU8(this->m_spi_size);
+	i.WriteU8(this->m_notify_message_type);
+	i.WriteU8(this->m_lst_ptr_spis.size());
+
+	this->m_ts_src.Serialize(i);
+	i.Next(this->m_ts_src.GetSerializedSize());
+
+	this->m_ts_dest.Serialize(i);
+	i.Next(this->m_ts_dest.GetSerializedSize());
+
+	for (	std::list<Ptr<Spi> >::const_iterator const_it = this->m_lst_ptr_spis.begin();
+			const_it != this->m_lst_ptr_spis.end();
+			const_it++)
+	{
+		if (this->m_spi_size != (*const_it)->GetSerializedSize())
+		{
+			NS_ASSERT (false);
+		}
+		(*const_it)->Serialize(i);
+		i.Next((*const_it)->GetSerializedSize());
+	}
+}
+
+uint32_t
+IkeGroupNotifySubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	uint32_t size = 0;
+
+	this->m_protocol_id = i.ReadU8();
+	size++;
+	this->m_spi_size = i.ReadU8();
+	size++;
+	this->m_notify_message_type = i.ReadU8();
+	size++;
+	this->m_num_spis = i.ReadU8();
+	size++;
+
+	this->m_ts_src.Deserialize(i);
+	uint32_t ts_src_size = this->m_ts_src.GetSerializedSize();
+	i.Next(ts_src_size);
+	size += ts_src_size;
+
+	this->m_ts_dest.Deserialize(i);
+	uint32_t ts_dest_size = this->m_ts_dest.GetSerializedSize();
+	i.Next(ts_dest_size);
+	size += ts_dest_size;
+
+	for (	uint8_t count = 1;
+			count <= this->m_num_spis;
+			count++)
+	{
+		Ptr<Spi> ptr_spi = Create<Spi>();
+		ptr_spi->Deserialize(i);
+		uint32_t spi_size = ptr_spi->GetSerializedSize();
+		if (spi_size != this->m_spi_size)
+		{
+			NS_ASSERT (false);
+		}
+		size += spi_size;
+		this->PushBackSpi(ptr_spi);
+	}
+}
+
+void
+IkeGroupNotifySubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	os << "IkeGroupNotifySubstructure: " << this << std::endl;
+}
+
+void
+IkeGroupNotifySubstructure::PushBackSpi (Ptr<Spi> ptr_spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (ptr_spi == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_lst_ptr_spis.push_back(ptr_spi);
+}
+
+uint8_t
+IkeGroupNotifySubstructure::GetNotifyMessageType (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (	(0 >= this->m_notify_message_type) ||
+			(5 <= this->m_notify_message_type))
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_notify_message_type;
+}
+
+const std::list<Ptr<Spi> >&
+IkeGroupNotifySubstructure::GetSpis (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_ptr_spis;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeGroupNotifySubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IkePayloadHeader::GROUP_NOTIFY;
 }
 
 }  // namespace ns3

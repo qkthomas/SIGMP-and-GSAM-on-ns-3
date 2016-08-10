@@ -84,7 +84,8 @@ public:	//Header override
 		CONFIGURATION = 47,
 		EXTENSIBLE_AUTHENTICATION = 48,
 		//added by Lin Chen, GSA type
-		GROUP_SECURITY_ASSOCIATION = 49
+		GROUP_SECURITY_ASSOCIATION = 49,
+		GROUP_NOTIFY = 50
 	};
 public:	//translate enum
 	static uint8_t PayloadTypeToUnit8 (IkePayloadHeader::PAYLOAD_TYPE payload_type);
@@ -252,7 +253,7 @@ protected:
 	uint16_t m_length;	//total substructure length (bytes), for deserialization
 };
 
-class Spi : public IkePayloadSubstructure {
+class Spi : public Object {
 public:
 	static TypeId GetTypeId (void);
 	Spi ();
@@ -372,12 +373,7 @@ class IkeTransformSubStructure : public IkePayloadSubstructure {
      * |                                                               |
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 */
-
 public:
-	static TypeId GetTypeId (void);
-	IkeTransformSubStructure ();
-	virtual ~IkeTransformSubStructure ();
-
 	enum TRANSFORM_TYPE {
 		NO_TRANSFORM = 0,
 		ENCRYPTION_ALGORITHM = 1,
@@ -446,6 +442,10 @@ public:
 		EXTENDED_SEQUENCE_NUMBERS = 1
 	};
 
+public:
+	static TypeId GetTypeId (void);
+	IkeTransformSubStructure ();
+	virtual ~IkeTransformSubStructure ();
 public:	//Header Override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
@@ -841,12 +841,7 @@ class IkeNotifySubstructure : public IkePayloadSubstructure {
 		COOKIE = 16390,
 		USE_TRANSPORT_MODE = 16391,
 		HTTP_CERT_LOOKUP_SURRPOTED = 16392,
-		REKEY_SA = 16393,
-		//GSAM
-		SPI_REJECTION = 200001,
-		GSA_Q_SPI_NOTIFICATION = 20002,
-		GSA_R_SPI_NOTIFICATION = 20003,
-		GSA_ACKNOWLEDGEDMENT = 20004
+		REKEY_SA = 16393
 	};
 
 public:
@@ -859,6 +854,9 @@ public:	//Header Override
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
+public:	//non_const
+	void SetSpi (uint32_t spi);
+	void SetSpi (Spi spi);
 public:	//const
 	uint8_t GetNotifyMessageType (void) const;
 	Spi GetSpi (void) const;
@@ -1191,6 +1189,57 @@ public:
 	static Ptr<IkeGsaProposal> GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type);
 private:
 	IkeGsaProposal::GSA_TYPE m_gsa_type;
+};
+
+class IkeGroupNotifySubstructure : public IkePayloadSubstructure {
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |  Protocol ID  |   SPI Size    |Notify Msg Type|    Num Spi    |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                   <Source Traffic Selector>                   ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                <Destination Traffic Selector>                 ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                            SPIs                               ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+public:
+	enum NOTIFY_MESSAGE_TYPE {
+		SPI_REJECTION = 1,
+		GSA_Q_SPI_NOTIFICATION = 2,
+		GSA_R_SPI_NOTIFICATION = 3,
+		GSA_ACKNOWLEDGEDMENT = 4
+	};
+public:
+	static TypeId GetTypeId (void);
+	IkeGroupNotifySubstructure ();
+	virtual ~IkeGroupNotifySubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:	//non_const
+	void PushBackSpi (Ptr<Spi> ptr_spi);
+public:	//const
+	uint8_t GetNotifyMessageType (void) const;
+	const std::list<Ptr<Spi> >& GetSpis (void) const;
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+private:
+	uint8_t m_protocol_id;
+	uint8_t m_spi_size;		//not "only" for Deserialization
+	uint8_t m_notify_message_type;
+	uint8_t m_num_spis;
+	IkeTrafficSelector m_ts_src;
+	IkeTrafficSelector m_ts_dest;
+	std::list<Ptr<Spi> > m_lst_ptr_spis;
 };
 
 }  // namespace ns3

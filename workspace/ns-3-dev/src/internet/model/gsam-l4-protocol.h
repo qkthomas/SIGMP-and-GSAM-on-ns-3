@@ -97,7 +97,7 @@ private:	//phase 2, GM, NQ
 private:	//phase 2, GM
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProposal> gsa_q_proposal, const Ptr<IkeGsaProposal> gsa_r_proposal);
-	void RejectGsaQ (Ptr<GsamSession> session, uint32_t spi);
+	void RejectGsaQ (Ptr<GsamSession> session, uint32_t gsa_q_spi);
 	void AcceptGsaPair (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
 	void InstallGsaPair (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
 	void SendAcceptAck (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
