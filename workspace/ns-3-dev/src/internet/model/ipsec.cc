@@ -1915,6 +1915,21 @@ IpSecSADatabase::GetInfo (void) const
 	return this->GetRootDatabase()->GetInfo();
 }
 
+void
+IpSecSADatabase::GetSpis (std::list<Ptr<Spi> >& retval) const
+{
+	NS_LOG_FUNCTION (this);
+
+	for (	std::list<Ptr<IpSecSAEntry> >::const_iterator const_it = this->m_lst_entries.begin();
+			const_it != this->m_lst_entries.end();
+			const_it++)
+	{
+		Ptr<Spi> spi = Create<Spi>();
+		spi->SetValueFromUint32((*const_it)->GetSpi());
+		retval.push_back(spi);
+	}
+}
+
 Ptr<IpSecSAEntry>
 IpSecSADatabase::CreateIpSecSAEntry (Spi spi)
 {
@@ -2358,6 +2373,15 @@ IpSecPolicyEntry::GetTrafficSelectorDest (void) const
 	return retval;
 }
 
+void
+IpSecPolicyEntry::GetInboundSpis (std::list<Ptr<Spi> >& retval) const
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecSADatabase> inbound_sad = this->m_ptr_inbound_sad;
+	inbound_sad->GetSpis(retval);
+}
+
 /********************************************************
  *        IpSecPolicyDatabase
  ********************************************************/
@@ -2464,6 +2488,19 @@ IpSecPolicyDatabase::GetInfo (void) const
 	NS_LOG_FUNCTION (this);
 
 	return this->GetRootDatabase()->GetInfo();
+}
+
+void
+IpSecPolicyDatabase::GetInboundSpis (std::list<Ptr<Spi> >& retval) const
+{
+	NS_LOG_FUNCTION (this);
+
+	for (	std::list<Ptr<IpSecPolicyEntry> >::const_iterator const_it = this->m_lst_entries.begin();
+			const_it != this->m_lst_entries.end();
+			const_it++)
+	{
+		(*const_it)->GetInboundSpis(retval);
+	}
 }
 
 /********************************************************

@@ -857,6 +857,12 @@ Spi::SetValueFromUint64 (uint64_t value)
 	GsamUtility::Uint64ToBytes(this->m_lst_var, value);
 }
 
+void
+Spi::Copy (Spi spi)
+{
+	NS_LOG_FUNCTION (this);
+}
+
 /********************************************************
  *        IkePayload
  ********************************************************/
@@ -4691,7 +4697,46 @@ IkeGroupNotifySubstructure::PushBackSpi (Ptr<Spi> ptr_spi)
 		NS_ASSERT (false);
 	}
 
+	if (this->m_spi_size != ptr_spi->GetSerializedSize())
+	{
+		NS_ASSERT (false);
+	}
+
 	this->m_lst_ptr_spis.push_back(ptr_spi);
+	this->m_num_spis++;
+}
+
+void
+IkeGroupNotifySubstructure::PushBackSpis (const std::list<Ptr<Spi> >& lst_ptr_spis)
+{
+	NS_LOG_FUNCTION (this);
+
+	for (	std::list<Ptr<Spi> >::const_iterator const_it = lst_ptr_spis.begin();
+			const_it != lst_ptr_spis.end();
+			const_it++)
+	{
+		if (this->m_spi_size != (*const_it)->GetSerializedSize())
+		{
+			NS_ASSERT (false);
+		}
+
+		Ptr<Spi> ptr_spi = Create<Spi>();
+
+		if (this->m_spi_size == 4)
+		{
+			ptr_spi->SetValueFromUint32((*const_it)->ToUint32());
+		}
+		else if (this->m_spi_size == 8)
+		{
+			ptr_spi->SetValueFromUint64((*const_it)->ToUint64());
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+
+		this->m_lst_ptr_spis.push_back(ptr_spi);
+	}
 }
 
 uint8_t

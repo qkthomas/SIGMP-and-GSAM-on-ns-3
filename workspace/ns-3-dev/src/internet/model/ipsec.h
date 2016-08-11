@@ -380,6 +380,7 @@ public:	//const
 	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 	Ptr<IpSecSAEntry> GetIpsecSAEntry (uint32_t spi) const;
 	Ptr<GsamInfo> GetInfo (void) const;
+	void GetSpis (std::list<Ptr<Spi> >& retval) const;
 private:
 	void PushBackEntry (Ptr<IpSecSAEntry> entry);
 private:	//fields
@@ -433,6 +434,7 @@ public:	//const
 	Ptr<IpSecPolicyDatabase> GetSPD (void) const;
 	IkeTrafficSelector GetTrafficSelectorSrc (void) const;
 	IkeTrafficSelector GetTrafficSelectorDest (void) const;
+	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
 public:
 	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
 	void SetProtocolNum (uint8_t protocol_id);
@@ -493,6 +495,7 @@ public:
 public:	//const
 	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 	Ptr<GsamInfo> GetInfo (void) const;
+	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
 private:	//fields
 	Ptr<IpSecDatabase> m_ptr_root_database;
 	std::list<Ptr<IpSecPolicyEntry> > m_lst_entries;

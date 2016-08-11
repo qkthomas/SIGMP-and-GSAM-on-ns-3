@@ -50,6 +50,11 @@ public:
 		TRANSPORT = 1,
 		TUNNEL = 2
 	};
+
+	enum SPI_SIZE {
+		IKE_SPI_SIZE = 8,
+		AH_ESP_SPI_SIZE = 4
+	};
 };
 
 class IkePayloadHeader : public Header {
@@ -253,7 +258,7 @@ protected:
 	uint16_t m_length;	//total substructure length (bytes), for deserialization
 };
 
-class Spi : public Object {
+class Spi : public IkePayloadSubstructure {
 public:
 	static TypeId GetTypeId (void);
 	Spi ();
@@ -270,6 +275,7 @@ public:	//self-defined
 	uint64_t ToUint64 (void) const;
 	void SetValueFromUint32 (uint32_t value);
 	void SetValueFromUint64 (uint64_t value);
+	void Copy (Spi spi);
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
@@ -1227,6 +1233,7 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//non_const
 	void PushBackSpi (Ptr<Spi> ptr_spi);
+	void PushBackSpis (const std::list<Ptr<Spi> >& lst_ptr_spis);
 public:	//const
 	uint8_t GetProtocolId (void) const;
 	uint8_t GetSpiSize (void) const;

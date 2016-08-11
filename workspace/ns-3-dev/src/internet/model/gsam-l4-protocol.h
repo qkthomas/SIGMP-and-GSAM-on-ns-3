@@ -96,11 +96,30 @@ private:	//phase 2, GM, NQ
 	void RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi);
 private:	//phase 2, GM
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessGsaPushGM (Ptr<GsamSession> session, const Ptr<IkeGsaProposal> gsa_q_proposal, const Ptr<IkeGsaProposal> gsa_r_proposal);
-	void RejectGsaQ (Ptr<GsamSession> session, uint32_t gsa_q_spi);
-	void AcceptGsaPair (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
-	void InstallGsaPair (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
-	void SendAcceptAck (Ptr<GsamSession> session, uint32_t gsa_q_spi, uint32_t gsa_r_spi);
+	void ProcessGsaPushGM (	Ptr<GsamSession> session,
+							IkeTrafficSelector ts_src,
+							IkeTrafficSelector ts_dest,
+							const Ptr<IkeSaProposal> gsa_q_proposal,
+							const Ptr<IkeSaProposal> gsa_r_proposal);
+	void RejectGsaQ (	Ptr<GsamSession> session,
+						IkeTrafficSelector ts_src,
+						IkeTrafficSelector ts_dest,
+						const Ptr<IkeSaProposal> gsa_q_proposal);
+	void AcceptGsaPair (Ptr<GsamSession> session,
+						IkeTrafficSelector ts_src,
+						IkeTrafficSelector ts_dest,
+						const Ptr<IkeSaProposal> gsa_q_proposal,
+						const Ptr<IkeSaProposal> gsa_r_proposal);
+	void InstallGsaPair (	Ptr<GsamSession> session,
+							IkeTrafficSelector ts_src,
+							IkeTrafficSelector ts_dest,
+							const Ptr<IkeSaProposal> gsa_q_proposal,
+							const Ptr<IkeSaProposal> gsa_r_proposal);
+	void SendAcceptAck (Ptr<GsamSession> session,
+						IkeTrafficSelector ts_src,
+						IkeTrafficSelector ts_dest,
+						const Ptr<IkeSaProposal> gsa_q_proposal,
+						const Ptr<IkeSaProposal> gsa_r_proposal);
 private:	//phase 2, NQ
 	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
