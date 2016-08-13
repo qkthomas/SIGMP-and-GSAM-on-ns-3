@@ -969,6 +969,9 @@ public:	//const
 public:	//static
 	static IkeTrafficSelector GenerateDefaultSigmpTs(void);
 	static IkeTrafficSelector GenerateDestSecureGroupTs(Ipv4Address grpup_adress);
+public:	//operator
+	friend bool operator == (const IkeTrafficSelector& lhs, const IkeTrafficSelector& rhs);
+	friend bool operator != (const IkeTrafficSelector& lhs, const IkeTrafficSelector& rhs);
 private:
 	uint8_t m_ts_type;
 	uint8_t m_ip_protocol_id;

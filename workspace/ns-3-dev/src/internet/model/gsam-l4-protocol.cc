@@ -227,7 +227,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session)
 	packet->AddHeader(sa_payload_init);
 	packet->AddHeader(ikeheader);
 
-	this->SendMessage(session, packet, true);
+	this->DoSendMessage(session, packet, true);
 }
 
 void
@@ -265,33 +265,29 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 	IkePayload id;
 	id.SetPayload(IkeIdSubstructure::GenerateIpv4Substructure(session->GetGroupAddress(), false));
 	id.SetNextPayloadType(auth.GetPayloadType());
-	//setting up HDR
-	IkeHeader ikeheader;
-	ikeheader.SetInitiatorSpi(session->GetInitSaInitiatorSpi());
-	ikeheader.SetResponderSpi(session->GetInitSaResponderSpi());
-	ikeheader.SetIkev2Version();
-	ikeheader.SetExchangeType(IkeHeader::IKE_AUTH);
-	ikeheader.SetAsInitiator();
+
 	//pause setting up HDR, start setting up a kek sa
 	session->EtablishGsamKekSa();
 	session->SetKekSaInitiatorSpi(kek_sa_spi.ToUint64());
-	//continue setting up hdr
-	ikeheader.SetMessageId(session->GetCurrentMessageId());
-	ikeheader.SetNextPayloadType(id.GetPayloadType());
-	ikeheader.SetLength(ikeheader.GetSerializedSize() +
-			auth.GetSerializedSize() +
-			sai2.GetSerializedSize() +
-			tsi.GetSerializedSize() +
-			tsr.GetSerializedSize());
 
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(tsr);
 	packet->AddHeader(tsi);
 	packet->AddHeader(sai2);
 	packet->AddHeader(auth);
-	packet->AddHeader(ikeheader);
 
-	this->SendMessage(session, packet, true);
+	uint32_t length_beside_hedaer = auth.GetSerializedSize() +
+									sai2.GetSerializedSize() +
+									tsi.GetSerializedSize() +
+									tsr.GetSerializedSize();
+
+	this->SendMessage(	session,
+						IkeHeader::IKE_AUTH,
+						false,
+						id.GetPayloadType(),
+						length_beside_hedaer,
+						packet,
+						true);
 }
 
 void
@@ -377,27 +373,19 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	IkePayload gsa_push_proposal_payload;
 	gsa_push_proposal_payload.SetPayload(gsa_payload_substructure);
 
-	//setting up HDR
-	IkeHeader ikeheader;
-	ikeheader.SetInitiatorSpi(session->GetKekSaInitiatorSpi());
-	ikeheader.SetResponderSpi(session->GetKekSaResponderSpi());
-	ikeheader.SetIkev2Version();
-	ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
-	ikeheader.SetAsInitiator();
-
-	ikeheader.SetMessageId(session->GetCurrentMessageId());
-	ikeheader.SetNextPayloadType(gsa_push_proposal_payload.GetPayloadType());
-	ikeheader.SetLength(ikeheader.GetSerializedSize() +
-			gsa_push_proposal_payload.GetSerializedSize());
+	uint32_t length_beside_ikeheader = gsa_push_proposal_payload.GetSerializedSize();
 
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(gsa_push_proposal_payload);
-	packet->AddHeader(ikeheader);
 
-	Ptr<Packet> packet_without_ikeheader = Create<Packet>();
-	packet_without_ikeheader->AddHeader(gsa_push_proposal_payload);
+	this->SendMessage(	session,
+						IkeHeader::INFORMATIONAL,
+						false,
+						gsa_push_proposal_payload.GetPayloadType(),
+						length_beside_ikeheader,
+						packet,
+						true);
 
-	this->SendMessage(session, packet, true);
 	this->DeliverToNQs(gsa_push_session, gsa_push_proposal_payload);
 }
 
@@ -460,25 +448,19 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 
 	//now we have a SA payload with  spis from all GMs' sessions
 
-	//setting up HDR
-	IkeHeader ikeheader;
-	ikeheader.SetInitiatorSpi(session->GetKekSaInitiatorSpi());
-	ikeheader.SetResponderSpi(session->GetKekSaResponderSpi());
-	ikeheader.SetIkev2Version();
-	ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
-	ikeheader.SetAsInitiator();
-
-	ikeheader.SetMessageId(session->GetCurrentMessageId());
-	ikeheader.SetNextPayloadType(payload_gsa_nq.GetPayloadType());
-	ikeheader.SetLength(ikeheader.GetSerializedSize() +
-				payload_gsa_nq.GetSerializedSize());
+	uint32_t length_beside_ikheader = payload_gsa_nq.GetSerializedSize();
 
 	Ptr<Packet> packet = Create<Packet>();
 
 	packet->AddHeader(payload_gsa_nq);
-	packet->AddHeader(ikeheader);
 
-	this->SendMessage(session, packet, true);
+	this->SendMessage(session,
+			IkeHeader::INFORMATIONAL,
+			false,
+			payload_gsa_nq.GetPayloadType(),
+			length_beside_ikheader,
+			packet,
+			true);
 }
 
 void
@@ -503,31 +485,66 @@ GsamL4Protocol::DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePay
 		gsa_push_session->PushBackNqSession(nq_session);
 		nq_session->SetGsaPushSession(gsa_push_session);
 
+		uint32_t length_beside_ikeheader = gsa_push_proposal_payload.GetSerializedSize();
+
 		Ptr<Packet> packet = Create<Packet>();
-
-		//setting up HDR
-		IkeHeader ikeheader;
-		ikeheader.SetInitiatorSpi(nq_session->GetKekSaInitiatorSpi());
-		ikeheader.SetResponderSpi(nq_session->GetKekSaResponderSpi());
-		ikeheader.SetIkev2Version();
-		ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
-		ikeheader.SetAsInitiator();
-
-		ikeheader.SetMessageId(nq_session->GetCurrentMessageId());
-		ikeheader.SetNextPayloadType(gsa_push_proposal_payload.GetPayloadType());
-		ikeheader.SetLength(ikeheader.GetSerializedSize() +
-				packet->GetSize());
-
 		packet->AddHeader(gsa_push_proposal_payload);
-		packet->AddHeader(ikeheader);
-		this->SendMessage(nq_session, packet, true);
+
+		this->SendMessage(		nq_session,
+								IkeHeader::INFORMATIONAL,
+								false,
+								gsa_push_proposal_payload.GetPayloadType(),
+								length_beside_ikeheader,
+								packet,
+								true);
 	}
 
 
 }
 
 void
-GsamL4Protocol::SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit)
+GsamL4Protocol::SendMessage (	Ptr<GsamSession> session,
+								IkeHeader::EXCHANGE_TYPE exchange_type,
+								bool is_responder,
+								IkePayloadHeader::PAYLOAD_TYPE first_payload_type,
+								uint32_t length_beside_ikeheader,
+								Ptr<Packet> packet,
+								bool retransmit)
+{
+	NS_LOG_FUNCTION (this);
+
+	//setting up HDR
+	IkeHeader ikeheader;
+	ikeheader.SetInitiatorSpi(session->GetKekSaInitiatorSpi());
+	ikeheader.SetResponderSpi(session->GetKekSaResponderSpi());
+	ikeheader.SetIkev2Version();
+	ikeheader.SetExchangeType(exchange_type);
+	if (true == is_responder)
+	{
+		ikeheader.SetAsResponder();
+	}
+	else
+	{
+		ikeheader.SetAsInitiator();
+	}
+	ikeheader.SetMessageId(session->GetCurrentMessageId());
+	ikeheader.SetNextPayloadType(first_payload_type);
+	ikeheader.SetLength(ikeheader.GetSerializedSize() + length_beside_ikeheader);
+
+	packet->AddHeader(ikeheader);
+
+	bool actual_retransmit = false;
+
+	if (false == is_responder)
+	{
+		actual_retransmit = retransmit;
+	}
+
+	this->DoSendMessage(session, packet, actual_retransmit);
+}
+
+void
+GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -547,7 +564,7 @@ GsamL4Protocol::SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool 
 		{
 			session->GetRetransmitTimer().Cancel();
 		}
-		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
+		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, packet, session_retransmit);
 		session->GetRetransmitTimer().Schedule(GsamConfig::GetDefaultRetransmitTimeout());
 	}
@@ -723,33 +740,24 @@ GsamL4Protocol::RespondIkeSaInit (Ptr<GsamSession> session)
 	sa_r_1.SetPayload(IkeSaPayloadSubstructure::GenerateInitIkePayload());
 	sa_r_1.SetNextPayloadType(ke_r.GetPayloadType());
 
-	IkeHeader header;
-	header.SetAsResponder();
-	header.SetInitiatorSpi(session->GetInitSaInitiatorSpi());
-	header.SetResponderSpi(session->GetInitSaResponderSpi());
-	header.SetMessageId(session->GetCurrentMessageId());
-	header.SetIkev2Version();
-	header.SetExchangeType(IkeHeader::IKE_SA_INIT);
-	header.SetNextPayloadType(sa_r_1.GetPayloadType());
-	header.SetLength(	n_r.GetSerializedSize() +
-						ke_r.GetSerializedSize() +
-						sa_r_1.GetSerializedSize() +
-						header.GetSerializedSize());
+	uint32_t length_beside_ikeheader = 	n_r.GetSerializedSize() +
+										ke_r.GetSerializedSize() +
+										sa_r_1.GetSerializedSize();
 
 	//adding to packet
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(n_r);
 	packet->AddHeader(ke_r);
 	packet->AddHeader(sa_r_1);
-	packet->AddHeader(header);
 
 	//ready to send
-	this->SendMessage(session, packet, true);
-
-	//setting up retransmission
-	session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::SendMessage, this);
-	session->GetRetransmitTimer().SetArguments(session, packet, false);
-	session->GetRetransmitTimer().Schedule(session->GetInfo()->GetRetransmissionDelay());
+	this->SendMessage(	session,
+						IkeHeader::INFORMATIONAL,
+						true,
+						sa_r_1.GetPayloadType(),
+						length_beside_ikeheader,
+						packet,
+						true);
 }
 
 void
@@ -991,31 +999,25 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 	IkePayload auth;
 	auth.SetPayload(IkeAuthSubstructure::GenerateEmptyAuthSubstructure());
 	auth.SetNextPayloadType(sar2.GetPayloadType());
-	//setting up HDR
-	IkeHeader ikeheader;
-	ikeheader.SetInitiatorSpi(session->GetInitSaInitiatorSpi());
-	ikeheader.SetResponderSpi(session->GetInitSaResponderSpi());
-	ikeheader.SetIkev2Version();
-	ikeheader.SetExchangeType(IkeHeader::IKE_AUTH);
-	ikeheader.SetAsResponder();
-	//pause setting up HDR, start setting up a kek sa
-	//continue setting up hdr
-	ikeheader.SetMessageId(session->GetCurrentMessageId());
-	ikeheader.SetNextPayloadType(auth.GetPayloadType());
-	ikeheader.SetLength(ikeheader.GetSerializedSize() +
-			auth.GetSerializedSize() +
-			sar2.GetSerializedSize() +
-			tsi.GetSerializedSize() +
-			tsr.GetSerializedSize());
+
+	uint32_t length_beside_ikeheader = 	auth.GetSerializedSize() +
+										sar2.GetSerializedSize() +
+										tsi.GetSerializedSize() +
+										tsr.GetSerializedSize();
 
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(tsr);
 	packet->AddHeader(tsi);
 	packet->AddHeader(sar2);
 	packet->AddHeader(auth);
-	packet->AddHeader(ikeheader);
 
-	this->SendMessage(session, packet, true);
+	this->SendMessage(	session,
+						IkeHeader::IKE_AUTH,
+						true,
+						auth.GetPayloadType(),
+						length_beside_ikeheader,
+						packet,
+						false);
 }
 
 void
@@ -1230,26 +1232,19 @@ GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session,
 	reject_gsa_q_spi_notify_payload.SetPayload(reject_gsa_q_spi_notify_substructure);
 	reject_gsa_q_spi_notify_payload.SetNextPayloadType(gsa_q_spis_report_notify_payload.GetPayloadType());
 
-	//setting up HDR
-	IkeHeader ikeheader;
-	ikeheader.SetInitiatorSpi(session->GetKekSaInitiatorSpi());
-	ikeheader.SetResponderSpi(session->GetKekSaResponderSpi());
-	ikeheader.SetIkev2Version();
-	ikeheader.SetExchangeType(IkeHeader::INFORMATIONAL);
-	ikeheader.SetAsResponder();
-
-	ikeheader.SetMessageId(session->GetCurrentMessageId());
-	ikeheader.SetNextPayloadType(reject_gsa_q_spi_notify_payload.GetPayloadType());
-	ikeheader.SetLength(ikeheader.GetSerializedSize() +
-			reject_gsa_q_spi_notify_payload.GetSerializedSize() +
-			gsa_q_spis_report_notify_payload.GetSerializedSize());
+	uint32_t length_beside_ikeheader = reject_gsa_q_spi_notify_payload.GetSerializedSize() +
+										gsa_q_spis_report_notify_payload.GetSerializedSize();
 
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(gsa_q_spis_report_notify_payload);
 	packet->AddHeader(reject_gsa_q_spi_notify_payload);
-	packet->AddHeader(ikeheader);
 
-	this->SendMessage(session, packet, false);
+	this->SendMessage(session,
+			IkeHeader::INFORMATIONAL,
+			true,
+			reject_gsa_q_spi_notify_payload.GetPayloadType(),
+			length_beside_ikeheader,
+			packet, false);
 }
 
 void
@@ -1260,6 +1255,8 @@ GsamL4Protocol::AcceptGsaPair (	Ptr<GsamSession> session,
 								const Ptr<IkeSaProposal> gsa_r_proposal)
 {
 	NS_LOG_FUNCTION (this);
+	this->InstallGsaPair(session, ts_src, ts_dest, gsa_q_proposal, gsa_r_proposal);
+	this->SendAcceptAck(session, ts_src, ts_dest, gsa_q_proposal, gsa_r_proposal);
 }
 
 void
@@ -1270,6 +1267,44 @@ GsamL4Protocol::InstallGsaPair (Ptr<GsamSession> session,
 								const Ptr<IkeSaProposal> gsa_r_proposal)
 {
 	NS_LOG_FUNCTION (this);
+	Ipv4Address group_address = session->GetGroupAddress();
+	if (ts_dest.GetStartingAddress() != group_address)
+	{
+		NS_ASSERT (false);
+	}
+	if (ts_dest.GetEndingAddress() != group_address)
+	{
+		NS_ASSERT (false);
+	}
+	Spi gsa_q_spi = gsa_q_proposal->GetSpi();
+	Spi gsa_r_spi = gsa_r_proposal->GetSpi();
+	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
+
+	if (policy == 0)
+	{
+		//policy should be created during phase 1 auth
+		NS_ASSERT (false);
+	}
+	else
+	{
+		IkeTrafficSelector policy_ts_src = policy->GetTrafficSelectorSrc();
+		if (policy_ts_src != ts_src)
+		{
+			NS_ASSERT (false);
+		}
+		IkeTrafficSelector policy_ts_dest = policy->GetTrafficSelectorDest();
+		if (policy_ts_dest != ts_dest)
+		{
+			NS_ASSERT (false);
+		}
+
+		Ptr<IpSecSAEntry> gsa_q = policy->GetInboundSAD()->CreateIpSecSAEntry(gsa_q_spi);
+		session->AssociateGsaQ(gsa_q);
+
+		Ptr<IpSecSAEntry> gsa_r = policy->GetOutboundSAD()->CreateIpSecSAEntry(gsa_r_spi);
+		session->SetRelatedGsaR(gsa_r);
+	}
+
 }
 
 void
@@ -1280,6 +1315,24 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 								const Ptr<IkeSaProposal> gsa_r_proposal)
 {
 	NS_LOG_FUNCTION (this);
+	Ptr<IkeGroupNotifySubstructure> ack_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(	GsamConfig::GetDefaultGSAProposalId(),
+																																IPsec::AH_ESP_SPI_SIZE,
+																																IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT,
+																																ts_src,
+																																ts_dest);
+	IkePayload ack_notify_payload;
+	ack_notify_payload.SetPayload(ack_notify_substructure);
+
+	Ptr<Packet> packet = Create<Packet>();
+	packet->AddHeader(ack_notify_payload);
+
+	this->SendMessage(session,
+			IkeHeader::INFORMATIONAL,
+			true,
+			ack_notify_payload.GetPayloadType(),
+			ack_notify_payload.GetSerializedSize(),
+			packet,
+			false);
 }
 
 void

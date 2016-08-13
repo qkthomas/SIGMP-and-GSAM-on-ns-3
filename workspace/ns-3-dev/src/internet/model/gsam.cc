@@ -3499,6 +3499,50 @@ IkeTrafficSelector::GenerateDestSecureGroupTs(Ipv4Address grpup_adress)
 
 }
 
+bool
+operator == (const IkeTrafficSelector& lhs, const IkeTrafficSelector& rhs)
+{
+	bool retval = true;
+
+	if (lhs.m_ts_type != rhs.m_ts_type)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_ip_protocol_id != rhs.m_ip_protocol_id)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_start_port != rhs.m_start_port)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_end_port != rhs.m_end_port)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_starting_address != rhs.m_starting_address)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_ending_address != rhs.m_ending_address)
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
+bool
+operator != (const IkeTrafficSelector& lhs, const IkeTrafficSelector& rhs)
+{
+	return !(lhs == rhs);
+}
+
 /********************************************************
  *        IkeTrafficSelectorSubstructure
  ********************************************************/

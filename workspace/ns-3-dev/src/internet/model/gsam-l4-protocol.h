@@ -64,7 +64,14 @@ public:	//exchanges, added by Lin Chen
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
 private:	//Sending, added by Lin Chen,
-	void SendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
+	void SendMessage (	Ptr<GsamSession> session,
+						IkeHeader::EXCHANGE_TYPE exchange_type,
+						bool is_responder,
+						IkePayloadHeader::PAYLOAD_TYPE first_payload_type,
+						uint32_t length_beside_ikeheader,
+						Ptr<Packet> packet,
+						bool retransmit);
+	void DoSendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit);
 private:	//phase 1, initiator
 	void HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
