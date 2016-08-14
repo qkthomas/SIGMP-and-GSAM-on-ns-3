@@ -315,6 +315,7 @@ public:	//const
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
 	Ipv4Address GetIpv4AddressId (void) const;
 	Ptr<IkePayloadSubstructure> GetPayloadSubstructure (void) const;
+	bool HasPayloadSubstructure (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
 	void SetSubstructure (Ptr<IkePayloadSubstructure> substructure);

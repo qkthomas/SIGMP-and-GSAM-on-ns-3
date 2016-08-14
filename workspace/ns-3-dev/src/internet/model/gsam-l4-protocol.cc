@@ -399,6 +399,8 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 	uint32_t length_beside_ikheader = 0;
 	Ptr<Packet> packet = Create<Packet>();
 
+	IkePayload previous_session_group_sa_payload;
+
 	for (	std::list<Ptr<GsamSessionGroup> >::iterator it = lst_session_groups.begin();
 			it != lst_session_groups.end();
 			it++)
@@ -406,8 +408,13 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 		Ptr<GsamSessionGroup> session_group = (*it);
 		if (session_group->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
 		{
-			//non nq session group
+			Ipv4Address group_address = session_group->GetGroupAddress();
+			if (group_address.Get() == 0)
+			{
+				NS_ASSERT (false);
+			}
 
+			//non nq session group
 			Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
 			Ptr<IpSecSAEntry> gsa_q = session_group->GetRelatedGsaQ();
 
@@ -427,12 +434,6 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 			}
 			else
 			{
-				Ipv4Address group_address = session_group->GetGroupAddress();
-				if (group_address.Get() == 0)
-				{
-					NS_ASSERT (false);
-				}
-
 				Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(group_address);
 				session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(gsa_q->GetSpi()), IkeGsaProposal::GSA_Q));
 
@@ -457,6 +458,16 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 
 				IkePayload session_group_sa_payload;
 				session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
+
+				if (true == previous_session_group_sa_payload.HasPayloadSubstructure())
+				{
+					previous_session_group_sa_payload.SetNextPayloadType(session_group_sa_payload.GetPayloadType());
+				}
+
+				packet->AddHeader(session_group_sa_payload);
+				length_beside_ikheader += session_group_sa_payload.GetSerializedSize();
+
+				previous_session_group_sa_payload = session_group_sa_payload;
 			}
 		}
 	}
@@ -466,7 +477,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 	this->SendMessage(session,
 			IkeHeader::INFORMATIONAL,
 			false,
-			payload_gsa_nq.GetPayloadType(),
+			previous_session_group_sa_payload.GetPayloadType(),
 			length_beside_ikheader,
 			packet,
 			true);

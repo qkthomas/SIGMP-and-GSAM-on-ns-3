@@ -1068,6 +1068,21 @@ IkePayload::GetPayloadSubstructure (void) const
 	return this->m_ptr_substructure;
 }
 
+bool
+IkePayload::HasPayloadSubstructure (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = true;
+
+	if (this->m_ptr_substructure == 0)
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
 //void
 //IkePayload::SetPayload (IkePayloadSubstructure substructure)
 //{
