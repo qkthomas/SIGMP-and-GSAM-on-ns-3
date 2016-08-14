@@ -1079,7 +1079,7 @@ IkePayload::GetPayloadSubstructure (void) const
 //}
 
 void
-IkePayload::SetPayload (Ptr<IkePayloadSubstructure> substructure)
+IkePayload::SetSubstructure (Ptr<IkePayloadSubstructure> substructure)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1104,18 +1104,18 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 	switch (payload_type)
 	{
 	case IkePayloadHeader::SECURITY_ASSOCIATION:
-		retval.SetPayload(Create<IkeSaPayloadSubstructure>());
+		retval.SetSubstructure(Create<IkeSaPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::KEY_EXCHANGE:
-		retval.SetPayload(Create<IkeKeyExchangeSubStructure>());
+		retval.SetSubstructure(Create<IkeKeyExchangeSubStructure>());
 	break;
 	case IkePayloadHeader::IDENTIFICATION_INITIATOR:
-		retval.SetPayload(Create<IkeIdSubstructure>());
+		retval.SetSubstructure(Create<IkeIdSubstructure>());
 		break;
 	case IkePayloadHeader::IDENTIFICATION_RESPONDER:
 		ptr_substructure = Create<IkeIdSubstructure>();
 		DynamicCast<IkeIdSubstructure>(ptr_substructure)->SetResponder();
-		retval.SetPayload(ptr_substructure);
+		retval.SetSubstructure(ptr_substructure);
 		break;
 	case IkePayloadHeader::CERTIFICATE:
 		//not implemented
@@ -1127,49 +1127,49 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 		break;
 	case IkePayloadHeader::AUTHENTICATION:
 		//not implemented
-		retval.SetPayload(Create<IkeAuthSubstructure>());
+		retval.SetSubstructure(Create<IkeAuthSubstructure>());
 		break;
 	case IkePayloadHeader::NONCE:
 		//not implemented
-		retval.SetPayload(Create<IkeNonceSubstructure>());
+		retval.SetSubstructure(Create<IkeNonceSubstructure>());
 		break;
 	case IkePayloadHeader::NOTIFY:
 		//not implemented
-		retval.SetPayload(Create<IkeNotifySubstructure>());
+		retval.SetSubstructure(Create<IkeNotifySubstructure>());
 		break;
 	case IkePayloadHeader::DELETE:
 		//not implemented
-		retval.SetPayload(Create<IkeDeletePayloadSubstructure>());
+		retval.SetSubstructure(Create<IkeDeletePayloadSubstructure>());
 		break;
 	case IkePayloadHeader::VENDOR_ID:
 		//not implemented
 		NS_ASSERT (false);
 		break;
 	case IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR:
-		retval.SetPayload(Create<IkeTrafficSelectorSubstructure>());
+		retval.SetSubstructure(Create<IkeTrafficSelectorSubstructure>());
 		break;
 	case IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER:
 		ptr_substructure = Create<IkeTrafficSelectorSubstructure>();
 		DynamicCast<IkeTrafficSelectorSubstructure>(ptr_substructure)->SetResponder();
-		retval.SetPayload(ptr_substructure);
+		retval.SetSubstructure(ptr_substructure);
 		break;
 	case IkePayloadHeader::ENCRYPTED_AND_AUTHENTICATED:
 		//not implemented
-		retval.SetPayload(Create<IkeEncryptedPayloadSubstructure>());
+		retval.SetSubstructure(Create<IkeEncryptedPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::CONFIGURATION:
 		//not implemented
-		retval.SetPayload(Create<IkeConfigPayloadSubstructure>());
+		retval.SetSubstructure(Create<IkeConfigPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::EXTENSIBLE_AUTHENTICATION:
 		//not implemented
 		NS_ASSERT (false);
 		break;
 	case IkePayloadHeader::GROUP_SECURITY_ASSOCIATION:
-		retval.SetPayload(Create<IkeGsaPayloadSubstructure>());
+		retval.SetSubstructure(Create<IkeGsaPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::GROUP_NOTIFY:
-		retval.SetPayload(Create<IkeGroupNotifySubstructure>());
+		retval.SetSubstructure(Create<IkeGroupNotifySubstructure>());
 		break;
 	default:
 		NS_ASSERT (false);
@@ -2239,6 +2239,15 @@ IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (IkeTrafficSelector ts_src, I
 	Ptr<IkeGsaPayloadSubstructure> retval = Create<IkeGsaPayloadSubstructure>();
 	retval->m_src_ts = ts_src;
 	retval->m_dest_ts = ts_dest;
+	return retval;
+}
+
+Ptr<IkeGsaPayloadSubstructure>
+IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (Ipv4Address group_address)
+{
+	IkeTrafficSelector ts_src = IkeTrafficSelector::GenerateSrcSecureGroupTs();
+	IkeTrafficSelector ts_dest = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
+	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (ts_src, ts_dest);
 	return retval;
 }
 
@@ -3479,6 +3488,23 @@ IkeTrafficSelector::GenerateDefaultSigmpTs(void)
 
 	return retval;
 
+}
+
+IkeTrafficSelector
+IkeTrafficSelector::GenerateSrcSecureGroupTs (void)
+{
+	IkeTrafficSelector retval;
+	retval.m_ts_type = IkeTrafficSelector::TS_IPV4_ADDR_RANGE;
+	retval.m_ip_protocol_id = GsamConfig::GetDefaultIpsecProtocolId();
+	retval.m_start_port = 0;
+	retval.m_end_port = 0;
+	retval.m_starting_address = Ipv4Address ("0.0.0.0");
+	retval.m_ending_address = Ipv4Address ("0.0.0.0");
+
+	//header = 4; 2 ports = 4; 2 ipv4 address = 8
+	retval.m_selector_length = 16;	//16 bytes
+
+	return retval;
 }
 
 IkeTrafficSelector

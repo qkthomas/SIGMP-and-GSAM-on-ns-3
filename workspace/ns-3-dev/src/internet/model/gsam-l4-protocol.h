@@ -100,7 +100,6 @@ private:	//phase 2, Q
 private:	//phase 2, GM, NQ
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi);
 private:	//phase 2, GM
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (	Ptr<GsamSession> session,
@@ -130,6 +129,7 @@ private:	//phase 2, GM
 private:	//phase 2, NQ
 	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
+	void RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc

@@ -317,7 +317,7 @@ public:	//const
 	Ptr<IkePayloadSubstructure> GetPayloadSubstructure (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
-	void SetPayload (Ptr<IkePayloadSubstructure> substructure);
+	void SetSubstructure (Ptr<IkePayloadSubstructure> substructure);
 	void SetNextPayloadType (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 public:	//static
 	/*
@@ -558,9 +558,9 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//static
-	static Ptr<IkeSaPayloadSubstructure > GenerateInitIkePayload (void);
-	static Ptr<IkeSaPayloadSubstructure > GenerateAuthIkePayload (Spi spi);
-	static Ptr<IkeSaPayloadSubstructure > GenerateGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
+	static Ptr<IkeSaPayloadSubstructure> GenerateInitIkePayload (void);
+	static Ptr<IkeSaPayloadSubstructure> GenerateAuthIkePayload (Spi spi);
+	static Ptr<IkeSaPayloadSubstructure> GenerateGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
 public:	//self-defined
 	void PushBackProposal (Ptr<IkeSaProposal> proposal);
 	void PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals);
@@ -611,6 +611,7 @@ public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
 	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest);
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (Ipv4Address group_address);
 public:	//const
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
@@ -968,6 +969,7 @@ public:	//const
 	Ipv4Address GetEndingAddress (void) const;
 public:	//static
 	static IkeTrafficSelector GenerateDefaultSigmpTs(void);
+	static IkeTrafficSelector GenerateSrcSecureGroupTs (void);
 	static IkeTrafficSelector GenerateDestSecureGroupTs(Ipv4Address grpup_adress);
 public:	//operator
 	friend bool operator == (const IkeTrafficSelector& lhs, const IkeTrafficSelector& rhs);
