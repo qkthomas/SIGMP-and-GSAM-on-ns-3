@@ -1390,15 +1390,58 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 {
 	NS_LOG_FUNCTION (this);
 
+	if (ts_src.GetStartingAddress() == ts_src.GetEndingAddress())
+	{
+		//ok
+		if (ts_src.GetStartingAddress().Get() == 0)
+		{
+			//ok
+		}
+		else
+		{
+			//not ok
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
+	if (ts_dest.GetStartingAddress() == ts_dest.GetEndingAddress())
+	{
+		//ok
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
+	Ipv4Address group_address = ts_dest.GetEndingAddress();
+
 	if (gsa_proposals.size() == 0)
+	{
+		//Maybe ok?
+		//empty session group
+		//probably Q is waiting for reply from designated GM
+	}
+	else if (gsa_proposals.size() == 1)
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+	else //(gsa_proposals.size() >= 2)
 	{
 		//ok
 	}
 
-	if (gsa_proposals.size() == 1)
+	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = gsa_proposals.begin();
+			const_it != gsa_proposals.end();
+			const_it++)
 	{
-		//not ok
-		NS_ASSERT (false);
+		const Ptr<IkeGsaProposal> gsa_proposal = DynamicCast<IkeGsaProposal>(*const_it);
 	}
 }
 
