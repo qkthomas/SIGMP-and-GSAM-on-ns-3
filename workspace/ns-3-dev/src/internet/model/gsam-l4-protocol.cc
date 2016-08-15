@@ -484,12 +484,6 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::Send_GSA_Acknowledgedment (Ptr<GsamSession> session)
-{
-	NS_LOG_FUNCTION (this);
-}
-
-void
 GsamL4Protocol::DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload)
 {
 	NS_LOG_FUNCTION (this);
@@ -1138,16 +1132,49 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 {
 	NS_LOG_FUNCTION (this);
 
-	IkePayload pushed_gsa_payload;
-	pushed_gsa_payload.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+	IkePayloadHeader::PAYLOAD_TYPE ikeheader_next_payloadtype = ikeheader.GetNextPayloadType();
 
-	packet->RemoveHeader(pushed_gsa_payload);
+	if (ikeheader.GetNextPayloadType() == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
+	{
+		//ok
+	}
+	else if (ikeheader.GetNextPayloadType() == IkePayloadHeader::NO_NEXT_PAYLOAD)
+	{
+		//empty ike packet, ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
 
-	Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = DynamicCast<IkeGsaPayloadSubstructure>(pushed_gsa_payload.GetSubstructure());
+	bool go_on = false;
 
-	std::list<Ptr<IkeSaProposal> > proposals = gsa_payload_substructure->GetProposals();
+	do {
+		IkePayload pushed_gsa_payload;
+		pushed_gsa_payload.GetEmptyPayloadFromPayloadType(ikeheader_next_payloadtype);
 
-	this->ProcessGsaPushNQ(session, proposals);
+		packet->RemoveHeader(pushed_gsa_payload);
+
+		Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = DynamicCast<IkeGsaPayloadSubstructure>(pushed_gsa_payload.GetSubstructure());
+
+		this->ProcessGsaPushNQ(	session,
+								gsa_payload_substructure->GetSourceTrafficSelector(),
+								gsa_payload_substructure->GetDestTrafficSelector(),
+								gsa_payload_substructure->GetProposals());
+
+		if (pushed_gsa_payload.GetNextPayloadType() == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
+		{
+			go_on = true;
+		}
+		else if (pushed_gsa_payload.GetNextPayloadType() ==IkePayloadHeader::NO_NEXT_PAYLOAD)
+		{
+			go_on = false;
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	} while (true == go_on);
 }
 
 void
@@ -1356,7 +1383,10 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 }
 
 void
-GsamL4Protocol::ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSaProposal> >& gsa_proposals)
+GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
+									IkeTrafficSelector ts_src,
+									IkeTrafficSelector ts_dest,
+									const std::list<Ptr<IkeSaProposal> >& gsa_proposals)
 {
 	NS_LOG_FUNCTION (this);
 

@@ -62,7 +62,6 @@ public:	//exchanges, added by Lin Chen
 	void Send_GSA_PUSH (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
-	void Send_GSA_Acknowledgedment (Ptr<GsamSession> session);
 private:	//Sending, added by Lin Chen,
 	void SendMessage (	Ptr<GsamSession> session,
 						IkeHeader::EXCHANGE_TYPE exchange_type,
@@ -128,7 +127,10 @@ private:	//phase 2, GM
 						const Ptr<IkeSaProposal> gsa_r_proposal);
 private:	//phase 2, NQ
 	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessGsaPushNQ (Ptr<GsamSession> session, const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
+	void ProcessGsaPushNQ (	Ptr<GsamSession> session,
+							IkeTrafficSelector ts_src,
+							IkeTrafficSelector ts_dest,
+							const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
 	void RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
