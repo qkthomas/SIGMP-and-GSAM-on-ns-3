@@ -3729,16 +3729,11 @@ IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_ad
 {
 	Ptr<IkeTrafficSelectorSubstructure> retval = Create<IkeTrafficSelectorSubstructure>();
 
-	retval->m_num_of_tss = 1;
-	retval->m_lst_traffic_selectors.push_back(IkeTrafficSelector::GenerateDestSecureGroupTs(group_address));
 	retval->m_length = 4;
-
-	for (	std::list<IkeTrafficSelector>::const_iterator const_it = retval->m_lst_traffic_selectors.begin();
-			const_it != retval->m_lst_traffic_selectors.end();
-			const_it++)
-	{
-		retval->m_length += const_it->GetSerializedSize();
-	}
+	retval->m_num_of_tss = 1;
+	IkeTrafficSelector ts = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
+	retval->m_lst_traffic_selectors.push_back(ts);
+	retval->m_length += ts.GetSerializedSize();
 
 	if (true == is_responder)
 	{
@@ -4512,20 +4507,6 @@ IkeGsaProposal::SetGsaType (IkeGsaProposal::GSA_TYPE gsa_type)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_gsa_type = gsa_type;
-}
-
-bool
-IkeGsaProposal::IsGsa (void) const
-{
-	NS_LOG_FUNCTION (this);
-	bool retval = true;
-
-	if (this->m_gsa_type == IkeGsaProposal::UNINITIALIZED)
-	{
-		retval = false;
-	}
-
-	return retval;
 }
 
 bool

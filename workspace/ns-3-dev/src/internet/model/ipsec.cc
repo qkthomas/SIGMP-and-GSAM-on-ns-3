@@ -1302,6 +1302,7 @@ GsamSession::AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group)
 void
 GsamSession::AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy)
 {
+	NS_LOG_FUNCTION (this);
 	if (policy == 0)
 	{
 		NS_ASSERT (false);
@@ -1318,6 +1319,7 @@ GsamSession::AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy)
 void
 GsamSession::SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 {
+	NS_LOG_FUNCTION (this);
 	if (gsa_push_session == 0)
 	{
 		NS_ASSERT (false);
@@ -1333,6 +1335,39 @@ GsamSession::SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 	gsa_push_session->SetGmSession(this);
 
 }
+
+void
+GsamSession::EtablishPolicy (Ipv4Address group_address,
+								uint8_t protocol_id,
+								IPsec::PROCESS_CHOICE policy_process_choice,
+								IPsec::MODE ipsec_mode)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_session_group == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_session_group->EtablishPolicy(group_address, protocol_id, policy_process_choice, ipsec_mode);
+}
+
+void
+GsamSession::EtablishPolicy (	const IkeTrafficSelector& ts_src,
+								const IkeTrafficSelector& ts_dest,
+								IPsec::PROCESS_CHOICE policy_process_choice,
+								IPsec::MODE ipsec_mode)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_session_group == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_session_group->EtablishPolicy(ts_src, ts_dest, policy_process_choice, ipsec_mode);
+}
+
 
 Ptr<GsamInfo>
 GsamSession::GetInfo (void) const
@@ -1608,6 +1643,69 @@ GsamSessionGroup::GetSessions (void)
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_lst_sessions;
+}
+
+void
+GsamSessionGroup::EtablishPolicy (Ipv4Address group_address,
+									uint8_t protocol_id,
+									IPsec::PROCESS_CHOICE policy_process_choice,
+									IPsec::MODE ipsec_mode)
+{
+	if (group_address.Get() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->CreatePolicyEntry();
+	policy->SetSingleDestAddress(group_address);
+	policy->SetProtocolNum(protocol_id);
+	policy->SetProcessChoice(policy_process_choice);
+	policy->SetIpsecMode(ipsec_mode);
+
+	this->AssociateWithPolicy(policy);
+}
+
+void
+GsamSessionGroup::EtablishPolicy (	const IkeTrafficSelector& ts_src,
+									const IkeTrafficSelector& ts_dest,
+									IPsec::PROCESS_CHOICE policy_process_choice,
+									IPsec::MODE ipsec_mode)
+{
+	if (ts_src.GetStartingAddress() == ts_src.GetEndingAddress())
+	{
+		//ok
+		if (ts_src.GetStartingAddress().Get() == 0)
+		{
+			//ok
+		}
+		else
+		{
+			//not ok
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
+	if (ts_dest.GetStartingAddress() == ts_dest.GetEndingAddress())
+	{
+		//ok
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->CreatePolicyEntry();
+	policy->SetTrafficSelectors(ts_src, ts_dest);
+	policy->SetProcessChoice(policy_process_choice);
+	policy->SetIpsecMode(ipsec_mode);
+
+	this->AssociateWithPolicy(policy);
 }
 
 Ipv4Address
@@ -2022,13 +2120,13 @@ IpSecPolicyEntry::DoDispose (void)
 }
 
 void
-IpSecPolicyEntry::SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice)
+IpSecPolicyEntry::SetProcessChoice (IPsec::PROCESS_CHOICE process_choice)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_process_choise = process_choice;
 }
 
-IpSecPolicyEntry::PROCESS_CHOICE
+IPsec::PROCESS_CHOICE
 IpSecPolicyEntry::GetProcessChoice (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -2221,6 +2319,33 @@ IpSecPolicyEntry::GetDestAddress (void) const
 	}
 
 	return this->m_dest_starting_address;
+}
+
+void
+IpSecPolicyEntry::SetTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (ts_src.GetProtocolId() != ts_dest.GetProtocolId())
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_src.GetTsType() != IkeTrafficSelector::TS_IPV4_ADDR_RANGE)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_dest.GetTsType() != IkeTrafficSelector::TS_IPV4_ADDR_RANGE)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->SetSrcAddressRange(ts_src.GetStartingAddress(), ts_src.GetEndingAddress());
+	this->SetTranSrcPortRange(ts_src.GetStartPort(), ts_src.GetEndPort());
+	this->SetDestAddressRange(ts_dest.GetStartingAddress(), ts_dest.GetEndingAddress());
+	this->SetTranDestPortRange(ts_dest.GetStartPort(), ts_dest.GetEndPort());
+	this->SetProtocolNum(ts_src.GetProtocolId());
 }
 
 Ptr<IpSecPolicyDatabase>

@@ -250,6 +250,14 @@ public:	//self defined
 	void AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group);
 	void AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy);
 	void SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
+	void EtablishPolicy (Ipv4Address group_address,
+							uint8_t protocol_id,
+							IPsec::PROCESS_CHOICE policy_process_choice,
+							IPsec::MODE ipsec_mode);
+	void EtablishPolicy (	const IkeTrafficSelector& ts_src,
+							const IkeTrafficSelector& ts_dest,
+							IPsec::PROCESS_CHOICE policy_process_choice,
+							IPsec::MODE ipsec_mode);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -311,6 +319,14 @@ public: //self-defined
 	void PushBackSession (Ptr<GsamSession> session);
 	void RemoveSession (Ptr<GsamSession> session);
 	std::list<Ptr<GsamSession> >& GetSessions (void);
+	void EtablishPolicy (Ipv4Address group_address,
+							uint8_t protocol_id,
+							IPsec::PROCESS_CHOICE policy_process_choice,
+							IPsec::MODE ipsec_mode);
+	void EtablishPolicy (	const IkeTrafficSelector& ts_src,
+							const IkeTrafficSelector& ts_dest,
+							IPsec::PROCESS_CHOICE policy_process_choice,
+							IPsec::MODE ipsec_mode);
 public:	//const
 	Ipv4Address GetGroupAddress (void) const;
 	Ptr<IpSecDatabase> GetDatabase (void) const;
@@ -391,11 +407,6 @@ private:	//fields
 
 class IpSecPolicyEntry : public Object {
 public:
-	enum PROCESS_CHOICE {
-		DISCARD = 0,
-		BYPASS = 1,
-		PROTECT = 2
-	};
 
 	enum PROTOCOL_ID {
 		IGMP = 2,
@@ -418,7 +429,7 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//const
-	IpSecPolicyEntry::PROCESS_CHOICE GetProcessChoice (void) const;
+	IPsec::PROCESS_CHOICE GetProcessChoice (void) const;
 	uint8_t GetProtocolNum (void) const;
 	IPsec::MODE GetIpsecMode (void) const;
 	uint16_t GetTranSrcStartingPort (void) const;
@@ -436,7 +447,7 @@ public:	//const
 	IkeTrafficSelector GetTrafficSelectorDest (void) const;
 	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
 public:
-	void SetProcessChoice (IpSecPolicyEntry::PROCESS_CHOICE process_choice);
+	void SetProcessChoice (IPsec::PROCESS_CHOICE process_choice);
 	void SetProtocolNum (uint8_t protocol_id);
 	void SetIpsecMode (IPsec::MODE mode);
 	void SetTranSrcStartingPort (uint16_t port_num);
@@ -449,6 +460,7 @@ public:
 	void SetDestAddressRange (Ipv4Address range_start, Ipv4Address range_end);
 	void SetSingleSrcAddress (Ipv4Address address);
 	void SetSingleDestAddress (Ipv4Address address);
+	void SetTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
 	void SetSPD (Ptr<IpSecPolicyDatabase> spd);
 	Ptr<IpSecSADatabase> GetOutboundSAD (void);
 	Ptr<IpSecSADatabase> GetInboundSAD (void);
@@ -465,7 +477,7 @@ private:
 	uint16_t m_src_transport_protocol_ending_num;
 	uint16_t m_dest_transport_protocol_starting_num;
 	uint16_t m_dest_transport_protocol_ending_num;
-	IpSecPolicyEntry::PROCESS_CHOICE m_process_choise;
+	IPsec::PROCESS_CHOICE m_process_choise;
 	Ptr<IpSecPolicyDatabase> m_ptr_spd;
 	Ptr<IpSecSADatabase> m_ptr_outbound_sad;
 	Ptr<IpSecSADatabase> m_ptr_inbound_sad;

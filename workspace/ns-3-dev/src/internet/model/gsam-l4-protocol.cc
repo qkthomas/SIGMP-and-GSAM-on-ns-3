@@ -246,10 +246,25 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 
 	//Setting up TSr
 	IkePayload tsr;
-	tsr.SetSubstructure(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure(true));
+
+	if (session->IsHostNonQuerier())
+	{
+		tsr.SetSubstructure(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure(true));
+	}
+	else
+	{
+		tsr.SetSubstructure(IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure(session->GetGroupAddress(), true));
+	}
 	//settuping up tsi
 	IkePayload tsi;
-	tsi.SetSubstructure(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure(false));
+	if (session->IsHostNonQuerier())
+	{
+		tsi.SetSubstructure(IkeTrafficSelectorSubstructure::GenerateEmptySubstructure(false));
+	}
+	else
+	{
+		tsi.SetSubstructure(IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure(Ipv4Address("0.0.0.0"), false));
+	}
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sai2
 	IkePayload sai2;
@@ -676,37 +691,6 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 {
 	NS_LOG_FUNCTION (this << packet);
 
-	uint32_t message_id = ikeheader.GetMessageId();
-
-	NS_ASSERT (message_id == 0);
-
-	//
-	IkePayloadHeader::PAYLOAD_TYPE sa_payload_type = ikeheader.GetNextPayloadType();
-	if (sa_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload sa_r_1 = IkePayload::GetEmptyPayloadFromPayloadType(sa_payload_type);
-	packet->RemoveHeader(sa_r_1);
-
-	//
-	IkePayloadHeader::PAYLOAD_TYPE ke_payload_type = sa_r_1.GetNextPayloadType();
-	if (ke_payload_type != IkePayloadHeader::KEY_EXCHANGE)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload ke_r = IkePayload::GetEmptyPayloadFromPayloadType(ke_payload_type);
-	packet->RemoveHeader(ke_r);
-
-	//
-	IkePayloadHeader::PAYLOAD_TYPE nonce_payload_type = ke_r.GetNextPayloadType();
-	if (nonce_payload_type != IkePayloadHeader::NONCE)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload n_r = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
-	packet->RemoveHeader(n_r);
-
 	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
 
 	if (0 == session)
@@ -716,9 +700,42 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 		//reason 2, unsolicited response msg
 
 		//action = do nothing
+		//assert for debug use
+		NS_ASSERT (false);
 	}
 	else
 	{
+		uint32_t message_id = ikeheader.GetMessageId();
+
+		NS_ASSERT (message_id == 0);
+
+		//
+		IkePayloadHeader::PAYLOAD_TYPE sa_payload_type = ikeheader.GetNextPayloadType();
+		if (sa_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload sa_r_1 = IkePayload::GetEmptyPayloadFromPayloadType(sa_payload_type);
+		packet->RemoveHeader(sa_r_1);
+
+		//
+		IkePayloadHeader::PAYLOAD_TYPE ke_payload_type = sa_r_1.GetNextPayloadType();
+		if (ke_payload_type != IkePayloadHeader::KEY_EXCHANGE)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload ke_r = IkePayload::GetEmptyPayloadFromPayloadType(ke_payload_type);
+		packet->RemoveHeader(ke_r);
+
+		//
+		IkePayloadHeader::PAYLOAD_TYPE nonce_payload_type = ke_r.GetNextPayloadType();
+		if (nonce_payload_type != IkePayloadHeader::NONCE)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload n_r = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
+		packet->RemoveHeader(n_r);
+
 		session->GetRetransmitTimer().Cancel();
 
 		uint64_t responder_spi = ikeheader.GetResponderSpi();
@@ -871,10 +888,13 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 	std::list<IkeTrafficSelector> narrowed_tssr;
 	GsamL4Protocol::NarrowTrafficSelectors(tsr.GetTrafficSelectors(), narrowed_tssr);
 
+	Ptr<IkeIdSubstructure> id_substructure = DynamicCast<IkeIdSubstructure>(id.GetSubstructure());
+
 	if (!session->HaveKekSa())
 	{
+		//not duplicated packet
 		this->ProcessIkeSaAuthInvitation(	session,
-											id.GetIpv4AddressId(),
+											id_substructure->GetIpv4AddressFromData(),
 											chosen_proposal,
 											narrowed_tssi,
 											narrowed_tssr);
@@ -905,9 +925,34 @@ GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamSession> session,
 	session->SetKekSaInitiatorSpi(proposal->GetSpi().ToUint64());
 	session->SetKekSaResponderSpi(session->GetInfo()->RegisterGsamSpi());
 
-	if (0 == session->GetRelatedPolicy())
+	if (group_address == GsamConfig::GetIgmpv3DestGrpReportAddress())
 	{
-		this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+		//incoming invitation from NQ
+		//do nothing
+	}
+	else
+	{
+		//according to gsam's rule, a GM can only join one group at a time using a session
+
+		if (tsi_selectors.size() != 1)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (tsr_selectors.size() != 1)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (0 != session->GetRelatedPolicy())
+		{
+			//not ok, duplicate check should have been performed in caller method
+			NS_ASSERT (false);
+		}
+		else
+		{
+			this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+		}
 	}
 }
 
@@ -981,7 +1026,25 @@ GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
 
 	session->SetKekSaResponderSpi(spi_responder.ToUint64());
 
-	this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+	if (true == session->IsHostNonQuerier())
+	{
+		//do not crate any policy
+	}
+	else
+	{
+		//according to gsam's rule, a GM can only join one group at a time using a session
+		if (tsi_selectors.size() != 1)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (tsr_selectors.size() != 1)
+		{
+			NS_ASSERT (false);
+		}
+
+		this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+	}
 }
 
 void
@@ -1148,6 +1211,8 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 	}
 
 	bool go_on = false;
+
+#warning "not finish, need to handle cases of duplicate incoming packet"
 
 	do {
 		IkePayload pushed_gsa_payload;
@@ -1390,37 +1455,6 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 {
 	NS_LOG_FUNCTION (this);
 
-	if (ts_src.GetStartingAddress() == ts_src.GetEndingAddress())
-	{
-		//ok
-		if (ts_src.GetStartingAddress().Get() == 0)
-		{
-			//ok
-		}
-		else
-		{
-			//not ok
-			NS_ASSERT (false);
-		}
-	}
-	else
-	{
-		//not ok
-		NS_ASSERT (false);
-	}
-
-	if (ts_dest.GetStartingAddress() == ts_dest.GetEndingAddress())
-	{
-		//ok
-	}
-	else
-	{
-		//not ok
-		NS_ASSERT (false);
-	}
-
-	Ipv4Address group_address = ts_dest.GetEndingAddress();
-
 	if (gsa_proposals.size() == 0)
 	{
 		//Maybe ok?
@@ -1437,11 +1471,57 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 		//ok
 	}
 
+	Ipv4Address group_address = ts_dest.GetEndingAddress();
+	Ptr<GsamSessionGroup> session_group = session->GetDatabase()->GetSessionGroup(group_address);
+
+	if (session_group->GetRelatedPolicy() != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	session_group->EtablishPolicy(ts_src, ts_dest, IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+
+	if (session_group->GetRelatedGsaQ() != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (session_group->GetSessionsConst().size() != 0)
+	{
+		NS_ASSERT (false);
+	}
+
 	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = gsa_proposals.begin();
 			const_it != gsa_proposals.end();
 			const_it++)
 	{
 		const Ptr<IkeGsaProposal> gsa_proposal = DynamicCast<IkeGsaProposal>(*const_it);
+
+		if (true == gsa_proposal->IsGsaQ())
+		{
+			Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
+			Ptr<IpSecSADatabase> outbound_sad_policy = policy->GetOutboundSAD();
+			Ptr<IpSecSAEntry> gsa_q = outbound_sad_policy->CreateIpSecSAEntry(gsa_proposal->GetSpi());
+			session_group->AssociateWithGsaQ(gsa_q);
+		}
+		else if (true == gsa_proposal->IsGsaR())
+		{
+			//check whether incoming spi is in conflict
+			Spi gsa_proposal_spi = gsa_proposal->GetSpi();
+			Ptr<GsamInfo> local_gsam_info = session_group->GetDatabase()->GetInfo();
+			if (true == local_gsam_info->IsIpsecSpiOccupied(gsa_proposal_spi.ToUint32()))
+			{
+				//reject
+			}
+			else
+			{
+				//install
+			}
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 }
 
@@ -1544,27 +1624,19 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 									const std::list<IkeTrafficSelector>& tsr_selectors)
 {
 	NS_LOG_FUNCTION (this);
-	//this method need to be refactored, according to gsam's rule, a GM can only join one group at a time using a session
 
-	if (tsi_selectors.size() > 1)
+	for (	std::list<IkeTrafficSelector>::const_iterator const_it_tsi_selector = tsi_selectors.begin();
+			const_it_tsi_selector != tsi_selectors.end();
+			const_it_tsi_selector++)
 	{
-		NS_ASSERT (false);
-	}
-
-	if (tsr_selectors.size() > 1)
-	{
-		NS_ASSERT (false);
-	}
-
-	for (	std::list<IkeTrafficSelector>::const_iterator const_it_tsi_selectors = tsi_selectors.begin();
-			const_it_tsi_selectors != tsi_selectors.end();
-			const_it_tsi_selectors++)
-	{
-		for (	std::list<IkeTrafficSelector>::const_iterator const_it_tsr_selectors = tsr_selectors.begin();
-				const_it_tsr_selectors != tsr_selectors.end();
-				const_it_tsr_selectors++)
+		for (	std::list<IkeTrafficSelector>::const_iterator const_it_tsr_selector = tsr_selectors.begin();
+				const_it_tsr_selector != tsr_selectors.end();
+				const_it_tsr_selector++)
 		{
-			this->CreateIpSecPolicy(session, (*const_it_tsi_selectors), (*const_it_tsr_selectors));
+			session->EtablishPolicy(*const_it_tsi_selector,
+									*const_it_tsr_selector,
+									IPsec::PROTECT,
+									GsamConfig::GetDefaultIpsecMode());
 		}
 	}
 }

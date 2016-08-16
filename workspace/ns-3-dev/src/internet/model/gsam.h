@@ -55,6 +55,12 @@ public:
 		IKE_SPI_SIZE = 8,
 		AH_ESP_SPI_SIZE = 4
 	};
+
+	enum PROCESS_CHOICE {
+		DISCARD = 0,
+		BYPASS = 1,
+		PROTECT = 2
+	};
 };
 
 class IkePayloadHeader : public Header {
@@ -1194,7 +1200,6 @@ public:	//non-const
 	void SetAsGsaR (void);
 	void SetGsaType (IkeGsaProposal::GSA_TYPE gsa_type);
 public:	//const
-	bool IsGsa (void) const;
 	bool IsGsaQ (void) const;
 	bool IsGsaR (void) const;
 public:

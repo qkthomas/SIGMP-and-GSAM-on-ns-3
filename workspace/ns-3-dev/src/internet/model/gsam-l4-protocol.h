@@ -146,10 +146,6 @@ private:	//database operation
 	 * \Deprecated
 	 */
 	void CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSelector& tsi, const IkeTrafficSelector& tsr);
-	/*
-	 * \brief CreateIpSecPolicy
-	 * Deprecated
-	 */
 	void CreateIpSecPolicy (Ptr<GsamSession> session,
 							const std::list<IkeTrafficSelector>& tsi_selectors,
 							const std::list<IkeTrafficSelector>& tsr_selectors);
