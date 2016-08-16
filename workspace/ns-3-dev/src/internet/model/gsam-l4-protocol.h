@@ -94,7 +94,7 @@ private:	//phase 1, responder
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 private:	//phase 2, Q
-	void HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaAckAndReject (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload);
 private:	//phase 2, GM, NQ
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
@@ -102,43 +102,46 @@ private:	//phase 2, GM, NQ
 private:	//phase 2, GM
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (	Ptr<GsamSession> session,
-							IkeTrafficSelector ts_src,
-							IkeTrafficSelector ts_dest,
+							const IkeTrafficSelector& ts_src,
+							const IkeTrafficSelector& ts_dest,
 							const Ptr<IkeSaProposal> gsa_q_proposal,
 							const Ptr<IkeSaProposal> gsa_r_proposal);
 	void RejectGsaQ (	Ptr<GsamSession> session,
-						IkeTrafficSelector ts_src,
-						IkeTrafficSelector ts_dest,
+						const IkeTrafficSelector& ts_src,
+						const IkeTrafficSelector& ts_dest,
 						const Ptr<IkeSaProposal> gsa_q_proposal);
 	void AcceptGsaPair (Ptr<GsamSession> session,
-						IkeTrafficSelector ts_src,
-						IkeTrafficSelector ts_dest,
+						const IkeTrafficSelector& ts_src,
+						const IkeTrafficSelector& ts_dest,
 						const Ptr<IkeSaProposal> gsa_q_proposal,
 						const Ptr<IkeSaProposal> gsa_r_proposal);
 	void InstallGsaPair (	Ptr<GsamSession> session,
-							IkeTrafficSelector ts_src,
-							IkeTrafficSelector ts_dest,
+							const IkeTrafficSelector& ts_src,
+							const IkeTrafficSelector& ts_dest,
 							const Ptr<IkeSaProposal> gsa_q_proposal,
 							const Ptr<IkeSaProposal> gsa_r_proposal);
 	void SendAcceptAck (Ptr<GsamSession> session,
-						IkeTrafficSelector ts_src,
-						IkeTrafficSelector ts_dest,
+						const IkeTrafficSelector& ts_src,
+						const IkeTrafficSelector& ts_dest,
 						const Ptr<IkeSaProposal> gsa_q_proposal,
 						const Ptr<IkeSaProposal> gsa_r_proposal);
 private:	//phase 2, NQ
 	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushNQ (	Ptr<GsamSession> session,
-							IkeTrafficSelector ts_src,
-							IkeTrafficSelector ts_dest,
+							const IkeTrafficSelector& ts_src,
+							const IkeTrafficSelector& ts_dest,
 							const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
-	void RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi);
+	void RejectGsaR (	Ptr<GsamSession> session,
+						const IkeTrafficSelector& ts_src,
+						const IkeTrafficSelector& ts_dest,
+						const std::list<uint32_t>& gsa_r_spis_to_reject);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc
 	static void ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals,
 										Ptr<IkeSaProposal> retval_chosen_proposal);
 	static void NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
-												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
+												const std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);
 	/*

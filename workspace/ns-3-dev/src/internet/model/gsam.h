@@ -1028,7 +1028,7 @@ public:	//const
 	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
-	void PushBackTrafficSelector (IkeTrafficSelector ts);
+	void PushBackTrafficSelector (const IkeTrafficSelector& ts);
 	void PushBackTrafficSelectors (const std::list<IkeTrafficSelector>& tss);
 private:
 	uint8_t m_num_of_tss;	//for deserilization
@@ -1249,16 +1249,16 @@ public:	//const
 	uint8_t GetProtocolId (void) const;
 	uint8_t GetSpiSize (void) const;
 	uint8_t GetNotifyMessageType (void) const;
-	IkeTrafficSelector GetTrafficSelectorSrc (void) const;
-	IkeTrafficSelector GetTrafficSelectorDest (void) const;
+	const IkeTrafficSelector& GetTrafficSelectorSrc (void) const;
+	const IkeTrafficSelector& GetTrafficSelectorDest (void) const;
 	const std::list<Ptr<Spi> >& GetSpis (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//static
 	static Ptr<IkeGroupNotifySubstructure> GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
 														uint8_t spi_size,
 														IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
-														IkeTrafficSelector ts_src,
-														IkeTrafficSelector ts_dest);
+														const IkeTrafficSelector& ts_src,
+														const IkeTrafficSelector& ts_dest);
 public:
 	using IkePayloadSubstructure::Deserialize;
 protected:	//non_const

@@ -1121,7 +1121,7 @@ GsamL4Protocol::HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ike
 	else if ((false == is_invitation) &&
 			(true == is_response))
 	{
-		this->HandleGsaAck(packet, ikeheader, session);
+		this->HandleGsaAckAndReject(packet, ikeheader, session);
 	}
 	else
 	{
@@ -1159,7 +1159,10 @@ GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, P
 }
 
 void
-GsamL4Protocol::RejectGsaR (Ptr<GsamSession> session, Ipv4Address group_address, uint32_t spi)
+GsamL4Protocol::RejectGsaR (Ptr<GsamSession> session,
+							const IkeTrafficSelector& ts_src,
+							const IkeTrafficSelector& ts_dest,
+							const std::list<uint32_t>& gsa_r_spis_to_reject)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1244,8 +1247,8 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 void
 GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
-									IkeTrafficSelector ts_src,
-									IkeTrafficSelector ts_dest,
+									const IkeTrafficSelector& ts_src,
+									const IkeTrafficSelector& ts_dest,
 									const Ptr<IkeSaProposal> gsa_q_proposal,
 									const Ptr<IkeSaProposal> gsa_r_proposal)
 {
@@ -1313,8 +1316,8 @@ GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
 
 void
 GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session,
-							IkeTrafficSelector ts_src,
-							IkeTrafficSelector ts_dest,
+							const IkeTrafficSelector& ts_src,
+							const IkeTrafficSelector& ts_dest,
 							const Ptr<IkeSaProposal> gsa_q_proposal,)
 {
 	NS_LOG_FUNCTION (this);
@@ -1361,8 +1364,8 @@ GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session,
 
 void
 GsamL4Protocol::AcceptGsaPair (	Ptr<GsamSession> session,
-								IkeTrafficSelector ts_src,
-								IkeTrafficSelector ts_dest,
+								const IkeTrafficSelector& ts_src,
+								const IkeTrafficSelector& ts_dest,
 								const Ptr<IkeSaProposal> gsa_q_proposal,
 								const Ptr<IkeSaProposal> gsa_r_proposal)
 {
@@ -1373,8 +1376,8 @@ GsamL4Protocol::AcceptGsaPair (	Ptr<GsamSession> session,
 
 void
 GsamL4Protocol::InstallGsaPair (Ptr<GsamSession> session,
-								IkeTrafficSelector ts_src,
-								IkeTrafficSelector ts_dest,
+								const IkeTrafficSelector& ts_src,
+								const IkeTrafficSelector& ts_dest,
 								const Ptr<IkeSaProposal> gsa_q_proposal,
 								const Ptr<IkeSaProposal> gsa_r_proposal)
 {
@@ -1421,8 +1424,8 @@ GsamL4Protocol::InstallGsaPair (Ptr<GsamSession> session,
 
 void
 GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
-								IkeTrafficSelector ts_src,
-								IkeTrafficSelector ts_dest,
+								const IkeTrafficSelector& ts_src,
+								const IkeTrafficSelector& ts_dest,
 								const Ptr<IkeSaProposal> gsa_q_proposal,
 								const Ptr<IkeSaProposal> gsa_r_proposal)
 {
@@ -1449,8 +1452,8 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 
 void
 GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
-									IkeTrafficSelector ts_src,
-									IkeTrafficSelector ts_dest,
+									const IkeTrafficSelector& ts_src,
+									const IkeTrafficSelector& ts_dest,
 									const std::list<Ptr<IkeSaProposal> >& gsa_proposals)
 {
 	NS_LOG_FUNCTION (this);
@@ -1471,25 +1474,9 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 		//ok
 	}
 
-	Ipv4Address group_address = ts_dest.GetEndingAddress();
-	Ptr<GsamSessionGroup> session_group = session->GetDatabase()->GetSessionGroup(group_address);
-
-	if (session_group->GetRelatedPolicy() != 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	session_group->EtablishPolicy(ts_src, ts_dest, IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
-
-	if (session_group->GetRelatedGsaQ() != 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	if (session_group->GetSessionsConst().size() != 0)
-	{
-		NS_ASSERT (false);
-	}
+	std::list<uint32_t> lst_u32_gsa_q_spis_to_install;
+	std::list<uint32_t> lst_u32_gsa_r_spis_to_reject;
+	std::list<uint32_t> lst_u32_gsa_r_spis_to_install;
 
 	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = gsa_proposals.begin();
 			const_it != gsa_proposals.end();
@@ -1499,23 +1486,23 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 
 		if (true == gsa_proposal->IsGsaQ())
 		{
-			Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
-			Ptr<IpSecSADatabase> outbound_sad_policy = policy->GetOutboundSAD();
-			Ptr<IpSecSAEntry> gsa_q = outbound_sad_policy->CreateIpSecSAEntry(gsa_proposal->GetSpi());
-			session_group->AssociateWithGsaQ(gsa_q);
+			Spi gsa_q_proposal_spi = gsa_proposal->GetSpi();
+			lst_u32_gsa_q_spis_to_install.push_back(gsa_q_proposal_spi.ToUint32());
 		}
 		else if (true == gsa_proposal->IsGsaR())
 		{
 			//check whether incoming spi is in conflict
-			Spi gsa_proposal_spi = gsa_proposal->GetSpi();
-			Ptr<GsamInfo> local_gsam_info = session_group->GetDatabase()->GetInfo();
-			if (true == local_gsam_info->IsIpsecSpiOccupied(gsa_proposal_spi.ToUint32()))
+			Spi gsa_r_proposal_spi = gsa_proposal->GetSpi();
+			Ptr<GsamInfo> local_gsam_info = session->GetDatabase()->GetInfo();
+			if (true == local_gsam_info->IsIpsecSpiOccupied(gsa_r_proposal_spi.ToUint32()))
 			{
-				//reject
+				//spis to reject
+				lst_u32_gsa_r_spis_to_reject.push_back(gsa_r_proposal_spi.ToUint32());
 			}
 			else
 			{
-				//install
+				//spis to install
+				lst_u32_gsa_r_spis_to_install.push_back(gsa_r_proposal_spi.ToUint32());
 			}
 		}
 		else
@@ -1523,10 +1510,52 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 			NS_ASSERT (false);
 		}
 	}
+
+	//check the number of 3 spi list
+	if (lst_u32_gsa_q_spis_to_install.size() != 1)
+	{
+		//has more than 1 gsa_q, error
+		NS_ASSERT (false);
+	}
+
+	if (lst_u32_gsa_r_spis_to_reject.size() > 0)
+	{
+		//has conflict spis
+		//reject
+		this->RejectGsaR(session, ts_src, ts_dest, lst_u32_gsa_r_spis_to_reject)
+	}
+	else
+	{
+		//no conflict spis
+
+		//establish session_group and policy
+		Ipv4Address group_address = ts_dest.GetEndingAddress();
+		Ptr<GsamSessionGroup> session_group = session->GetDatabase()->GetSessionGroup(group_address);
+
+		if (session_group->GetRelatedPolicy() != 0)
+		{
+			//nq should not have policy of that group address installed
+			//duplicate check should have been performed by caller method
+			NS_ASSERT (false);
+		}
+
+		session_group->EtablishPolicy(ts_src, ts_dest, IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+
+		//install gsa_q and gsa_r(s)
+		if (session_group->GetRelatedGsaQ() != 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (session_group->GetSessionsConst().size() != 0)
+		{
+			NS_ASSERT (false);
+		}
+	}
 }
 
 void
-GsamL4Protocol::HandleGsaAck (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+GsamL4Protocol::HandleGsaAckAndReject (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -1709,7 +1738,7 @@ GsamL4Protocol::ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& pr
 
 void
 GsamL4Protocol::NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
-												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors)
+												const std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors)
 {
 	retval_narrowed_tsi_selectors = tsi_selectors;
 }

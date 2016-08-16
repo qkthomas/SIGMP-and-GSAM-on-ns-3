@@ -3802,7 +3802,7 @@ IkeTrafficSelectorSubstructure::GetPayloadType (void) const
 }
 
 void
-IkeTrafficSelectorSubstructure::PushBackTrafficSelector (IkeTrafficSelector ts)
+IkeTrafficSelectorSubstructure::PushBackTrafficSelector (const IkeTrafficSelector& ts)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_lst_traffic_selectors.push_back(ts);
@@ -4877,14 +4877,14 @@ IkeGroupNotifySubstructure::GetNotifyMessageType (void) const
 	return this->m_notify_message_type;
 }
 
-IkeTrafficSelector
+const IkeTrafficSelector&
 IkeGroupNotifySubstructure::GetTrafficSelectorSrc (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ts_src;
 }
 
-IkeTrafficSelector
+const IkeTrafficSelector&
 IkeGroupNotifySubstructure::GetTrafficSelectorDest (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -4909,8 +4909,8 @@ Ptr<IkeGroupNotifySubstructure>
 IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
 																	uint8_t spi_size,
 																	IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
-																	IkeTrafficSelector ts_src,
-																	IkeTrafficSelector ts_dest)
+																	const IkeTrafficSelector& ts_src,
+																	const IkeTrafficSelector& ts_dest)
 {
 	Ptr<IkeGroupNotifySubstructure> retval = Create<IkeGroupNotifySubstructure>();
 	retval->SetProtocolId(protocol_id);
