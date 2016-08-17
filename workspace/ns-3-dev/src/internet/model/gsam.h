@@ -279,8 +279,8 @@ public:	//header override
 public:	//self-defined
 	uint32_t ToUint32 (void) const;
 	uint64_t ToUint64 (void) const;
-	void SetValueFromUint32 (uint32_t value);
-	void SetValueFromUint64 (uint64_t value);
+	void SetValueFromUint32 (const uint32_t value);
+	void SetValueFromUint64 (const uint64_t value);
 	void Copy (Spi spi);
 public:
 	using IkePayloadSubstructure::Deserialize;
@@ -1245,6 +1245,7 @@ public:	//Header Override
 public:	//non_const
 	void PushBackSpi (Ptr<Spi> ptr_spi);
 	void PushBackSpis (const std::list<Ptr<Spi> >& lst_ptr_spis);
+	void PushBackSpis (const std::list<uint32_t>& lst_u32_spis);
 public:	//const
 	uint8_t GetProtocolId (void) const;
 	uint8_t GetSpiSize (void) const;

@@ -82,7 +82,7 @@ GsamUtility::BytesToUint64 (const std::list<uint8_t>& lst_bytes)
 }
 
 void
-GsamUtility::Uint32ToBytes (std::list<uint8_t>& lst_retval, uint32_t input_value)
+GsamUtility::Uint32ToBytes (std::list<uint8_t>& lst_retval, const uint32_t input_value)
 {
 	lst_retval.clear();
 
@@ -104,7 +104,7 @@ GsamUtility::Uint32ToBytes (std::list<uint8_t>& lst_retval, uint32_t input_value
 }
 
 void
-GsamUtility::Uint64ToBytes (std::list<uint8_t>& lst_retval, uint64_t input_value)
+GsamUtility::Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input_value)
 {
 	lst_retval.clear();
 
@@ -1449,13 +1449,7 @@ GsamSession::IsHostQuerier (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	bool retval = false;
-	Ptr<Igmpv3L4Protocol> igmp = this->m_ptr_database->GetIgmp();
-
-	if (igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
-	{
-		retval = true;
-	}
+	bool retval = this->GetDatabase()->IsHostQuerier();
 
 	return retval;
 }
@@ -1465,13 +1459,7 @@ GsamSession::IsHostGroupMember (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	bool retval = false;
-	Ptr<Igmpv3L4Protocol> igmp = this->m_ptr_database->GetIgmp();
-
-	if (igmp->GetRole() == Igmpv3L4Protocol::HOST)
-	{
-		retval = true;
-	}
+	bool retval = this->GetDatabase()->IsHostGroupMember();
 
 	return retval;
 }
@@ -1481,10 +1469,9 @@ GsamSession::IsHostNonQuerier (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	bool retval = false;
-	Ptr<Igmpv3L4Protocol> igmp = this->m_ptr_database->GetIgmp();
+	bool retval = this->GetDatabase()->IsHostNonQuerier();
 
-	if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	if (true == retval)
 	{
 		if (	(this->GetGroupAddress().Get() != 0) &&
 				(this->GetGroupAddress().Get() != GsamConfig::GetIgmpv3DestGrpReportAddress().Get()))
@@ -1492,7 +1479,6 @@ GsamSession::IsHostNonQuerier (void) const
 			NS_ASSERT (false);
 		}
 
-		retval = true;
 	}
 
 	return retval;
@@ -1651,6 +1637,7 @@ GsamSessionGroup::EtablishPolicy (Ipv4Address group_address,
 									IPsec::PROCESS_CHOICE policy_process_choice,
 									IPsec::MODE ipsec_mode)
 {
+	NS_LOG_FUNCTION (this);
 	if (group_address.Get() == 0)
 	{
 		NS_ASSERT (false);
@@ -1671,6 +1658,7 @@ GsamSessionGroup::EtablishPolicy (	const IkeTrafficSelector& ts_src,
 									IPsec::PROCESS_CHOICE policy_process_choice,
 									IPsec::MODE ipsec_mode)
 {
+	NS_LOG_FUNCTION (this);
 	if (ts_src.GetStartingAddress() == ts_src.GetEndingAddress())
 	{
 		//ok
@@ -1700,12 +1688,67 @@ GsamSessionGroup::EtablishPolicy (	const IkeTrafficSelector& ts_src,
 		NS_ASSERT (false);
 	}
 
+	if (ts_dest.GetEndingAddress() == this->GetGroupAddress())
+	{
+		//ok
+	}
+	else
+	{
+		//not ok
+		NS_ASSERT (false);
+	}
+
 	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->CreatePolicyEntry();
 	policy->SetTrafficSelectors(ts_src, ts_dest);
 	policy->SetProcessChoice(policy_process_choice);
 	policy->SetIpsecMode(ipsec_mode);
 
 	this->AssociateWithPolicy(policy);
+}
+
+void
+GsamSessionGroup::InstallGsaQ (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->GetDatabase()->IsHostQuerier())
+	{
+		//Q should not invoke this method
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecSAEntry> gsa_q = 0;
+
+	if (this->GetDatabase()->IsHostNonQuerier())
+	{
+		gsa_q = this->InstallOutboundGsa(spi);
+	}
+	else if (this->GetDatabase()->IsHostGroupMember())
+	{
+		gsa_q = this->InstallInboundGsa(spi);
+	}
+
+	this->AssociateWithGsaQ(gsa_q);
+}
+void
+GsamSessionGroup::InstallGsaR (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->GetDatabase()->IsHostQuerier())
+	{
+		//Q should not invoke this method
+		NS_ASSERT (false);
+	}
+
+	if (this->GetDatabase()->IsHostNonQuerier())
+	{
+		this->InstallInboundGsa(spi);
+	}
+	else if (this->GetDatabase()->IsHostGroupMember())
+	{
+		this->InstallOutboundGsa(spi);
+	}
 }
 
 Ipv4Address
@@ -1753,6 +1796,35 @@ GsamSessionGroup::GetSessionsConst (void) const
 	return this->m_lst_sessions;
 }
 
+Ptr<IpSecSAEntry>
+GsamSessionGroup::InstallInboundGsa (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (0 == this->GetRelatedPolicy())
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecSAEntry> retval = this->GetRelatedPolicy()->GetInboundSAD()->CreateIpSecSAEntry(spi);
+
+	return retval;
+}
+
+Ptr<IpSecSAEntry>
+GsamSessionGroup::InstallOutboundGsa (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (0 == this->GetRelatedPolicy())
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecSAEntry> retval = this->GetRelatedPolicy()->GetOutboundSAD()->CreateIpSecSAEntry(spi);
+
+	return retval;
+}
 /********************************************************
  *        IpSecSAEntry
  ********************************************************/
@@ -2029,7 +2101,7 @@ IpSecSADatabase::GetSpis (std::list<Ptr<Spi> >& retval) const
 }
 
 Ptr<IpSecSAEntry>
-IpSecSADatabase::CreateIpSecSAEntry (Spi spi)
+IpSecSADatabase::CreateIpSecSAEntry (uint32_t spi)
 {
 	Ptr<IpSecSAEntry> retval = 0;
 	if (this->m_ptr_policy_entry == 0)
@@ -2037,7 +2109,7 @@ IpSecSADatabase::CreateIpSecSAEntry (Spi spi)
 		//this database is a sad-i or sad-o that bound to an entry. And it's just a logical database which is a part of the real database;
 		retval = Create<IpSecSAEntry>();
 		retval->SetSAD(this);
-		retval->SetSpi(spi.ToUint32());
+		retval->SetSpi(spi);
 	}
 	else
 	{
@@ -2890,6 +2962,54 @@ IpSecDatabase::GetIgmp (void) const
 	}
 
 	return this->m_ptr_gsam->GetIgmp();
+}
+
+bool
+IpSecDatabase::IsHostQuerier (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+	Ptr<Igmpv3L4Protocol> igmp = this->GetIgmp();
+
+	if (igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+bool
+IpSecDatabase::IsHostGroupMember (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+	Ptr<Igmpv3L4Protocol> igmp = this->GetIgmp();
+
+	if (igmp->GetRole() == Igmpv3L4Protocol::HOST)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+bool
+IpSecDatabase::IsHostNonQuerier (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+	Ptr<Igmpv3L4Protocol> igmp = this->GetIgmp();
+
+	if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	{
+		retval = true;
+	}
+
+	return retval;
 }
 
 Ptr<GsamSession>

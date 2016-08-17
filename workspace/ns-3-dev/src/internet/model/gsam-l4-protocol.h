@@ -127,14 +127,17 @@ private:	//phase 2, GM
 						const Ptr<IkeSaProposal> gsa_r_proposal);
 private:	//phase 2, NQ
 	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessGsaPushNQ (	Ptr<GsamSession> session,
+	void ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
-							const std::list<Ptr<IkeSaProposal> >& gsa_proposals);
+							const std::list<Ptr<IkeSaProposal> >& gsa_proposals,
+							std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs);
 	void RejectGsaR (	Ptr<GsamSession> session,
 						const IkeTrafficSelector& ts_src,
 						const IkeTrafficSelector& ts_dest,
-						const std::list<uint32_t>& gsa_r_spis_to_reject);
+						const std::list<uint32_t>& gsa_r_spis_to_reject,
+						std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs);
+	void ProcessNQRejectResult (Ptr<GsamSession> session, std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc

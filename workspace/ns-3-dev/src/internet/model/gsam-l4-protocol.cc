@@ -414,7 +414,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 	uint32_t length_beside_ikheader = 0;
 	Ptr<Packet> packet = Create<Packet>();
 
-	IkePayload previous_session_group_sa_payload;
+	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
 
 	for (	std::list<Ptr<GsamSessionGroup> >::iterator it = lst_session_groups.begin();
 			it != lst_session_groups.end();
@@ -473,16 +473,12 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 
 				IkePayload session_group_sa_payload;
 				session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
-
-				if (true == previous_session_group_sa_payload.HasPayloadSubstructure())
-				{
-					previous_session_group_sa_payload.SetNextPayloadType(session_group_sa_payload.GetPayloadType());
-				}
+				session_group_sa_payload.SetNextPayloadType(next_payload_type);
 
 				packet->AddHeader(session_group_sa_payload);
 				length_beside_ikheader += session_group_sa_payload.GetSerializedSize();
 
-				previous_session_group_sa_payload = session_group_sa_payload;
+				next_payload_type = session_group_sa_payload.GetPayloadType();
 			}
 		}
 	}
@@ -492,7 +488,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 	this->SendMessage(session,
 			IkeHeader::INFORMATIONAL,
 			false,
-			previous_session_group_sa_payload.GetPayloadType(),
+			next_payload_type,
 			length_beside_ikheader,
 			packet,
 			true);
@@ -1162,9 +1158,52 @@ void
 GsamL4Protocol::RejectGsaR (Ptr<GsamSession> session,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
-							const std::list<uint32_t>& gsa_r_spis_to_reject)
+							const std::list<uint32_t>& gsa_r_spis_to_reject,
+							std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs)
 {
 	NS_LOG_FUNCTION (this);
+
+	Ptr<IkeGroupNotifySubstructure> gsa_r_spis_to_reject_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(IPsec::AH,
+																																				IPsec::AH_ESP_SPI_SIZE,
+																																				IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION,
+																																				ts_src,
+																																				ts_dest);
+	gsa_r_spis_to_reject_substructure->PushBackSpis(gsa_r_spis_to_reject);
+
+	retval_payload_subs.push_back(gsa_r_spis_to_reject_substructure);
+
+}
+
+void
+GsamL4Protocol::ProcessNQRejectResult (Ptr<GsamSession> session, std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<Packet> packet = Create<Packet>();
+	uint32_t length_beside_ikeheader = 0;
+
+	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
+	for (std::list<Ptr<IkePayloadSubstructure> >::iterator it = retval_payload_subs.begin();
+			it != retval_payload_subs.end();
+			it++)
+	{
+		IkePayload reject_gsa_r_payload;
+		reject_gsa_r_payload.SetSubstructure(*it);
+		reject_gsa_r_payload.SetNextPayloadType(next_payload_type);
+
+		packet->AddHeader(reject_gsa_r_payload);
+
+		next_payload_type = reject_gsa_r_payload.GetPayloadType();
+		length_beside_ikeheader += reject_gsa_r_payload.GetSerializedSize();
+	}
+
+	this->SendMessage(session,
+						IkeHeader::INFORMATIONAL,
+						true,
+						next_payload_type,
+						length_beside_ikeheader,
+						packet,
+						false);
 }
 
 void
@@ -1198,7 +1237,7 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 {
 	NS_LOG_FUNCTION (this);
 
-	IkePayloadHeader::PAYLOAD_TYPE ikeheader_next_payloadtype = ikeheader.GetNextPayloadType();
+	IkePayloadHeader::PAYLOAD_TYPE next_payloadtype = ikeheader.GetNextPayloadType();
 
 	if (ikeheader.GetNextPayloadType() == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
 	{
@@ -1217,18 +1256,26 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 #warning "not finish, need to handle cases of duplicate incoming packet"
 
+	std::list<Ptr<IkePayloadSubstructure> > retval_payload_subs;
+
 	do {
 		IkePayload pushed_gsa_payload;
-		pushed_gsa_payload.GetEmptyPayloadFromPayloadType(ikeheader_next_payloadtype);
+		pushed_gsa_payload.GetEmptyPayloadFromPayloadType(next_payloadtype);
 
 		packet->RemoveHeader(pushed_gsa_payload);
 
 		Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = DynamicCast<IkeGsaPayloadSubstructure>(pushed_gsa_payload.GetSubstructure());
 
-		this->ProcessGsaPushNQ(	session,
+		/*
+		 * We base the process onto each individual group.
+		 * If there is one or more spi of a group get rejected, we collect those rejected spis and pack them into a payload substructure
+		 * If there is no rejection for that group. A policy will be established and those spis of that group will be installed
+		 */
+		this->ProcessGsaPushNQForOneGrp(	session,
 								gsa_payload_substructure->GetSourceTrafficSelector(),
 								gsa_payload_substructure->GetDestTrafficSelector(),
-								gsa_payload_substructure->GetProposals());
+								gsa_payload_substructure->GetProposals(),
+								retval_payload_subs);
 
 		if (pushed_gsa_payload.GetNextPayloadType() == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
 		{
@@ -1243,6 +1290,15 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 			NS_ASSERT (false);
 		}
 	} while (true == go_on);
+
+	if (retval_payload_subs.size() > 0)
+	{
+		this->ProcessNQRejectResult(session, retval_payload_subs);
+	}
+	else
+	{
+		//send ack
+	}
 }
 
 void
@@ -1413,10 +1469,10 @@ GsamL4Protocol::InstallGsaPair (Ptr<GsamSession> session,
 			NS_ASSERT (false);
 		}
 
-		Ptr<IpSecSAEntry> gsa_q = policy->GetInboundSAD()->CreateIpSecSAEntry(gsa_q_spi);
+		Ptr<IpSecSAEntry> gsa_q = policy->GetInboundSAD()->CreateIpSecSAEntry(gsa_q_spi.ToUint32());
 		session->AssociateGsaQ(gsa_q);
 
-		Ptr<IpSecSAEntry> gsa_r = policy->GetOutboundSAD()->CreateIpSecSAEntry(gsa_r_spi);
+		Ptr<IpSecSAEntry> gsa_r = policy->GetOutboundSAD()->CreateIpSecSAEntry(gsa_r_spi.ToUint32());
 		session->SetRelatedGsaR(gsa_r);
 	}
 
@@ -1451,10 +1507,11 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 }
 
 void
-GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
+GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 									const IkeTrafficSelector& ts_src,
 									const IkeTrafficSelector& ts_dest,
-									const std::list<Ptr<IkeSaProposal> >& gsa_proposals)
+									const std::list<Ptr<IkeSaProposal> >& gsa_proposals,
+									std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1521,8 +1578,8 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 	if (lst_u32_gsa_r_spis_to_reject.size() > 0)
 	{
 		//has conflict spis
-		//reject
-		this->RejectGsaR(session, ts_src, ts_dest, lst_u32_gsa_r_spis_to_reject)
+		//add spis to reject to retval
+		this->RejectGsaR(session, ts_src, ts_dest, lst_u32_gsa_r_spis_to_reject, retval_payload_subs);
 	}
 	else
 	{
@@ -1550,6 +1607,20 @@ GsamL4Protocol::ProcessGsaPushNQ (	Ptr<GsamSession> session,
 		if (session_group->GetSessionsConst().size() != 0)
 		{
 			NS_ASSERT (false);
+		}
+
+		for (std::list<uint32_t>::const_iterator const_it = lst_u32_gsa_q_spis_to_install.begin();
+				const_it != lst_u32_gsa_q_spis_to_install.end();
+				const_it++)
+		{
+			session_group->InstallGsaQ(*const_it);
+		}
+
+		for (std::list<uint32_t>::const_iterator const_it = lst_u32_gsa_r_spis_to_install.begin();
+				const_it != lst_u32_gsa_r_spis_to_install.end();
+				const_it++)
+		{
+			session_group->InstallGsaR(*const_it);
 		}
 	}
 }
@@ -1680,7 +1751,7 @@ GsamL4Protocol::CreateOutboundSa (Ptr<GsamSession> session, Spi spi)
 	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
 	Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
 
-	retval = outbound_sad->CreateIpSecSAEntry(spi);
+	retval = outbound_sad->CreateIpSecSAEntry(spi.ToUint32());
 
 	return retval;
 }
@@ -1695,7 +1766,7 @@ GsamL4Protocol::CreateInboundSa (Ptr<GsamSession> session, Spi spi)
 	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
 	Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
 
-	retval = inbound_sad->CreateIpSecSAEntry(spi);
+	retval = inbound_sad->CreateIpSecSAEntry(spi.ToUint32());
 
 	return retval;
 }

@@ -37,8 +37,8 @@ class GsamUtility {
 public://static
 	static uint32_t BytesToUint32 (const std::list<uint8_t>& lst_bytes);
 	static uint64_t BytesToUint64 (const std::list<uint8_t>& lst_bytes);
-	static void Uint32ToBytes (std::list<uint8_t>& lst_retval, uint32_t input_value);
-	static void Uint64ToBytes (std::list<uint8_t>& lst_retval, uint64_t input_value);
+	static void Uint32ToBytes (std::list<uint8_t>& lst_retval, const uint32_t input_value);
+	static void Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input_value);
 };
 
 class GsamConfig {
@@ -327,12 +327,17 @@ public: //self-defined
 							const IkeTrafficSelector& ts_dest,
 							IPsec::PROCESS_CHOICE policy_process_choice,
 							IPsec::MODE ipsec_mode);
+	void InstallGsaQ (uint32_t spi);
+	void InstallGsaR (uint32_t spi);
 public:	//const
 	Ipv4Address GetGroupAddress (void) const;
 	Ptr<IpSecDatabase> GetDatabase (void) const;
 	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
 	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
 	const std::list<Ptr<GsamSession> >& GetSessionsConst (void) const;
+private:
+	Ptr<IpSecSAEntry> InstallInboundGsa (uint32_t spi);
+	Ptr<IpSecSAEntry> InstallOutboundGsa (uint32_t spi);
 private:	//fields
 	Ipv4Address m_group_address;
 	Ptr<IpSecDatabase> m_ptr_database;
@@ -388,7 +393,7 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//self-defined
-	Ptr<IpSecSAEntry> CreateIpSecSAEntry (Spi spi);
+	Ptr<IpSecSAEntry> CreateIpSecSAEntry (uint32_t spi);
 	void RemoveEntry (Ptr<IpSecSAEntry> entry);
 	void AssociatePolicyEntry (Ptr<IpSecPolicyEntry> policy);
 	void SetRootDatabase (Ptr<IpSecDatabase> database);
@@ -552,6 +557,9 @@ public:	//const
 	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
 	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+	bool IsHostQuerier (void) const;
+	bool IsHostGroupMember (void) const;
+	bool IsHostNonQuerier (void) const;
 private:
 	Ptr<GsamSessionGroup> CreateSessionGroup (Ipv4Address group_address);
 private:	//fields

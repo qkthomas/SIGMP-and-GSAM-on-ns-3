@@ -843,14 +843,14 @@ Spi::ToUint64 (void) const
 }
 
 void
-Spi::SetValueFromUint32 (uint32_t value)
+Spi::SetValueFromUint32 (const uint32_t value)
 {
 	NS_LOG_FUNCTION (this);
 
 	GsamUtility::Uint32ToBytes(this->m_lst_var, value);
 }
 void
-Spi::SetValueFromUint64 (uint64_t value)
+Spi::SetValueFromUint64 (const uint64_t value)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -4801,7 +4801,27 @@ IkeGroupNotifySubstructure::PushBackSpis (const std::list<Ptr<Spi> >& lst_ptr_sp
 			NS_ASSERT (false);
 		}
 
-		this->m_lst_ptr_spis.push_back(ptr_spi);
+		this->PushBackSpi(ptr_spi);
+	}
+}
+
+void
+IkeGroupNotifySubstructure::PushBackSpis (const std::list<uint32_t>& lst_u32_spis)
+{
+	NS_LOG_FUNCTION (this);
+
+	for (	std::list<uint32_t>::const_iterator const_it = lst_u32_spis.begin();
+			const_it != lst_u32_spis.end();
+			const_it++)
+	{
+		if (this->m_spi_size != 4)
+		{
+			NS_ASSERT (false);
+		}
+
+		Ptr<Spi> ptr_spi = Create<Spi>();
+		ptr_spi->SetValueFromUint32(*const_it);
+		this->PushBackSpi(ptr_spi);
 	}
 }
 
