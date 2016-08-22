@@ -227,7 +227,8 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session)
 	packet->AddHeader(sa_payload_init);
 	packet->AddHeader(ikeheader);
 
-	this->DoSendMessage(session, packet, true);
+	session->SetCachePacket(packet);
+	this->DoSendMessage(session, true);
 }
 
 void
@@ -565,13 +566,19 @@ GsamL4Protocol::SendMessage (	Ptr<GsamSession> session,
 		actual_retransmit = retransmit;
 	}
 
-	this->DoSendMessage(session, packet, actual_retransmit);
+	Ptr<Packet> cache_packet = packet->Copy();
+
+	session->SetCachePacket(cache_packet);
+
+	this->DoSendMessage(session, actual_retransmit);
 }
 
 void
-GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, bool retransmit)
+GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 {
 	NS_LOG_FUNCTION (this);
+
+	Ptr<Packet> packet = session->GetCachePacket();
 
 	m_socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom(session->GetPeerAddress()), GsamL4Protocol::PROT_NUMBER));
 
@@ -590,7 +597,7 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, Ptr<Packet> packet, boo
 			session->GetRetransmitTimer().Cancel();
 		}
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
-		session->GetRetransmitTimer().SetArguments(session, packet, session_retransmit);
+		session->GetRetransmitTimer().SetArguments(session, session_retransmit);
 		session->GetRetransmitTimer().Schedule(GsamConfig::GetDefaultRetransmitTimeout());
 	}
 	else
@@ -831,78 +838,92 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 
 	NS_ASSERT (message_id == 1);
 
-	//picking up id payload
-	IkePayloadHeader::PAYLOAD_TYPE id_payload_type = ikeheader.GetNextPayloadType();
-	if (id_payload_type != IkePayloadHeader::IDENTIFICATION_INITIATOR)
+	if (session->GetCurrentMessageId() < message_id)
 	{
-		NS_ASSERT (false);
-	}
-	IkePayload id = IkePayload::GetEmptyPayloadFromPayloadType(id_payload_type);
-	packet->RemoveHeader(id);
+		//picking up id payload
+		IkePayloadHeader::PAYLOAD_TYPE id_payload_type = ikeheader.GetNextPayloadType();
+		if (id_payload_type != IkePayloadHeader::IDENTIFICATION_INITIATOR)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload id = IkePayload::GetEmptyPayloadFromPayloadType(id_payload_type);
+		packet->RemoveHeader(id);
 
-	//picking up auth payload
-	IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
-	if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
+		//picking up auth payload
+		IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
+		if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
+		packet->RemoveHeader(auth);
+
+		//picking up SAi2 payload
+		IkePayloadHeader::PAYLOAD_TYPE sai2_payload_type = auth.GetNextPayloadType();
+		if (sai2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload sai2 = IkePayload::GetEmptyPayloadFromPayloadType(sai2_payload_type);
+		packet->RemoveHeader(sai2);
+
+		//picking up TSi payload
+		IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sai2.GetNextPayloadType();
+		if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
+		packet->RemoveHeader(tsi);
+
+		//picking up TSr payload
+		IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
+		if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
+		packet->RemoveHeader(tsr);
+
+		Ptr<IkeSaProposal> chosen_proposal = Create<IkeSaProposal>();
+		GsamL4Protocol::ChooseSAProposalOffer(sai2.GetSAProposals(), chosen_proposal);
+
+		std::list<IkeTrafficSelector> narrowed_tssi;
+		GsamL4Protocol::NarrowTrafficSelectors(tsi.GetTrafficSelectors(), narrowed_tssi);
+		std::list<IkeTrafficSelector> narrowed_tssr;
+		GsamL4Protocol::NarrowTrafficSelectors(tsr.GetTrafficSelectors(), narrowed_tssr);
+
+		Ptr<IkeIdSubstructure> id_substructure = DynamicCast<IkeIdSubstructure>(id.GetSubstructure());
+
+		if (!session->HaveKekSa())
+		{
+			//not duplicated packet
+			this->ProcessIkeSaAuthInvitation(	session,
+												id_substructure->GetIpv4AddressFromData(),
+												chosen_proposal,
+												narrowed_tssi,
+												narrowed_tssr);
+		}
+		else
+		{
+			//it has already receive a same auth invitation for the same session before
+			//this assert is set because we have set an if (current_session_id < message_id) or (current_session_id == message_id) guard ahead
+			NS_ASSERT (false);
+		}
+
+		session->SetMessageId(message_id);
+
+		this->RespondIkeSaAuth(session, chosen_proposal, narrowed_tssi, narrowed_tssr);
+	}
+	else if (session->GetCurrentMessageId() == message_id)
 	{
-		NS_ASSERT (false);
+		//incoming duplicate invitation
+		this->DoSendMessage(session, false);
 	}
-	IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
-	packet->RemoveHeader(auth);
-
-	//picking up SAi2 payload
-	IkePayloadHeader::PAYLOAD_TYPE sai2_payload_type = auth.GetNextPayloadType();
-	if (sai2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+	else	//(session->GetCurrentMessageId() > message_id)
 	{
-		NS_ASSERT (false);
+		//discard
 	}
-	IkePayload sai2 = IkePayload::GetEmptyPayloadFromPayloadType(sai2_payload_type);
-	packet->RemoveHeader(sai2);
-
-	//picking up TSi payload
-	IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sai2.GetNextPayloadType();
-	if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
-	packet->RemoveHeader(tsi);
-
-	//picking up TSr payload
-	IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
-	if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
-	packet->RemoveHeader(tsr);
-
-	Ptr<IkeSaProposal> chosen_proposal = Create<IkeSaProposal>();
-	GsamL4Protocol::ChooseSAProposalOffer(sai2.GetSAProposals(), chosen_proposal);
-
-	std::list<IkeTrafficSelector> narrowed_tssi;
-	GsamL4Protocol::NarrowTrafficSelectors(tsi.GetTrafficSelectors(), narrowed_tssi);
-	std::list<IkeTrafficSelector> narrowed_tssr;
-	GsamL4Protocol::NarrowTrafficSelectors(tsr.GetTrafficSelectors(), narrowed_tssr);
-
-	Ptr<IkeIdSubstructure> id_substructure = DynamicCast<IkeIdSubstructure>(id.GetSubstructure());
-
-	if (!session->HaveKekSa())
-	{
-		//not duplicated packet
-		this->ProcessIkeSaAuthInvitation(	session,
-											id_substructure->GetIpv4AddressFromData(),
-											chosen_proposal,
-											narrowed_tssi,
-											narrowed_tssr);
-	}
-	else
-	{
-		//it has already receive a same auth invitation for the same session before
-	}
-
-	session->SetMessageId(message_id);
-
-	this->RespondIkeSaAuth(session, chosen_proposal, narrowed_tssi, narrowed_tssr);
 
 }
 
@@ -1207,6 +1228,34 @@ GsamL4Protocol::ProcessNQRejectResult (Ptr<GsamSession> session, std::list<Ptr<I
 }
 
 void
+GsamL4Protocol::SendAcceptAck (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	IkeTrafficSelector empty_ts;
+
+	Ptr<IkeGroupNotifySubstructure> ack_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(	GsamConfig::GetDefaultGSAProposalId(),
+																																	IPsec::AH_ESP_SPI_SIZE,
+																																	IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT,
+																																	empty_ts,
+																																	empty_ts);
+
+	IkePayload ack_notify_payload;
+	ack_notify_payload.SetSubstructure(ack_notify_substructure);
+
+	Ptr<Packet> packet = Create<Packet>();
+	packet->AddHeader(ack_notify_payload);
+
+	this->SendMessage(session,
+				IkeHeader::INFORMATIONAL,
+				true,
+				ack_notify_payload.GetPayloadType(),
+				ack_notify_payload.GetSerializedSize(),
+				packet,
+				false);
+}
+
+void
 GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
@@ -1218,7 +1267,7 @@ GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 	Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = DynamicCast<IkeGsaPayloadSubstructure>(pushed_gsa_payload.GetSubstructure());
 
-	std::list<Ptr<IkeSaProposal> > proposals = gsa_payload_substructure->GetProposals();
+	const std::list<Ptr<IkeSaProposal> >& proposals = gsa_payload_substructure->GetProposals();
 
 	if (proposals.size() != 2)
 	{
@@ -1256,7 +1305,7 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 #warning "not finish, need to handle cases of duplicate incoming packet"
 
-	std::list<Ptr<IkePayloadSubstructure> > retval_payload_subs;
+	std::list<Ptr<IkePayloadSubstructure> > retval_toreject_payload_subs;
 
 	do {
 		IkePayload pushed_gsa_payload;
@@ -1275,7 +1324,7 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 								gsa_payload_substructure->GetSourceTrafficSelector(),
 								gsa_payload_substructure->GetDestTrafficSelector(),
 								gsa_payload_substructure->GetProposals(),
-								retval_payload_subs);
+								retval_toreject_payload_subs);
 
 		if (pushed_gsa_payload.GetNextPayloadType() == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
 		{
@@ -1291,13 +1340,15 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 		}
 	} while (true == go_on);
 
-	if (retval_payload_subs.size() > 0)
+	if (retval_toreject_payload_subs.size() > 0)
 	{
-		this->ProcessNQRejectResult(session, retval_payload_subs);
+		//reject
+		this->ProcessNQRejectResult(session, retval_toreject_payload_subs);
 	}
 	else
 	{
 		//send ack
+		this->SendAcceptAck(session);
 	}
 }
 
@@ -1511,7 +1562,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 									const IkeTrafficSelector& ts_src,
 									const IkeTrafficSelector& ts_dest,
 									const std::list<Ptr<IkeSaProposal> >& gsa_proposals,
-									std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs)
+									std::list<Ptr<IkePayloadSubstructure> >& retval_toreject_payload_subs)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1579,7 +1630,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 	{
 		//has conflict spis
 		//add spis to reject to retval
-		this->RejectGsaR(session, ts_src, ts_dest, lst_u32_gsa_r_spis_to_reject, retval_payload_subs);
+		this->RejectGsaR(session, ts_src, ts_dest, lst_u32_gsa_r_spis_to_reject, retval_toreject_payload_subs);
 	}
 	else
 	{

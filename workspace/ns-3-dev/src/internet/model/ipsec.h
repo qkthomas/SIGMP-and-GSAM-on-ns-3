@@ -258,6 +258,7 @@ public:	//self defined
 							const IkeTrafficSelector& ts_dest,
 							IPsec::PROCESS_CHOICE policy_process_choice,
 							IPsec::MODE ipsec_mode);
+	void SetCachePacket (Ptr<Packet> packet);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -277,6 +278,7 @@ public: //const
 	bool IsHostQuerier (void) const;
 	bool IsHostGroupMember (void) const;
 	bool IsHostNonQuerier (void) const;
+	Ptr<Packet> GetCachePacket (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields
@@ -292,6 +294,7 @@ private:	//fields
 	Timer m_timer_timeout;
 	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
 	Ptr<GsaPushSession> m_ptr_push_session;
+	Ptr<Packet> m_last_sent_packet;
 };
 
 class GsamSessionGroup : public Object {

@@ -850,7 +850,8 @@ GsamSession::GsamSession ()
 	 m_ptr_kek_sa (0),
 	 m_ptr_database (0),
 	 m_ptr_related_gsa_r (0),
-	 m_ptr_push_session (0)
+	 m_ptr_push_session (0),
+	 m_last_sent_packet (0)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -880,7 +881,8 @@ GsamSession::~GsamSession()
 	this->m_timer_timeout.Cancel();
 
 	this->m_ptr_related_gsa_r = 0;
-	m_ptr_push_session = 0;
+	this->m_ptr_push_session = 0;
+	this->m_last_sent_packet = 0;
 }
 
 TypeId
@@ -1368,6 +1370,17 @@ GsamSession::EtablishPolicy (	const IkeTrafficSelector& ts_src,
 	this->m_ptr_session_group->EtablishPolicy(ts_src, ts_dest, policy_process_choice, ipsec_mode);
 }
 
+void
+GsamSession::SetCachePacket (Ptr<Packet> packet)
+{
+	NS_LOG_FUNCTION (this);
+	if (packet == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_last_sent_packet = packet;
+}
 
 Ptr<GsamInfo>
 GsamSession::GetInfo (void) const
@@ -1482,6 +1495,19 @@ GsamSession::IsHostNonQuerier (void) const
 	}
 
 	return retval;
+}
+
+Ptr<Packet>
+GsamSession::GetCachePacket (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_last_sent_packet == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_last_sent_packet;
 }
 
 /********************************************************
@@ -2778,7 +2804,6 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, ui
 		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
 				(session_it->GetInitSaResponderSpi() == responder_spi) &&
-				 session_it->GetCurrentMessageId() == message_id &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
 		{
@@ -2803,8 +2828,7 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, ui
 		Ptr<GsamSession> session_it = (*const_it);
 		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
-						//the responder maybe 1 behind of message id
-				 session_it->GetCurrentMessageId() <= message_id &&
+				 session_it->GetInitSaResponderSpi() == 0 &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
 		{
@@ -2829,8 +2853,6 @@ IpSecDatabase::GetPhaseTwoSession (uint64_t initiator_spi, uint64_t responder_sp
 		Ptr<GsamSession> session_it = (*const_it);
 		if (	(session_it->GetKekSaInitiatorSpi() == initiator_spi &&
 				(session_it->GetKekSaResponderSpi() == responder_spi) &&
-					//the responder maybe 1 behind of message id
-				 session_it->GetCurrentMessageId() <= message_id &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
 		{
