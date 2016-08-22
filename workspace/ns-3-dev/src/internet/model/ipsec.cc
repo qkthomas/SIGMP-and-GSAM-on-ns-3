@@ -1378,7 +1378,7 @@ GsamSession::SetCachePacket (Ptr<Packet> packet)
 	{
 		NS_ASSERT (false);
 	}
-
+	this->m_last_sent_packet = 0;
 	this->m_last_sent_packet = packet;
 }
 

@@ -645,37 +645,37 @@ GsamL4Protocol::HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& 
 
 	NS_ASSERT (message_id == 0);
 
-	//
-	IkePayloadHeader::PAYLOAD_TYPE sa_payload_type = ikeheader.GetNextPayloadType();
-	if (sa_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload sa_i_1 = IkePayload::GetEmptyPayloadFromPayloadType(sa_payload_type);
-	packet->RemoveHeader(sa_i_1);
-
-	//
-	IkePayloadHeader::PAYLOAD_TYPE ke_payload_type = sa_i_1.GetNextPayloadType();
-	if (ke_payload_type != IkePayloadHeader::KEY_EXCHANGE)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload ke_i = IkePayload::GetEmptyPayloadFromPayloadType(ke_payload_type);
-	packet->RemoveHeader(ke_i);
-
-	//
-	IkePayloadHeader::PAYLOAD_TYPE nonce_payload_type = ke_i.GetNextPayloadType();
-	if (nonce_payload_type != IkePayloadHeader::NONCE)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload n_i = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
-	packet->RemoveHeader(n_i);
-
 	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
 
 	if (session == 0)
 	{
+		//
+		IkePayloadHeader::PAYLOAD_TYPE sa_payload_type = ikeheader.GetNextPayloadType();
+		if (sa_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload sa_i_1 = IkePayload::GetEmptyPayloadFromPayloadType(sa_payload_type);
+		packet->RemoveHeader(sa_i_1);
+
+		//
+		IkePayloadHeader::PAYLOAD_TYPE ke_payload_type = sa_i_1.GetNextPayloadType();
+		if (ke_payload_type != IkePayloadHeader::KEY_EXCHANGE)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload ke_i = IkePayload::GetEmptyPayloadFromPayloadType(ke_payload_type);
+		packet->RemoveHeader(ke_i);
+
+		//
+		IkePayloadHeader::PAYLOAD_TYPE nonce_payload_type = ke_i.GetNextPayloadType();
+		if (nonce_payload_type != IkePayloadHeader::NONCE)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload n_i = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
+		packet->RemoveHeader(n_i);
+
 		session = this->GetIpSecDatabase()->CreateSession();
 		session->SetPhaseOneRole(GsamSession::RESPONDER);
 		session->SetPeerAddress(peer_address);
@@ -683,10 +683,23 @@ GsamL4Protocol::HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& 
 		session->SetInitSaInitiatorSpi(initiator_spi);
 		uint64_t responder_spi = this->GetIpSecDatabase()->GetInfo()->RegisterGsamSpi();
 		session->SetInitSaResponderSpi(responder_spi);
-	}
-	session->SetMessageId(message_id);
 
-	this->RespondIkeSaInit(session);
+		session->SetMessageId(message_id);
+
+		this->RespondIkeSaInit(session);
+	}
+	else
+	{
+		if (session->GetCurrentMessageId() == message_id)
+		{
+			//duplicate received
+			this->DoSendMessage(session, false);
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
 }
 
 void
@@ -699,10 +712,7 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 	if (0 == session)
 	{
 		//no session
-		//reason 1, replayed msg
-		//reason 2, unsolicited response msg
-
-		//action = do nothing
+		//unsolicited response
 		//assert for debug use
 		NS_ASSERT (false);
 	}
@@ -710,48 +720,63 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 	{
 		uint32_t message_id = ikeheader.GetMessageId();
 
-		NS_ASSERT (message_id == 0);
-
-		//
-		IkePayloadHeader::PAYLOAD_TYPE sa_payload_type = ikeheader.GetNextPayloadType();
-		if (sa_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+		if (session->GetCurrentMessageId() == message_id)
 		{
+			//response with matched message id received
+			NS_ASSERT (message_id == 0);
+
+			//
+			IkePayloadHeader::PAYLOAD_TYPE sa_payload_type = ikeheader.GetNextPayloadType();
+			if (sa_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+			{
+				NS_ASSERT (false);
+			}
+			IkePayload sa_r_1 = IkePayload::GetEmptyPayloadFromPayloadType(sa_payload_type);
+			packet->RemoveHeader(sa_r_1);
+
+			//
+			IkePayloadHeader::PAYLOAD_TYPE ke_payload_type = sa_r_1.GetNextPayloadType();
+			if (ke_payload_type != IkePayloadHeader::KEY_EXCHANGE)
+			{
+				NS_ASSERT (false);
+			}
+			IkePayload ke_r = IkePayload::GetEmptyPayloadFromPayloadType(ke_payload_type);
+			packet->RemoveHeader(ke_r);
+
+			//
+			IkePayloadHeader::PAYLOAD_TYPE nonce_payload_type = ke_r.GetNextPayloadType();
+			if (nonce_payload_type != IkePayloadHeader::NONCE)
+			{
+				NS_ASSERT (false);
+			}
+			IkePayload n_r = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
+			packet->RemoveHeader(n_r);
+
+			session->GetRetransmitTimer().Cancel();
+
+			uint64_t responder_spi = ikeheader.GetResponderSpi();
+
+			if (0 == responder_spi)
+			{
+				//somthing went wrong
+				NS_ASSERT (false);
+			}
+
+			session->SetInitSaResponderSpi(responder_spi);
+
+			this->Send_IKE_SA_AUTH(session);
+		}
+		else if (session->GetCurrentMessageId() > message_id)
+		{
+			//behindhand response
+			//do nothing
+		}
+		else	//session->GetCurrentMessageId() < message_id
+		{
+			//unsolicited response
+			//ignore or assert?
 			NS_ASSERT (false);
 		}
-		IkePayload sa_r_1 = IkePayload::GetEmptyPayloadFromPayloadType(sa_payload_type);
-		packet->RemoveHeader(sa_r_1);
-
-		//
-		IkePayloadHeader::PAYLOAD_TYPE ke_payload_type = sa_r_1.GetNextPayloadType();
-		if (ke_payload_type != IkePayloadHeader::KEY_EXCHANGE)
-		{
-			NS_ASSERT (false);
-		}
-		IkePayload ke_r = IkePayload::GetEmptyPayloadFromPayloadType(ke_payload_type);
-		packet->RemoveHeader(ke_r);
-
-		//
-		IkePayloadHeader::PAYLOAD_TYPE nonce_payload_type = ke_r.GetNextPayloadType();
-		if (nonce_payload_type != IkePayloadHeader::NONCE)
-		{
-			NS_ASSERT (false);
-		}
-		IkePayload n_r = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
-		packet->RemoveHeader(n_r);
-
-		session->GetRetransmitTimer().Cancel();
-
-		uint64_t responder_spi = ikeheader.GetResponderSpi();
-
-		if (0 == responder_spi)
-		{
-			//somthing went wrong
-			NS_ASSERT (false);
-		}
-
-		session->SetInitSaResponderSpi(responder_spi);
-
-		this->Send_IKE_SA_AUTH(session);
 	}
 }
 
@@ -803,29 +828,32 @@ GsamL4Protocol::HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 	if (session == 0)
 	{
+		//unsolicited
 		NS_ASSERT (false);
-	}
-
-	bool is_invitation = ikeheader.IsInitiator();
-	bool is_response = ikeheader.IsResponder();
-
-	if (	(true == is_invitation) &&
-			(false == is_response))
-	{
-		//invitation
-		this->HandleIkeSaAuthInvitation(packet, ikeheader, session);
-
-	}
-	else if ((false == is_invitation) &&
-			(true == is_response))
-	{
-		//response
-		this->HandleIkeSaAuthResponse(packet, ikeheader, session);
 	}
 	else
 	{
-		//error
-		NS_ASSERT (false);
+		bool is_invitation = ikeheader.IsInitiator();
+		bool is_response = ikeheader.IsResponder();
+
+		if (	(true == is_invitation) &&
+				(false == is_response))
+		{
+			//invitation
+			this->HandleIkeSaAuthInvitation(packet, ikeheader, session);
+
+		}
+		else if ((false == is_invitation) &&
+				(true == is_response))
+		{
+			//response
+			this->HandleIkeSaAuthResponse(packet, ikeheader, session);
+		}
+		else
+		{
+			//error
+			NS_ASSERT (false);
+		}
 	}
 
 }
@@ -978,49 +1006,64 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 {
 	NS_LOG_FUNCTION (this);
 
-	session->GetRetransmitTimer().Cancel();
-
 	uint32_t message_id = ikeheader.GetMessageId();
 
-	NS_ASSERT (message_id == 1);
-
-	//picking up auth payload
-	IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
-	if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
+	if (session->GetCurrentMessageId() == message_id)
 	{
+		//response with matched message id
+		session->GetRetransmitTimer().Cancel();
+
+		NS_ASSERT (message_id == 1);
+
+		//picking up auth payload
+		IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
+		if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
+		packet->RemoveHeader(auth);
+
+		//picking up SAr2 payload
+		IkePayloadHeader::PAYLOAD_TYPE sar2_payload_type = auth.GetNextPayloadType();
+		if (sar2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload sar2 = IkePayload::GetEmptyPayloadFromPayloadType(sar2_payload_type);
+		packet->RemoveHeader(sar2);
+
+		//picking up TSi payload
+		IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sar2.GetNextPayloadType();
+		if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
+		packet->RemoveHeader(tsi);
+
+		//picking up TSr payload
+		IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
+		if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
+		packet->RemoveHeader(tsr);
+
+		this->ProcessIkeSaAuthResponse(session, sar2.GetSAProposals(), tsi.GetTrafficSelectors(), tsr.GetTrafficSelectors());
+	}
+	else if (session->GetCurrentMessageId() > message_id)
+	{
+		//behindhand response
+		//do nothing
+	}
+	else	//session->GetCurrentMessageId() < message_id
+	{
+		//unsolicited response
+		//ignore or assert?
 		NS_ASSERT (false);
 	}
-	IkePayload auth = IkePayload::GetEmptyPayloadFromPayloadType(auth_payload_type);
-	packet->RemoveHeader(auth);
-
-	//picking up SAr2 payload
-	IkePayloadHeader::PAYLOAD_TYPE sar2_payload_type = auth.GetNextPayloadType();
-	if (sar2_payload_type != IkePayloadHeader::SECURITY_ASSOCIATION)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload sar2 = IkePayload::GetEmptyPayloadFromPayloadType(sar2_payload_type);
-	packet->RemoveHeader(sar2);
-
-	//picking up TSi payload
-	IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sar2.GetNextPayloadType();
-	if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(tsi_payload_type);
-	packet->RemoveHeader(tsi);
-
-	//picking up TSr payload
-	IkePayloadHeader::PAYLOAD_TYPE tsr_payload_type = tsi.GetNextPayloadType();
-	if (tsr_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER)
-	{
-		NS_ASSERT (false);
-	}
-	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
-	packet->RemoveHeader(tsr);
-
-	this->ProcessIkeSaAuthResponse(session, sar2.GetSAProposals(), tsi.GetTrafficSelectors(), tsr.GetTrafficSelectors());
 
 }
 
@@ -1125,25 +1168,27 @@ GsamL4Protocol::HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ike
 	{
 		NS_ASSERT (false);
 	}
-
-	bool is_invitation = ikeheader.IsInitiator();
-	bool is_response = ikeheader.IsResponder();
-
-	if (	(true == is_invitation) &&
-			(false == is_response))
-	{
-		this->HandleGsaPush(packet, ikeheader, session);
-
-	}
-	else if ((false == is_invitation) &&
-			(true == is_response))
-	{
-		this->HandleGsaAckAndReject(packet, ikeheader, session);
-	}
 	else
 	{
-		//error
-		NS_ASSERT (false);
+		bool is_invitation = ikeheader.IsInitiator();
+		bool is_response = ikeheader.IsResponder();
+
+		if (	(true == is_invitation) &&
+				(false == is_response))
+		{
+			this->HandleGsaPush(packet, ikeheader, session);
+
+		}
+		else if ((false == is_invitation) &&
+				(true == is_response))
+		{
+			this->HandleGsaAckAndReject(packet, ikeheader, session);
+		}
+		else
+		{
+			//error
+			NS_ASSERT (false);
+		}
 	}
 }
 
@@ -1157,20 +1202,56 @@ GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, P
 
 	NS_ASSERT (message_id >= 2);
 
-	if (true == session->IsHostNonQuerier())
+	if (session->GetCurrentMessageId() == (message_id - 1))
 	{
-		this->HandleGsaPushNQ(packet, ikeheader, session);
+		if (true == session->IsHostNonQuerier())
+		{
+			this->HandleGsaPushNQ(packet, ikeheader, session);
+		}
+		else if (true == session->IsHostGroupMember())
+		{
+			this->HandleGsaPushGM(packet, ikeheader, session);
+		}
+		else if (true == session->IsHostQuerier())
+		{
+			NS_ASSERT (false);
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+		session->SetMessageId(message_id);
 	}
-	else if (true == session->IsHostGroupMember())
+	else if (session->GetCurrentMessageId() == message_id)
 	{
-		this->HandleGsaPushGM(packet, ikeheader, session);
+		//duplicate received
+		if (true == session->IsHostNonQuerier())
+		{
+			this->DoSendMessage (session, false);
+		}
+		else if (true == session->IsHostGroupMember())
+		{
+			this->DoSendMessage (session, false);
+		}
+		else if (true == session->IsHostQuerier())
+		{
+			NS_ASSERT (false);
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
-	else if (true == session->IsHostQuerier())
+	else if (session->GetCurrentMessageId() > message_id)
 	{
+		//behindhand retransmission
+		//or
+		//unsolicited packet
 		NS_ASSERT (false);
 	}
 	else
 	{
+		//unsolicited packet
 		NS_ASSERT (false);
 	}
 }
@@ -1303,8 +1384,6 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 	bool go_on = false;
 
-#warning "not finish, need to handle cases of duplicate incoming packet"
-
 	std::list<Ptr<IkePayloadSubstructure> > retval_toreject_payload_subs;
 
 	do {
@@ -1401,8 +1480,6 @@ GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
 		}
 		else
 		{
-			//duplicate gsa push?
-
 			if (local_gsa_q->GetSpi() != gsa_q_proposal->GetSpi().ToUint32())
 			{
 				//weird
@@ -1414,9 +1491,6 @@ GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
 				//weird
 				NS_ASSERT (false);
 			}
-
-			//have to respond
-			this->SendAcceptAck(session, ts_src, ts_dest, gsa_q_proposal, gsa_r_proposal);
 		}
 	}
 }
