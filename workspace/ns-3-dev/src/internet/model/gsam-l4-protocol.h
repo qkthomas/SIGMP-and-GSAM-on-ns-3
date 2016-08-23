@@ -94,13 +94,18 @@ private:	//phase 1, responder
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 private:	//phase 2, Q
-	void HandleGsaAckAndReject (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaAckRejectSpiResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
+	void HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
+	void HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
+	void HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload);
 private:	//phase 2, GM, NQ
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
-	void HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 private:	//phase 2, GM
-	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (	Ptr<GsamSession> session,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
@@ -126,7 +131,7 @@ private:	//phase 2, GM
 						const Ptr<IkeSaProposal> gsa_q_proposal,
 						const Ptr<IkeSaProposal> gsa_r_proposal);
 private:	//phase 2, NQ
-	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,

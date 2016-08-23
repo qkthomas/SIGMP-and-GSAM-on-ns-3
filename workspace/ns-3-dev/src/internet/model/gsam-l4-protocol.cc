@@ -344,13 +344,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<GsaPushSession> gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
-	session->SetGsaPushSession(gsa_push_session);
-
-	//need to setup policy from gsa_push_session first
-	//**********************************
-	//but when?
-	Ptr<IpSecPolicyEntry> policy = gsa_push_session->CreateAndInitializePolicy(session->GetGroupAddress());
+	Ptr<GsaPushSession> gsa_push_session = session->CreateAndSetGsaPushSession();
 
 	//setting up gsa_q
 	Spi suggested_gsa_q_spi;
@@ -382,6 +376,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	}
 
 	//setting up remote spi notification proposal payload
+	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
 	Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(	policy->GetTrafficSelectorSrc(),
 																													policy->GetTrafficSelectorDest());
 	gsa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(suggested_gsa_q_spi, IkeGsaProposal::GSA_Q));
@@ -516,6 +511,7 @@ GsamL4Protocol::DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePay
 		Ptr<Packet> packet = Create<Packet>();
 		packet->AddHeader(gsa_push_proposal_payload);
 
+		nq_session->IncrementMessageId();
 		this->SendMessage(		nq_session,
 								IkeHeader::INFORMATIONAL,
 								false,
@@ -1176,13 +1172,27 @@ GsamL4Protocol::HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ike
 		if (	(true == is_invitation) &&
 				(false == is_response))
 		{
-			this->HandleGsaPush(packet, ikeheader, session);
-
+			if ((true == session->IsHostGroupMember()) ||
+					(true == session->IsHostNonQuerier()))
+			{
+				this->HandleGsaPushSpiRequest(packet, ikeheader, session);
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
 		}
 		else if ((false == is_invitation) &&
 				(true == is_response))
 		{
-			this->HandleGsaAckAndReject(packet, ikeheader, session);
+			if (true == session->IsHostQuerier())
+			{
+				this->HandleGsaAckRejectSpiResponse(packet, ikeheader, session);
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
 		}
 		else
 		{
@@ -1193,7 +1203,7 @@ GsamL4Protocol::HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ike
 }
 
 void
-GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+GsamL4Protocol::HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1206,11 +1216,11 @@ GsamL4Protocol::HandleGsaPush (Ptr<Packet> packet, const IkeHeader& ikeheader, P
 	{
 		if (true == session->IsHostNonQuerier())
 		{
-			this->HandleGsaPushNQ(packet, ikeheader, session);
+			this->HandleGsaPushSpiRequestNQ(packet, ikeheader, session);
 		}
 		else if (true == session->IsHostGroupMember())
 		{
-			this->HandleGsaPushGM(packet, ikeheader, session);
+			this->HandleGsaPushSpiRequestGM(packet, ikeheader, session);
 		}
 		else if (true == session->IsHostQuerier())
 		{
@@ -1337,7 +1347,7 @@ GsamL4Protocol::SendAcceptAck (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+GsamL4Protocol::HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1363,7 +1373,7 @@ GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader,
 	this->ProcessGsaPushGM(session, ts_src, ts_dest, gsa_q_proposal, gsa_r_proposal);
 }
 void
-GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+GsamL4Protocol::HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1503,18 +1513,6 @@ GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session,
 {
 	NS_LOG_FUNCTION (this);
 
-	//setting up payload contains current used spis
-	Ptr<IkeGroupNotifySubstructure> gsa_q_spis_report_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
-																																IPsec::AH_ESP_SPI_SIZE,
-																																IkeGroupNotifySubstructure::GSA_Q_SPI_NOTIFICATION,
-																																ts_src,
-																																ts_dest);
-	std::list<Ptr<Spi> > lst_ptr_gsa_q_spis_report;
-	session->GetDatabase()->GetPolicyDatabase()->GetInboundSpis(lst_ptr_gsa_q_spis_report);
-	gsa_q_spis_report_notify_substructure->PushBackSpis(lst_ptr_gsa_q_spis_report);
-	IkePayload gsa_q_spis_report_notify_payload;
-	gsa_q_spis_report_notify_payload.SetSubstructure(gsa_q_spis_report_notify_substructure);
-
 	//setting up payload contains rejected spi
 	Ptr<IkeGroupNotifySubstructure> reject_gsa_q_spi_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
 																															IPsec::AH_ESP_SPI_SIZE,
@@ -1526,13 +1524,10 @@ GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session,
 	reject_gsa_q_spi_notify_substructure->PushBackSpi(reject_gsa_q_spi);
 	IkePayload reject_gsa_q_spi_notify_payload;
 	reject_gsa_q_spi_notify_payload.SetSubstructure(reject_gsa_q_spi_notify_substructure);
-	reject_gsa_q_spi_notify_payload.SetNextPayloadType(gsa_q_spis_report_notify_payload.GetPayloadType());
 
-	uint32_t length_beside_ikeheader = reject_gsa_q_spi_notify_payload.GetSerializedSize() +
-										gsa_q_spis_report_notify_payload.GetSerializedSize();
+	uint32_t length_beside_ikeheader = reject_gsa_q_spi_notify_payload.GetSerializedSize();
 
 	Ptr<Packet> packet = Create<Packet>();
-	packet->AddHeader(gsa_q_spis_report_notify_payload);
 	packet->AddHeader(reject_gsa_q_spi_notify_payload);
 
 	this->SendMessage(session,
@@ -1751,7 +1746,83 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 }
 
 void
-GsamL4Protocol::HandleGsaAckAndReject (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+GsamL4Protocol::HandleGsaAckRejectSpiResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+	{
+		this->HandleGsaAckRejectSpiResponseFromNQ(packet, ikeheader, session);
+	}
+	else
+	{
+		this->HandleGsaAckRejectSpiResponseFromGM(packet, ikeheader, session);
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	IkePayloadHeader::PAYLOAD_TYPE first_payload_type = ikeheader.GetNextPayloadType();
+
+	if (first_payload_type == IkePayloadHeader::GROUP_NOTIFY)
+	{
+		IkePayload fisrt_group_notify_payload;
+		packet->RemoveHeader(fisrt_group_notify_payload);
+		Ptr<IkeGroupNotifySubstructure> fisrt_group_notify_sub = DynamicCast<IkeGroupNotifySubstructure>(fisrt_group_notify_payload.GetSubstructure());
+		uint8_t first_group_notify_type = fisrt_group_notify_sub->GetNotifyMessageType();
+		if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT)
+		{
+			this->HandleGsaAckFromGM(packet, fisrt_group_notify_payload, session);
+		}
+		else if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_Q_SPI_REJECTION)
+		{
+			this->HandleGsaRejectionFromGM(packet, fisrt_group_notify_payload, session);
+		}
+		else if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_Q_SPI_NOTIFICATION)
+		{
+			this->HandleGsaSpiNotificationFromGM(packet, fisrt_group_notify_payload, session);
+		}
+		else
+		{
+			NS_LOG_FUNCTION (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
+	gsa_push_session->MarkGmSessionReplied();
+
+	if (true == gsa_push_session->IsAllReplied())
+	{
+		gsa_push_session->InstallGsaPair();
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamL4Protocol::HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 }

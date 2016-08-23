@@ -39,6 +39,7 @@ public://static
 	static uint64_t BytesToUint64 (const std::list<uint8_t>& lst_bytes);
 	static void Uint32ToBytes (std::list<uint8_t>& lst_retval, const uint32_t input_value);
 	static void Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input_value);
+	static Ipv4Address CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
 };
 
 class GsamConfig {
@@ -179,18 +180,19 @@ public:	//non-const
 	void MarkGmSessionReplied (void);
 	void MarkNqSessionReplied (Ptr<GsamSession> nq_session);
 	void PushBackNqSession (Ptr<GsamSession> nq_session);
-	Ptr<IpSecPolicyEntry> CreateAndInitializePolicy (Ipv4Address group_address);
 	Ptr<IpSecSAEntry> CreateGsaQ (uint32_t spi);
 	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
+	void InstallGsaPair (void);
+public:	//const
+	bool IsAllReplied (void);
 private:	//fields
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;
 	bool m_flag_gm_session_replied;
-	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent;
+	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent_unreplied;
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_replied;
 	Ptr<IpSecSAEntry> m_ptr_gsa_q;
 	Ptr<IpSecSAEntry> m_ptr_gsa_r;
-	Ptr<IpSecPolicyEntry> m_ptr_policy;
 };
 
 class GsamSession : public Object {
@@ -250,6 +252,8 @@ public:	//self defined
 	void AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group);
 	void AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy);
 	void SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
+	void ClearGsaPushSession (void);
+	Ptr<GsaPushSession> CreateAndSetGsaPushSession (void);
 	void EtablishPolicy (Ipv4Address group_address,
 							uint8_t protocol_id,
 							IPsec::PROCESS_CHOICE policy_process_choice,
@@ -278,6 +282,7 @@ public: //const
 	bool IsHostQuerier (void) const;
 	bool IsHostGroupMember (void) const;
 	bool IsHostNonQuerier (void) const;
+	Ptr<GsaPushSession> GetGsaPushSession (void) const;
 	Ptr<Packet> GetCachePacket (void) const;
 private:
 	void TimeoutAction (void);

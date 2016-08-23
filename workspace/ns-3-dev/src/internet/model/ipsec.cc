@@ -125,6 +125,86 @@ GsamUtility::Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input
 	}
 }
 
+Ipv4Address
+GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest)
+{
+	if (ts_src.GetStartingAddress() == ts_src.GetEndingAddress())
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_src.GetStartingAddress().Get() == 0)
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_src.GetStartPort() == ts_src.GetEndPort())
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_src.GetStartPort() == 0)
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_dest.GetStartingAddress() == ts_dest.GetEndingAddress())
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_dest.GetStartPort() == ts_dest.GetEndPort())
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	if (ts_dest.GetStartPort() == 0)
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	Ipv4Address group_address = ts_dest.GetStartingAddress();
+
+	if (true == group_address.IsMulticast())
+	{
+		//ok
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	return group_address;
+}
+
 /********************************************************
  *        GsamConfig
  ********************************************************/
@@ -624,8 +704,7 @@ GsaPushSession::GsaPushSession ()
 	 m_ptr_gm_session (0),
 	 m_flag_gm_session_replied (false),
 	 m_ptr_gsa_q (0),
-	 m_ptr_gsa_r (0),
-	 m_ptr_policy (0)
+	 m_ptr_gsa_r (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -634,11 +713,10 @@ GsaPushSession::~GsaPushSession()
 {
 	NS_LOG_FUNCTION (this);
 	this->m_ptr_gm_session = 0;
-	this->m_lst_ptr_nq_sessions_sent.clear();
+	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
 	this->m_lst_ptr_nq_sessions_replied.clear();
 	this->m_ptr_gsa_q = 0;
 	this->m_ptr_gsa_r = 0;
-	this->m_ptr_policy = 0;
 	this->m_ptr_database = 0;
 }
 
@@ -682,7 +760,7 @@ operator == (GsaPushSession const& lhs, GsaPushSession const& rhs)
 		retval = false;
 	}
 
-	if (lhs.m_lst_ptr_nq_sessions_sent.size() != rhs.m_lst_ptr_nq_sessions_sent.size())
+	if (lhs.m_lst_ptr_nq_sessions_sent_unreplied.size() != rhs.m_lst_ptr_nq_sessions_sent_unreplied.size())
 	{
 		retval = false;
 	}
@@ -741,6 +819,20 @@ GsaPushSession::SelfRemoval (void)
 		NS_ASSERT (false);
 	}
 
+	if (this->m_lst_ptr_nq_sessions_sent_unreplied.size() != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_nq_sessions_replied.begin();
+			it != this->m_lst_ptr_nq_sessions_replied.end();
+			it++)
+	{
+		(*it)->ClearGsaPushSession();
+	}
+
+	this->m_ptr_gm_session->ClearGsaPushSession();
+
 	this->m_ptr_database->RemoveGsaPushSession(this);
 }
 
@@ -762,13 +854,13 @@ GsaPushSession::MarkNqSessionReplied (Ptr<GsamSession> nq_session)
 		NS_ASSERT (false);
 	}
 
-	std::size_t total_size = this->m_lst_ptr_nq_sessions_sent.size() + this->m_lst_ptr_nq_sessions_replied.size();
+	std::size_t total_size = this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_replied.size();
 
-	this->m_lst_ptr_nq_sessions_sent.remove(nq_session);
+	this->m_lst_ptr_nq_sessions_sent_unreplied.remove(nq_session);
 
 	this->m_lst_ptr_nq_sessions_replied.push_back(nq_session);
 
-	if (total_size != (this->m_lst_ptr_nq_sessions_sent.size() + this->m_lst_ptr_nq_sessions_replied.size()))
+	if (total_size != (this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_replied.size()))
 	{
 		NS_ASSERT (false);
 	}
@@ -783,23 +875,7 @@ GsaPushSession::PushBackNqSession (Ptr<GsamSession> nq_session)
 		NS_ASSERT (false);
 	}
 
-	this->m_lst_ptr_nq_sessions_sent.push_back(nq_session);
-}
-
-Ptr<IpSecPolicyEntry>
-GsaPushSession::CreateAndInitializePolicy (Ipv4Address group_address)
-{
-	NS_LOG_FUNCTION (this);
-
-	this->m_ptr_policy = Create<IpSecPolicyEntry>();
-	this->m_ptr_policy->SetProcessChoice(IpSecPolicyEntry::PROTECT);
-	this->m_ptr_policy->SetIpsecMode(GsamConfig::GetDefaultIpsecMode());
-	this->m_ptr_policy->SetProtocolNum(IpSecPolicyEntry::AH);
-	this->m_ptr_policy->SetSingleSrcAddress(Ipv4Address("0.0.0.0"));
-	this->m_ptr_policy->SetTranSrcPortRange(0, 0);
-	this->m_ptr_policy->SetSingleDestAddress(group_address);
-	this->m_ptr_policy->SetTranDestPortRange(0, 0);
-
+	this->m_lst_ptr_nq_sessions_sent_unreplied.push_back(nq_session);
 }
 
 Ptr<IpSecSAEntry>
@@ -820,6 +896,52 @@ GsaPushSession::CreateGsaR (uint32_t spi)
 
 	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
 	retval->SetSpi(spi);
+
+	return retval;
+}
+
+void
+GsaPushSession::InstallGsaPair (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (false == this->m_ptr_gm_session->IsHostQuerier())
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecPolicyEntry> policy = this->m_ptr_gm_session->GetRelatedPolicy();
+
+	if (policy == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecSAEntry> gsa_q = policy->GetOutboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_q->GetSpi());
+	Ptr<IpSecSAEntry> gsa_r = policy->GetInboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_r->GetSpi());
+
+	this->m_ptr_gm_session->AssociateGsaQ(gsa_q);
+	this->m_ptr_gm_session->SetRelatedGsaR(gsa_r);
+
+	this->SelfRemoval();
+}
+
+bool
+GsaPushSession::IsAllReplied (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = true;
+
+	if (false == this->m_flag_gm_session_replied)
+	{
+		retval = false;
+	}
+
+	if (this->m_lst_ptr_nq_sessions_sent_unreplied.size() != 0)
+	{
+		retval = false;
+	}
 
 	return retval;
 }
@@ -1339,6 +1461,32 @@ GsamSession::SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 }
 
 void
+GsamSession::ClearGsaPushSession (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_push_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_push_session = 0;
+}
+
+Ptr<GsaPushSession>
+GsamSession::CreateAndSetGsaPushSession (void)
+{
+	if (false == this->IsHostQuerier())
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<GsaPushSession> retval = this->GetDatabase()->CreateGsaPushSession();
+	this->SetGsaPushSession(retval);
+	return retval;
+}
+
+void
 GsamSession::EtablishPolicy (Ipv4Address group_address,
 								uint8_t protocol_id,
 								IPsec::PROCESS_CHOICE policy_process_choice,
@@ -1495,6 +1643,19 @@ GsamSession::IsHostNonQuerier (void) const
 	}
 
 	return retval;
+}
+
+Ptr<GsaPushSession>
+GsamSession::GetGsaPushSession (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_push_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_push_session;
 }
 
 Ptr<Packet>
