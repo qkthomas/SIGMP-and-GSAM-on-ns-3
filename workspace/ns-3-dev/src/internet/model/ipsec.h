@@ -185,6 +185,8 @@ public:	//non-const
 	void InstallGsaPair (void);
 public:	//const
 	bool IsAllReplied (void);
+	const Ptr<IpSecSAEntry> GetGsaQ (void) const;
+	const Ptr<IpSecSAEntry> GetGsaR (void) const;
 private:	//fields
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;

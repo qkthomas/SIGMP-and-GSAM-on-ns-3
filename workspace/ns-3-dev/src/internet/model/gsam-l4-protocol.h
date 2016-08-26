@@ -96,7 +96,7 @@ private:	//phase 1, responder
 private:	//phase 2, Q
 	void HandleGsaAckRejectSpiResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
+	void HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& pushed_gsa_payload, Ptr<GsamSession> session);
 	void HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
@@ -106,6 +106,8 @@ private:	//phase 2, GM, NQ
 	void HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 private:	//phase 2, GM
 	void HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleSpiRequestGMNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (	Ptr<GsamSession> session,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,

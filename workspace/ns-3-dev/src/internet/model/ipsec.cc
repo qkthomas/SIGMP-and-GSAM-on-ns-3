@@ -946,6 +946,31 @@ GsaPushSession::IsAllReplied (void)
 	return retval;
 }
 
+const Ptr<IpSecSAEntry>
+GsaPushSession::GetGsaQ (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_gsa_q == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_gsa_q;
+}
+const Ptr<IpSecSAEntry>
+GsaPushSession::GetGsaR (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_gsa_r == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_gsa_r;
+}
+
 /********************************************************
  *        GsamSession
  ********************************************************/
