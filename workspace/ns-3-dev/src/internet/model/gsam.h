@@ -1226,6 +1226,7 @@ class IkeGroupNotifySubstructure : public IkePayloadSubstructure {
 	 */
 public:
 	enum NOTIFY_MESSAGE_TYPE {
+		NONE = 0,
 		GSA_Q_SPI_REJECTION = 1,
 		GSA_R_SPI_REJECTION = 2,
 		GSA_Q_SPI_NOTIFICATION = 3,

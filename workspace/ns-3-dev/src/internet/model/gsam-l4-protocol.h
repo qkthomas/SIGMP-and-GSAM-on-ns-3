@@ -63,7 +63,14 @@ public:	//exchanges, added by Lin Chen
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 private:	//Sending, added by Lin Chen,
-	void SendMessage (	Ptr<GsamSession> session,
+	void SendPhaseOneMessage (Ptr<GsamSession> session,
+								IkeHeader::EXCHANGE_TYPE exchange_type,
+								bool is_responder,
+								IkePayloadHeader::PAYLOAD_TYPE first_payload_type,
+								uint32_t length_beside_ikeheader,
+								Ptr<Packet> packet,
+								bool retransmit);
+	void SendPhaseTwoMessage (	Ptr<GsamSession> session,
 						IkeHeader::EXCHANGE_TYPE exchange_type,
 						bool is_responder,
 						IkePayloadHeader::PAYLOAD_TYPE first_payload_type,
@@ -104,10 +111,11 @@ private:	//phase 2, Q
 private:	//phase 2, GM, NQ
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleSpiRequestGMNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void SendSpiReportGMNQ (Ptr<GsamSession> session);
 private:	//phase 2, GM
 	void HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void HandleSpiRequestGMNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (	Ptr<GsamSession> session,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
@@ -134,6 +142,7 @@ private:	//phase 2, GM
 						const Ptr<IkeSaProposal> gsa_r_proposal);
 private:	//phase 2, NQ
 	void HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
