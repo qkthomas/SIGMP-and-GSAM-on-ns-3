@@ -157,6 +157,12 @@ private:
 };
 
 class GsaPushSession : public Object {
+public:
+	enum GSA_PUSH_STATUS {
+		NONE = 0,
+		GSA_PUSH_ACK = 1,
+		SPI_REQUEST_RESPONSE = 2
+	};
 public:	//Object override
 	static TypeId GetTypeId (void);
 	GsaPushSession ();
@@ -174,6 +180,7 @@ private:
 public:	//operator
 	friend bool operator == (GsaPushSession const& lhs, GsaPushSession const& rhs);
 public:	//non-const
+	void SetStatus (GsaPushSession::GSA_PUSH_STATUS status);
 	void SetDatabase (Ptr<IpSecDatabase> database);
 	void SetGmSession (Ptr<GsamSession> gsam_gm_session);
 	void SelfRemoval (void);
@@ -183,11 +190,14 @@ public:	//non-const
 	Ptr<IpSecSAEntry> CreateGsaQ (uint32_t spi);
 	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
 	void InstallGsaPair (void);
+	void SwitchStatus (void);
 public:	//const
+	GsaPushSession::GSA_PUSH_STATUS GetStatus (void) const;
 	bool IsAllReplied (void);
 	const Ptr<IpSecSAEntry> GetGsaQ (void) const;
 	const Ptr<IpSecSAEntry> GetGsaR (void) const;
 private:	//fields
+	GsaPushSession::GSA_PUSH_STATUS m_status;
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;
 	bool m_flag_gm_session_replied;

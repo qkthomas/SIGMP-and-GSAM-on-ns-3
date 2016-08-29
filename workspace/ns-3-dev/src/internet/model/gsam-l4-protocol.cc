@@ -345,6 +345,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	NS_LOG_FUNCTION (this);
 
 	Ptr<GsaPushSession> gsa_push_session = session->CreateAndSetGsaPushSession();
+	gsa_push_session->SetStatus(GsaPushSession::GSA_PUSH_ACK);
 
 	//setting up gsa_q
 	Spi suggested_gsa_q_spi;
@@ -2005,11 +2006,22 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 	}
 
 	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
-	gsa_push_session->MarkGmSessionReplied();
-
-	if (true == gsa_push_session->IsAllReplied())
+	if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
 	{
-		gsa_push_session->InstallGsaPair();
+		gsa_push_session->MarkGmSessionReplied();
+
+		if (true == gsa_push_session->IsAllReplied())
+		{
+			gsa_push_session->InstallGsaPair();
+		}
+	}
+	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_REQUEST_RESPONSE)
+	{
+		//do nothing
+	}
+	else
+	{
+
 	}
 }
 
@@ -2044,12 +2056,31 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 	{
 		NS_ASSERT (false);
 	}
+
+	gsa_push_session->SwitchStatus();
 }
 
 void
 GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+	Ptr<IkeGroupNotifySubstructure> first_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(first_payload.GetSubstructure());
+	const IkeTrafficSelector& fisrt_payload_ts_src = first_payload_sub->GetTrafficSelectorSrc();
+	Ipv4Address group_address_first_payload = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(first_payload_sub->GetTrafficSelectorSrc(),
+																										first_payload_sub->GetTrafficSelectorDest());
+
+	if (group_address_first_payload.Get() != 0)
+	{
+		//has to be 0
+		NS_ASSERT (false);
+	}
+
+	if (IPsec::AH_ESP_SPI_SIZE != first_payload_sub->GetSpiSize())
+	{
+		NS_ASSERT (false);
+	}
+
+	const std::list<Ptr<Spi> > first_payload_spis = first_payload_sub->GetSpis();
 }
 
 void

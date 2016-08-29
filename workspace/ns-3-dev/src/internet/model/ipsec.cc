@@ -700,7 +700,8 @@ GsaPushSession::GetTypeId (void)
 }
 
 GsaPushSession::GsaPushSession ()
-  :  m_ptr_database (0),
+  :  m_status (GsaPushSession::NONE),
+	 m_ptr_database (0),
 	 m_ptr_gm_session (0),
 	 m_flag_gm_session_replied (false),
 	 m_ptr_gsa_q (0),
@@ -771,6 +772,19 @@ operator == (GsaPushSession const& lhs, GsaPushSession const& rhs)
 	}
 
 	return retval;
+}
+
+void
+GsaPushSession::SetStatus (GsaPushSession::GSA_PUSH_STATUS status)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (status == GsaPushSession::NONE)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_status = status;
 }
 
 void
@@ -924,6 +938,47 @@ GsaPushSession::InstallGsaPair (void)
 	this->m_ptr_gm_session->SetRelatedGsaR(gsa_r);
 
 	this->SelfRemoval();
+}
+
+void
+GsaPushSession::SwitchStatus (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_status == GsaPushSession::NONE)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_flag_gm_session_replied = false;
+	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_nq_sessions_replied.end();
+	this->m_lst_ptr_nq_sessions_sent_unreplied.splice(it, this->m_lst_ptr_nq_sessions_replied);
+
+	if (this->m_status == GsaPushSession::GSA_PUSH_ACK)
+	{
+		this->m_status = GsaPushSession::SPI_REQUEST_RESPONSE;
+	}
+	else if (this->m_status == GsaPushSession::SPI_REQUEST_RESPONSE)
+	{
+		this->m_status = GsaPushSession::GSA_PUSH_ACK;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+GsaPushSession::GSA_PUSH_STATUS
+GsaPushSession::GetStatus (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_status == GsaPushSession::NONE)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_status;
 }
 
 bool
