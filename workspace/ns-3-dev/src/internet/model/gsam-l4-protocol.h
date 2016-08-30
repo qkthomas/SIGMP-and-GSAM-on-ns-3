@@ -59,9 +59,6 @@ public:	//exchanges, added by Lin Chen
 	//create session somewhere first
 	void Send_IKE_SA_INIT (Ptr<GsamSession> session);
 	void Send_IKE_SA_AUTH (Ptr<GsamSession> session);
-	void Send_GSA_PUSH (Ptr<GsamSession> session);
-	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
-	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 private:	//Sending, added by Lin Chen,
 	void SendPhaseOneMessage (Ptr<GsamSession> session,
 								IkeHeader::EXCHANGE_TYPE exchange_type,
@@ -101,31 +98,38 @@ private:	//phase 1, responder
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 private:	//phase 2, Q
+	void Send_GSA_PUSH (Ptr<GsamSession> session);
+	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
+	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
+	void Send_SPI_REQUEST (Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& pushed_gsa_payload, Ptr<GsamSession> session);
 	void HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& gsa_push_proposal_payload);
+	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& payload_without_header);
 private:	//phase 2, GM, NQ
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleSpiRequestGMNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void SendSpiReportGMNQ (Ptr<GsamSession> session);
+	void SendSpiReportGMNQ (Ptr<GsamSession> session, uint32_t gsa_push_id);
 private:	//phase 2, GM
 	void HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushGM (	Ptr<GsamSession> session,
+							uint32_t gsa_push_id,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
 							const Ptr<IkeSaProposal> gsa_q_proposal,
 							const Ptr<IkeSaProposal> gsa_r_proposal);
 	void RejectGsaQ (	Ptr<GsamSession> session,
+						uint32_t gsa_push_id,
 						const IkeTrafficSelector& ts_src,
 						const IkeTrafficSelector& ts_dest,
 						const Ptr<IkeSaProposal> gsa_q_proposal);
 	void AcceptGsaPair (Ptr<GsamSession> session,
+						uint32_t gsa_push_id,
 						const IkeTrafficSelector& ts_src,
 						const IkeTrafficSelector& ts_dest,
 						const Ptr<IkeSaProposal> gsa_q_proposal,
@@ -136,6 +140,7 @@ private:	//phase 2, GM
 							const Ptr<IkeSaProposal> gsa_q_proposal,
 							const Ptr<IkeSaProposal> gsa_r_proposal);
 	void SendAcceptAck (Ptr<GsamSession> session,
+						uint32_t gsa_push_id,
 						const IkeTrafficSelector& ts_src,
 						const IkeTrafficSelector& ts_dest,
 						const Ptr<IkeSaProposal> gsa_q_proposal,
@@ -144,17 +149,19 @@ private:	//phase 2, NQ
 	void HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
+							uint32_t gsa_push_id,
 							const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
 							const std::list<Ptr<IkeSaProposal> >& gsa_proposals,
 							std::list<Ptr<IkePayloadSubstructure> >& retval_toreject_payload_subs);
 	void RejectGsaR (	Ptr<GsamSession> session,
+						uint32_t gsa_push_id,
 						const IkeTrafficSelector& ts_src,
 						const IkeTrafficSelector& ts_dest,
 						const std::list<uint32_t>& gsa_r_spis_to_reject,
 						std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs);
 	void ProcessNQRejectResult (Ptr<GsamSession> session, std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs);
-	void SendAcceptAck (Ptr<GsamSession> session);
+	void SendAcceptAck (Ptr<GsamSession> session, uint32_t gsa_push_id);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 private:	//private staitc

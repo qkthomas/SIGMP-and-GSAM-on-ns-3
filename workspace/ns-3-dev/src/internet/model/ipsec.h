@@ -73,6 +73,7 @@ private:
 public:	//self-defined
 	uint64_t RegisterGsamSpi (void);
 	uint32_t RegisterIpsecSpi (void);
+	uint32_t RegisterGsaPushId (void);
 	void SetRetransmissionDelay (Time time);
 	void FreeGsamSpi (uint64_t spi);
 	void FreeIpsecSpi (uint32_t spi);
@@ -85,11 +86,14 @@ public: //const
 	bool IsIpsecSpiOccupied (uint32_t spi) const;
 private:
 	uint64_t GetLocalAvailableGsamSpi (void) const;
+	uint32_t GetLocalAvailableGsaPushId (void) const;
 	void OccupyGsamSpi (uint64_t spi);
 	void OccupyIpsecSpi (uint32_t spi);
+	void OccupyGsaPushId (uint32_t gsa_push_id);
 private:	//fields
 	std::set<uint64_t> m_set_occupied_gsam_spis;
 	std::set<uint32_t> m_set_occupied_ipsec_spis;	//ah or esp
+	std::set<uint32_t> m_set_occupied_gsa_push_ids;
 	Time m_retransmission_delay;
 	Ipv4Address m_sec_group_start;
 	Ipv4Address m_sec_group_end;
@@ -165,7 +169,6 @@ public:
 	};
 public:	//Object override
 	static TypeId GetTypeId (void);
-	GsaPushSession ();
 	virtual ~GsaPushSession();
 	virtual TypeId GetInstanceTypeId (void) const;
 protected:
@@ -176,9 +179,12 @@ protected:
 	virtual void NotifyNewAggregate ();
 
 private:
+	GsaPushSession ();
 	virtual void DoDispose (void);
 public:	//operator
 	friend bool operator == (GsaPushSession const& lhs, GsaPushSession const& rhs);
+public:	//static
+	static Ptr<GsaPushSession> CreatePushSession(uint32_t id);
 public:	//non-const
 	void SetStatus (GsaPushSession::GSA_PUSH_STATUS status);
 	void SetDatabase (Ptr<IpSecDatabase> database);
@@ -192,11 +198,15 @@ public:	//non-const
 	void InstallGsaPair (void);
 	void SwitchStatus (void);
 public:	//const
+	uint32_t GetId (void) const;
 	GsaPushSession::GSA_PUSH_STATUS GetStatus (void) const;
-	bool IsAllReplied (void);
+	bool IsAllReplied (void) const;
 	const Ptr<IpSecSAEntry> GetGsaQ (void) const;
 	const Ptr<IpSecSAEntry> GetGsaR (void) const;
+private:
+	void ClearNqSessions (void);
 private:	//fields
+	uint32_t m_id;
 	GsaPushSession::GSA_PUSH_STATUS m_status;
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;
@@ -264,6 +274,7 @@ public:	//self defined
 	void AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group);
 	void AssociateWithPolicy (Ptr<IpSecPolicyEntry> policy);
 	void SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
+	void InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
 	void ClearGsaPushSession (void);
 	Ptr<GsaPushSession> CreateAndSetGsaPushSession (void);
 	void EtablishPolicy (Ipv4Address group_address,
@@ -295,6 +306,7 @@ public: //const
 	bool IsHostGroupMember (void) const;
 	bool IsHostNonQuerier (void) const;
 	Ptr<GsaPushSession> GetGsaPushSession (void) const;
+	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_q_spi) const;
 	Ptr<Packet> GetCachePacket (void) const;
 private:
 	void TimeoutAction (void);
@@ -311,6 +323,7 @@ private:	//fields
 	Timer m_timer_timeout;
 	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
 	Ptr<GsaPushSession> m_ptr_push_session;
+	std::set<Ptr<GsaPushSession> > m_nq_set_ptr_push_sessions;
 	Ptr<Packet> m_last_sent_packet;
 };
 

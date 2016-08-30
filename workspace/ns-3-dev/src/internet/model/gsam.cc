@@ -2135,6 +2135,7 @@ IkeGsaPayloadSubstructure::GetTypeId (void)
 }
 
 IkeGsaPayloadSubstructure::IkeGsaPayloadSubstructure ()
+  :  m_gsa_push_id (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -2151,6 +2152,7 @@ IkeGsaPayloadSubstructure::GetSerializedSize (void) const
 
 	uint32_t size = 0;
 
+	size += sizeof (this->m_gsa_push_id);
 	size += this->m_src_ts.GetSerializedSize();
 	size += this->m_dest_ts.GetSerializedSize();
 
@@ -2178,6 +2180,8 @@ IkeGsaPayloadSubstructure::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
+	i.WriteHtonU32(this->m_gsa_push_id);
+
 	this->m_src_ts.Serialize(i);
 	i.Next(this->m_src_ts.GetSerializedSize());
 
@@ -2201,6 +2205,10 @@ IkeGsaPayloadSubstructure::Deserialize (Buffer::Iterator start)
 	uint32_t size = 0;
 
 	uint16_t length_rest = this->m_length;
+
+	this->m_gsa_push_id = i.ReadNtohU32();
+	length_rest -= sizeof (this->m_gsa_push_id);
+	size += sizeof (this->m_gsa_push_id);
 
 	this->m_src_ts.Deserialize(i);
 	uint32_t src_ts_size = this->m_src_ts.GetSerializedSize();
@@ -2249,21 +2257,33 @@ IkeGsaPayloadSubstructure::Print (std::ostream &os) const
 }
 
 Ptr<IkeGsaPayloadSubstructure>
-IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest)
+IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id, IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest)
 {
 	Ptr<IkeGsaPayloadSubstructure> retval = Create<IkeGsaPayloadSubstructure>();
+	retval->SetPushId(gsa_push_id);
 	retval->m_src_ts = ts_src;
 	retval->m_dest_ts = ts_dest;
 	return retval;
 }
 
 Ptr<IkeGsaPayloadSubstructure>
-IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (Ipv4Address group_address)
+IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id, Ipv4Address group_address)
 {
 	IkeTrafficSelector ts_src = IkeTrafficSelector::GenerateSrcSecureGroupTs();
 	IkeTrafficSelector ts_dest = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
-	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (ts_src, ts_dest);
+	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (gsa_push_id, ts_src, ts_dest);
 	return retval;
+}
+
+void
+IkeGsaPayloadSubstructure::SetPushId (uint32_t gsa_push_id)
+{
+	if (0 == gsa_push_id)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_gsa_push_id = gsa_push_id;
 }
 
 IkePayloadHeader::PAYLOAD_TYPE
@@ -2285,6 +2305,13 @@ IkeGsaPayloadSubstructure::GetDestTrafficSelector (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_dest_ts;
+}
+
+uint32_t
+IkeGsaPayloadSubstructure::GetGsaPushId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_gsa_push_id;
 }
 
 /********************************************************
@@ -4565,7 +4592,8 @@ IkeGroupNotifySubstructure::IkeGroupNotifySubstructure ()
   :  m_protocol_id (0),
 	 m_spi_size (0),
 	 m_notify_message_type (0),
-	 m_num_spis (0)
+	 m_num_spis (0),
+	 m_gsa_push_id (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -4581,6 +4609,7 @@ IkeGroupNotifySubstructure::GetSerializedSize (void) const
 {
 	NS_LOG_FUNCTION (this);
 	uint32_t size = 0;
+	size += 4;	//before gsa push id
 	size += 4;	//before two traffic selectors
 	size += this->m_ts_src.GetSerializedSize();
 	size += this->m_ts_dest.GetSerializedSize();
@@ -4610,6 +4639,7 @@ IkeGroupNotifySubstructure::Serialize (Buffer::Iterator start) const
 	i.WriteU8(this->m_spi_size);
 	i.WriteU8(this->m_notify_message_type);
 	i.WriteU8(this->m_lst_ptr_spis.size());
+	i.WriteHtonU32(this->m_gsa_push_id);
 
 	this->m_ts_src.Serialize(i);
 	i.Next(this->m_ts_src.GetSerializedSize());
@@ -4646,6 +4676,8 @@ IkeGroupNotifySubstructure::Deserialize (Buffer::Iterator start)
 	size++;
 	this->m_num_spis = i.ReadU8();
 	size++;
+	this->m_gsa_push_id = i.ReadNtohU32();
+	size += 4;
 
 	this->m_ts_src.Deserialize(i);
 	uint32_t ts_src_size = this->m_ts_src.GetSerializedSize();
@@ -4671,6 +4703,7 @@ IkeGroupNotifySubstructure::Deserialize (Buffer::Iterator start)
 		size += spi_size;
 		this->PushBackSpi(ptr_spi);
 	}
+	return size;
 }
 
 void
@@ -4751,6 +4784,19 @@ IkeGroupNotifySubstructure::SetSpiSize (uint8_t spi_size)
 	}
 
 	this->m_spi_size = spi_size;
+}
+
+void
+IkeGroupNotifySubstructure::SetGsaPushId (uint32_t gsa_push_id)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (0 == uint32_t)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_gsa_push_id = gsa_push_id;
 }
 
 void
@@ -4897,6 +4943,14 @@ IkeGroupNotifySubstructure::GetNotifyMessageType (void) const
 	return this->m_notify_message_type;
 }
 
+uint32_t
+IkeGroupNotifySubstructure::GetGsaPushId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_gsa_push_id;
+}
+
 const IkeTrafficSelector&
 IkeGroupNotifySubstructure::GetTrafficSelectorSrc (void) const
 {
@@ -4929,6 +4983,7 @@ Ptr<IkeGroupNotifySubstructure>
 IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
 																	uint8_t spi_size,
 																	IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
+																	uint32_t gsa_push_id,
 																	const IkeTrafficSelector& ts_src,
 																	const IkeTrafficSelector& ts_dest)
 {
@@ -4936,6 +4991,7 @@ IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Pro
 	retval->SetProtocolId(protocol_id);
 	retval->SetSpiSize(spi_size);
 	retval->SetNotifyMessageType(msg_type);
+	retval->SetGsaPushId(gsa_push_id);
 	retval->m_ts_src = ts_src;
 	retval->m_ts_dest = ts_dest;
 	return retval;

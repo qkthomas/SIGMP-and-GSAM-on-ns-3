@@ -595,6 +595,8 @@ class IkeGsaPayloadSubstructure : public IkeSaPayloadSubstructure {
 	 *                      1                   2                   3
      *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                          Gsa Push Id                          ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * ~                   <Source Traffic Selector>                   ~
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * ~                <Destination Traffic Selector>                 ~
@@ -617,14 +619,18 @@ public:	//Header Override
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
-	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest);
-	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (Ipv4Address group_address);
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (uint32_t gsa_push_id, IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest);
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (uint32_t gsa_push_id, Ipv4Address group_address);
+private:
+	void SetPushId (uint32_t gsa_push_id);
 public:	//const
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	const IkeTrafficSelector& GetSourceTrafficSelector (void) const;
 	const IkeTrafficSelector& GetDestTrafficSelector (void) const;
+	uint32_t GetGsaPushId (void) const;
 private:
+	uint32_t m_gsa_push_id;
 	IkeTrafficSelector m_src_ts;
 	IkeTrafficSelector m_dest_ts;
 };
@@ -1215,6 +1221,8 @@ class IkeGroupNotifySubstructure : public IkePayloadSubstructure {
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * |  Protocol ID  |   SPI Size    |Notify Msg Type|    Num Spi    |
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                          Gsa Push Id                          ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * ~                   <Source Traffic Selector>                   ~
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      * ~                <Destination Traffic Selector>                 ~
@@ -1231,7 +1239,8 @@ public:
 		GSA_R_SPI_REJECTION = 2,
 		GSA_Q_SPI_NOTIFICATION = 3,
 		GSA_R_SPI_NOTIFICATION = 4,
-		GSA_ACKNOWLEDGEDMENT = 5
+		GSA_ACKNOWLEDGEDMENT = 5,
+		SPI_REQUEST = 6
 	};
 public:
 	static TypeId GetTypeId (void);
@@ -1251,6 +1260,7 @@ public:	//const
 	uint8_t GetProtocolId (void) const;
 	uint8_t GetSpiSize (void) const;
 	uint8_t GetNotifyMessageType (void) const;
+	uint32_t GetGsaPushId (void) const;
 	const IkeTrafficSelector& GetTrafficSelectorSrc (void) const;
 	const IkeTrafficSelector& GetTrafficSelectorDest (void) const;
 	const std::list<Ptr<Spi> >& GetSpis (void) const;
@@ -1259,6 +1269,7 @@ public:	//static
 	static Ptr<IkeGroupNotifySubstructure> GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
 														uint8_t spi_size,
 														IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
+														uint32_t gsa_push_id,
 														const IkeTrafficSelector& ts_src,
 														const IkeTrafficSelector& ts_dest);
 public:
@@ -1267,11 +1278,13 @@ protected:	//non_const
 	void SetProtocolId (uint8_t protocol_id);
 	void SetNotifyMessageType (uint8_t notify_message_type);
 	void SetSpiSize (uint8_t spi_size);
+	void SetGsaPushId (uint32_t gsa_push_id);
 private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;		//not "only" for Deserialization
 	uint8_t m_notify_message_type;
 	uint8_t m_num_spis;		//for Deserialization
+	uint32_t m_gsa_push_id;
 	IkeTrafficSelector m_ts_src;
 	IkeTrafficSelector m_ts_dest;
 	std::list<Ptr<Spi> > m_lst_ptr_spis;

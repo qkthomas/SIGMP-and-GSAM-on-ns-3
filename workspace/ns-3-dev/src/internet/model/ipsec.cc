@@ -24,6 +24,7 @@
 #include <ctime>
 #include "igmpv3-l4-protocol.h"
 #include "gsam-l4-protocol.h"
+#include "ns3/ptr.h"
 
 namespace ns3 {
 
@@ -288,6 +289,7 @@ GsamInfo::~GsamInfo()
 	NS_LOG_FUNCTION (this);
 	this->m_set_occupied_gsam_spis.clear();
 	this->m_set_occupied_ipsec_spis.clear();
+	this->m_set_occupied_gsa_push_ids.clear();
 }
 
 TypeId
@@ -320,6 +322,21 @@ GsamInfo::GetLocalAvailableIpsecSpi (void) const
 		spi = rand();
 	} while (	(0 != spi) &&
 				(this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end()));
+
+	return spi;
+}
+
+uint32_t
+GsamInfo::GetLocalAvailableGsaPushId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t spi = 0;
+
+	do {
+		spi = rand();
+	} while (	(0 != spi) &&
+				(this->m_set_occupied_gsa_push_ids.find(spi) != this->m_set_occupied_gsa_push_ids.end()));
 
 	return spi;
 }
@@ -358,6 +375,16 @@ GsamInfo::RegisterIpsecSpi (void)
 	return retval;
 }
 
+uint32_t
+GsamInfo::RegisterGsaPushId (void)
+{
+	uint32_t retval = this->GetLocalAvailableGsaPushId();
+
+	this->OccupyGsaPushId(retval);
+
+	return retval;
+}
+
 Time
 GsamInfo::GetRetransmissionDelay (void) const
 {
@@ -390,6 +417,19 @@ GsamInfo::OccupyIpsecSpi (uint32_t spi)
 {
 	NS_LOG_FUNCTION (this);
 	std::pair<std::set<uint32_t>::iterator, bool> result = this->m_set_occupied_ipsec_spis.insert(spi);
+
+	if (result.second == false)
+	{
+		//there is already a element of the same value of spi in the set
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamInfo::OccupyGsaPushId (uint32_t gsa_push_id)
+{
+	NS_LOG_FUNCTION (this);
+	std::pair<std::set<uint32_t>::iterator, bool> result = this->m_set_occupied_gsa_push_ids.insert(spi);
 
 	if (result.second == false)
 	{
@@ -700,7 +740,8 @@ GsaPushSession::GetTypeId (void)
 }
 
 GsaPushSession::GsaPushSession ()
-  :  m_status (GsaPushSession::NONE),
+  :  m_id (0),
+	 m_status (GsaPushSession::NONE),
 	 m_ptr_database (0),
 	 m_ptr_gm_session (0),
 	 m_flag_gm_session_replied (false),
@@ -745,31 +786,52 @@ operator == (GsaPushSession const& lhs, GsaPushSession const& rhs)
 {
 	bool retval = true;
 
-	if (lhs.m_ptr_database == 0)
+	if (lhs.m_id != rhs.m_id)
+	{
+		retval = false;
+	}
+
+//	if (lhs.m_ptr_database == 0)
+//	{
+//		NS_ASSERT (false);
+//	}
+//
+//	if (rhs.m_ptr_database == 0)
+//	{
+//		NS_ASSERT (false);
+//	}
+//
+//
+//	if (lhs.m_ptr_gm_session != rhs.m_ptr_gm_session)
+//	{
+//		retval = false;
+//	}
+//
+//	if (lhs.m_lst_ptr_nq_sessions_sent_unreplied.size() != rhs.m_lst_ptr_nq_sessions_sent_unreplied.size())
+//	{
+//		retval = false;
+//	}
+//
+//	if (lhs.m_lst_ptr_nq_sessions_replied.size() != rhs.m_lst_ptr_nq_sessions_replied.size())
+//	{
+//		retval = false;
+//	}
+
+	return retval;
+}
+
+Ptr<GsaPushSession>
+GsaPushSession::CreatePushSession (uint32_t id)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (id == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	if (rhs.m_ptr_database == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-
-	if (lhs.m_ptr_gm_session != rhs.m_ptr_gm_session)
-	{
-		retval = false;
-	}
-
-	if (lhs.m_lst_ptr_nq_sessions_sent_unreplied.size() != rhs.m_lst_ptr_nq_sessions_sent_unreplied.size())
-	{
-		retval = false;
-	}
-
-	if (lhs.m_lst_ptr_nq_sessions_replied.size() != rhs.m_lst_ptr_nq_sessions_replied.size())
-	{
-		retval = false;
-	}
+	Ptr<GsaPushSession> retval = Create<GsaPushSession>();
+	retval->m_id = id;
 
 	return retval;
 }
@@ -951,8 +1013,7 @@ GsaPushSession::SwitchStatus (void)
 	}
 
 	this->m_flag_gm_session_replied = false;
-	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_nq_sessions_replied.end();
-	this->m_lst_ptr_nq_sessions_sent_unreplied.splice(it, this->m_lst_ptr_nq_sessions_replied);
+	this->ClearNqSessions();
 
 	if (this->m_status == GsaPushSession::GSA_PUSH_ACK)
 	{
@@ -966,6 +1027,19 @@ GsaPushSession::SwitchStatus (void)
 	{
 		NS_ASSERT (false);
 	}
+}
+
+uint32_t
+GsaPushSession::GetId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (0 == this->m_id)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_id;
 }
 
 GsaPushSession::GSA_PUSH_STATUS
@@ -982,7 +1056,7 @@ GsaPushSession::GetStatus (void) const
 }
 
 bool
-GsaPushSession::IsAllReplied (void)
+GsaPushSession::IsAllReplied (void) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -1024,6 +1098,15 @@ GsaPushSession::GetGsaR (void) const
 	}
 
 	return this->m_ptr_gsa_r;
+}
+
+void
+GsaPushSession::ClearNqSessions (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
+	this->m_lst_ptr_nq_sessions_replied.clear();
 }
 
 /********************************************************
@@ -1085,6 +1168,7 @@ GsamSession::~GsamSession()
 	this->m_ptr_related_gsa_r = 0;
 	this->m_ptr_push_session = 0;
 	this->m_last_sent_packet = 0;
+	this-m_nq_set_ptr_push_sessions.clear();
 }
 
 TypeId
@@ -1524,6 +1608,13 @@ void
 GsamSession::SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (this->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+	{
+		//make sure it is a gm session on Q
+		NS_ASSERT (false);
+	}
+
 	if (gsa_push_session == 0)
 	{
 		NS_ASSERT (false);
@@ -1538,6 +1629,29 @@ GsamSession::SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 
 	gsa_push_session->SetGmSession(this);
 
+}
+
+void
+GsamSession::InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
+{
+	if (this->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+	{
+		//make sure it is a nq session on Q
+		NS_ASSERT (false);
+	}
+
+	std::pair<std::set<Ptr<GsaPushSession> >::iterator, bool> insert_result = this->m_nq_set_ptr_push_sessions.insert(gsa_push_session);
+
+	if (insert_result.second == true)
+	{
+		//what to do?
+	}
+	else
+	{
+		//what to do if there is already an existing element?
+	}
+
+	gsa_push_session->PushBackNqSession(this);
 }
 
 void
@@ -1735,7 +1849,42 @@ GsamSession::GetGsaPushSession (void) const
 		NS_ASSERT (false);
 	}
 
+	if (this->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+	{
+		NS_ASSERT (false);
+	}
+
 	return this->m_ptr_push_session;
+}
+
+Ptr<GsaPushSession>
+GsamSession::GetGsaPushSession (uint32_t gsa_q_spi) const
+{
+	if (this->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<GsaPushSession> retval = 0;
+
+	for (std::set<Ptr<GsaPushSession> >::iterator it = this->m_nq_set_ptr_push_sessions.begin();
+			it != this->m_nq_set_ptr_push_sessions.end();
+			it++)
+	{
+		Ptr<GsaPushSession> value_it = *it;
+
+		if (value_it->GetGsaQ()->GetSpi() == gsa_q_spi)
+		{
+			retval = value_it;
+		}
+	}
+
+	if (retval == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return retval;
 }
 
 Ptr<Packet>
@@ -3311,7 +3460,7 @@ IpSecDatabase::CreateGsaPushSession (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<GsaPushSession> retval = Create<GsaPushSession>();
+	Ptr<GsaPushSession> retval = GsaPushSession::CreatePushSession(this->m_ptr_info->RegisterGsaPushId());
 	retval->SetDatabase(this);
 	return retval;
 }
