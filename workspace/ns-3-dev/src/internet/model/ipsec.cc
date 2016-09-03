@@ -1062,9 +1062,13 @@ GsaPushSession::IsAllReplied (void) const
 
 	bool retval = true;
 
-	if (false == this->m_flag_gm_session_replied)
+	if (0 != this->m_ptr_gm_session)
 	{
-		retval = false;
+		//gm_session may be zero in phase of spi request of new incoming nq
+		if (false == this->m_flag_gm_session_replied)
+		{
+			retval = false;
+		}
 	}
 
 	if (this->m_lst_ptr_nq_sessions_sent_unreplied.size() != 0)
@@ -1858,7 +1862,7 @@ GsamSession::GetGsaPushSession (void) const
 }
 
 Ptr<GsaPushSession>
-GsamSession::GetGsaPushSession (uint32_t gsa_q_spi) const
+GsamSession::GetGsaPushSession (uint32_t gsa_push_id)
 {
 	if (this->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
 	{
@@ -1867,15 +1871,24 @@ GsamSession::GetGsaPushSession (uint32_t gsa_q_spi) const
 
 	Ptr<GsaPushSession> retval = 0;
 
-	for (std::set<Ptr<GsaPushSession> >::iterator it = this->m_nq_set_ptr_push_sessions.begin();
-			it != this->m_nq_set_ptr_push_sessions.end();
-			it++)
+	if (gsa_push_id == 0)
 	{
-		Ptr<GsaPushSession> value_it = *it;
-
-		if (value_it->GetGsaQ()->GetSpi() == gsa_q_spi)
+		//not gsa push session
+		//ok for newly joined nq session
+		this->m_ptr_push_session = this->GetDatabase()->CreateGsaPushSession();
+	}
+	else
+	{
+		for (std::set<Ptr<GsaPushSession> >::iterator it = this->m_nq_set_ptr_push_sessions.begin();
+				it != this->m_nq_set_ptr_push_sessions.end();
+				it++)
 		{
-			retval = value_it;
+			Ptr<GsaPushSession> value_it = *it;
+
+			if (value_it->GetId() == gsa_push_id)
+			{
+				retval = value_it;
+			}
 		}
 	}
 

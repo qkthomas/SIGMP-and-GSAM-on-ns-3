@@ -101,7 +101,7 @@ private:	//phase 2, Q
 	void Send_GSA_PUSH (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
-	void Send_SPI_REQUEST (Ptr<GsamSession> session);
+	void Send_SPI_REQUEST (Ptr<GsamSession> session, uint32_t gsa_push_id);
 	void HandleGsaAckRejectSpiResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& pushed_gsa_payload, Ptr<GsamSession> session);

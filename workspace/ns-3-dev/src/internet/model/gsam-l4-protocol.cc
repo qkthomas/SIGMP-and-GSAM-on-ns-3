@@ -493,42 +493,67 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsamSession> session)
+GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsamSession> session, uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
-	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
-	if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+	Ptr<GsaPushSession> gsa_push_session = 0;
+	if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
 	{
-		gsa_push_session->SwitchStatus();
+		//nq session
+		//case 1: solo newly join session and gsa_push_id == 0, the nq session will create and attach to a new gsa push session on its own
+		//cast 2: multiple nq sessions accompanying a gm session, gsa_push_id != 0.
+		gsa_push_session = session->GetGsaPushSession(gsa_push_id);
 	}
-	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_REQUEST_RESPONSE)
+	else
 	{
-		//switch status may have been invoked by other nq sessions which belongs to the same gsa_push_session
+		//gm session
+		gsa_push_session = session->GetGsaPushSession();
+	}
+	if (0 != gsa_push_session)
+	{
+		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+		{
+			gsa_push_session->SwitchStatus();
+		}
+		else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_REQUEST_RESPONSE)
+		{
+			//switch status may have been invoked by other nq sessions which belongs to the same gsa_push_session
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+
+		IkePayload spi_request_payload;
+		IkeTrafficSelector dummy_ts;
+		Ptr<IkeGroupNotifySubstructure> spi_request_sub = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
+																															IPsec::AH_ESP_SPI_SIZE,
+																															IkeGroupNotifySubstructure::SPI_REQUEST,
+																															gsa_push_session->GetId(),
+																															dummy_ts,
+																															dummy_ts);
+		spi_request_payload.SetSubstructure(spi_request_sub);
+
+		Ptr<Packet> packet = Create<Packet>();
+		packet->AddHeader(spi_request_payload);
+
+		if (session->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
+		{
+			//gm session
+			this->SendPhaseTwoMessage(session,
+										IkeHeader::INFORMATIONAL,
+										false,
+										spi_request_payload.GetPayloadType(),
+										spi_request_payload.GetSerializedSize(),
+										packet,
+										true);
+		}
+		this->DeliverToNQs(gsa_push_session, spi_request_payload);
 	}
 	else
 	{
 		NS_ASSERT (false);
 	}
-
-	IkePayload spi_request_payload;
-	IkeTrafficSelector dummy_ts;
-	Ptr<IkeGroupNotifySubstructure> spi_request_sub = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
-																														IPsec::AH_ESP_SPI_SIZE,
-																														IkeGroupNotifySubstructure::SPI_REQUEST,
-																														gsa_push_session->GetId(),
-																														dummy_ts,
-																														dummy_ts);
-	spi_request_payload.SetSubstructure(spi_request_sub);
-
-	Ptr<Packet> packet = Create<Packet>();
-	this->SendPhaseTwoMessage(session,
-								IkeHeader::INFORMATIONAL,
-								false,
-								spi_request_payload.GetPayloadType(),
-								spi_request_payload.GetSerializedSize(),
-								packet,
-								true);
-	this->DeliverToNQs(gsa_push_session, spi_request_payload);
 }
 
 void
@@ -2128,7 +2153,11 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 		NS_ASSERT (false);
 	}
 
-	this->Send_SPI_REQUEST(session);
+	if (gsa_push_session->GetId() != first_payload_sub->GetGsaPushId())
+	{
+		NS_ASSERT (false);
+	}
+	this->Send_SPI_REQUEST(session, first_payload_sub->GetGsaPushId());
 }
 
 void

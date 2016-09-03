@@ -286,6 +286,7 @@ public:	//self defined
 							IPsec::PROCESS_CHOICE policy_process_choice,
 							IPsec::MODE ipsec_mode);
 	void SetCachePacket (Ptr<Packet> packet);
+	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_push_id);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -306,7 +307,6 @@ public: //const
 	bool IsHostGroupMember (void) const;
 	bool IsHostNonQuerier (void) const;
 	Ptr<GsaPushSession> GetGsaPushSession (void) const;
-	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_q_spi) const;
 	Ptr<Packet> GetCachePacket (void) const;
 private:
 	void TimeoutAction (void);
