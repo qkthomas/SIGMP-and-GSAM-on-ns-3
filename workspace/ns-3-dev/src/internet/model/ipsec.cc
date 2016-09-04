@@ -1653,9 +1653,8 @@ GsamSession::InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 	else
 	{
 		//what to do if there is already an existing element?
+		NS_ASSERT (false);
 	}
-
-	gsa_push_session->PushBackNqSession(this);
 }
 
 void

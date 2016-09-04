@@ -502,7 +502,7 @@ GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsamSession> session, uint32_t gsa_push_id
 		//nq session
 		//case 1: solo newly join session and gsa_push_id == 0, the nq session will create and attach to a new gsa push session on its own
 		//cast 2: multiple nq sessions accompanying a gm session, gsa_push_id != 0.
-		gsa_push_session = session->GetGsaPushSession(gsa_push_id);
+		//do nothing
 	}
 	else
 	{
@@ -560,6 +560,18 @@ void
 GsamL4Protocol::DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& payload_without_header)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (gsa_push_session == 0)
+	{
+		//method is invoked by a nq session
+		gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
+	}
+	else
+	{
+		//method is invoked by a gm session
+		//do nothing
+	}
+
 	Ptr<GsamSessionGroup> session_group_nq = this->GetIpSecDatabase()->GetSessionGroup(GsamConfig::GetIgmpv3DestGrpReportAddress());
 
 	std::list<Ptr<GsamSession> > lst_sessions_nq = session_group_nq->GetSessions();
