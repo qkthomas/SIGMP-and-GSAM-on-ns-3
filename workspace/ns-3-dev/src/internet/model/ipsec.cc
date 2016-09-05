@@ -206,6 +206,17 @@ GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelect
 	return group_address;
 }
 
+void
+LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32)
+{
+	for (std::list<Ptr<Spi> >::const_iterator const_it = lst_spi.begin();
+			const_it != lst_spi.end();
+			const_it++)
+	{
+		retval_lst_u32.push_back((*const_it)->ToUint32());
+	}
+}
+
 /********************************************************
  *        GsamConfig
  ********************************************************/
@@ -760,6 +771,8 @@ GsaPushSession::~GsaPushSession()
 	this->m_ptr_gsa_q = 0;
 	this->m_ptr_gsa_r = 0;
 	this->m_ptr_database = 0;
+	this->m_lst_aggregated_spi_notification.clear();
+	this->m_lst_nq_spi_reject_payload_subs.clear();
 }
 
 TypeId
@@ -1027,6 +1040,20 @@ GsaPushSession::SwitchStatus (void)
 	{
 		NS_ASSERT (false);
 	}
+}
+
+void
+GsaPushSession::AggregateSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification)
+{
+	NS_LOG_FUNCTION (this);
+
+	std::list<uint32_t> lst_u32_spi_notification;
+	GsamUtility::LstSpiToLstU32(lst_spi_notification, lst_u32_spi_notification);
+
+	this->m_lst_aggregated_spi_notification.sort();
+	lst_u32_spi_notification.sort();
+
+	this->m_lst_aggregated_spi_notification = Igmpv3L4Protocol::ListUnion(this->m_lst_aggregated_spi_notification, lst_u32_spi_notification);
 }
 
 uint32_t

@@ -40,6 +40,7 @@ public://static
 	static void Uint32ToBytes (std::list<uint8_t>& lst_retval, const uint32_t input_value);
 	static void Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input_value);
 	static Ipv4Address CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
+	static void LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32);
 };
 
 class GsamConfig {
@@ -197,6 +198,7 @@ public:	//non-const
 	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
 	void InstallGsaPair (void);
 	void SwitchStatus (void);
+	void AggregateSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
 public:	//const
 	uint32_t GetId (void) const;
 	GsaPushSession::GSA_PUSH_STATUS GetStatus (void) const;
@@ -215,6 +217,8 @@ private:	//fields
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_replied;
 	Ptr<IpSecSAEntry> m_ptr_gsa_q;
 	Ptr<IpSecSAEntry> m_ptr_gsa_r;
+	std::list<uint32_t> m_lst_aggregated_spi_notification;
+	std::list<Ptr<IkeGroupNotifySubstructure> > m_lst_nq_spi_reject_payload_subs;
 };
 
 class GsamSession : public Object {

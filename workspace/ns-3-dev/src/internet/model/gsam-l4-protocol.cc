@@ -2193,6 +2193,16 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 	}
 
 	const std::list<Ptr<Spi> > first_payload_spis = first_payload_sub->GetSpis();
+
+	Ptr<GsaPushSession> gsa_push_session_gm = session->GetGsaPushSession();
+	gsa_push_session_gm->AggregateSpiNotification(first_payload_spis);
+
+	if (gsa_push_session_gm->IsAllReplied())
+	{
+		//create new spis base on what is received and modify those IpSecSAEntry
+	}
+
+	//and then send Gsa repush
 }
 
 void
