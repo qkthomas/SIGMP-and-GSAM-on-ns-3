@@ -217,6 +217,17 @@ LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval
 	}
 }
 
+void
+LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32)
+{
+	for (std::list<Ptr<Spi> >::const_iterator const_it = lst_spi.begin();
+			const_it != lst_spi.end();
+			const_it++)
+	{
+		retval_lst_u32.insert((*const_it)->ToUint32());
+	}
+}
+
 /********************************************************
  *        GsamConfig
  ********************************************************/
@@ -338,6 +349,27 @@ GsamInfo::GetLocalAvailableIpsecSpi (void) const
 }
 
 uint32_t
+GsamInfo::GetLocalAvailableIpsecSpi (const std::set<uint32_t>& external_occupied_u32_set) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t spi = 0;
+
+	std::set<uint32_t> set_u32_merged;
+
+	std::set_union(	this->m_set_occupied_ipsec_spis.begin(), this->m_set_occupied_ipsec_spis.end(),
+			external_occupied_u32_set.begin(), external_occupied_u32_set.end(),
+			std::back_inserter(set_u32_merged));
+
+	do {
+		spi = rand();
+	} while (	(0 != spi) &&
+			(set_u32_merged.find(spi) != set_u32_merged.end()));
+
+	return spi;
+}
+
+uint32_t
 GsamInfo::GetLocalAvailableGsaPushId (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -447,6 +479,19 @@ GsamInfo::OccupyGsaPushId (uint32_t gsa_push_id)
 		//there is already a element of the same value of spi in the set
 		NS_ASSERT (false);
 	}
+}
+
+uint32_t
+GsamInfo::GetNotOccupiedU32 (const std::set<uint32_t>& set_u32_occupied)
+{
+	uint32_t retval = 0;
+
+	do {
+		retval = rand();
+	} while (	(0 != retval) &&
+			(set_u32_occupied.find(retval) != set_u32_occupied.end()));
+
+	return retval;
 }
 
 void
@@ -755,9 +800,9 @@ GsaPushSession::GsaPushSession ()
 	 m_status (GsaPushSession::NONE),
 	 m_ptr_database (0),
 	 m_ptr_gm_session (0),
-	 m_flag_gm_session_replied (false),
-	 m_ptr_gsa_q (0),
-	 m_ptr_gsa_r (0)
+	 m_flag_gm_session_acked_notified (false),
+	 m_ptr_gsa_q_to_install (0),
+	 m_ptr_gsa_r_to_install (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -767,12 +812,13 @@ GsaPushSession::~GsaPushSession()
 	NS_LOG_FUNCTION (this);
 	this->m_ptr_gm_session = 0;
 	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
-	this->m_lst_ptr_nq_sessions_replied.clear();
-	this->m_ptr_gsa_q = 0;
-	this->m_ptr_gsa_r = 0;
+	this->m_lst_ptr_nq_sessions_acked_notified.clear();
+	this->m_ptr_gsa_q_to_install = 0;
+	this->m_ptr_gsa_r_to_install = 0;
 	this->m_ptr_database = 0;
-	this->m_lst_aggregated_spi_notification.clear();
-	this->m_lst_nq_spi_reject_payload_subs.clear();
+	this->m_set_aggregated_gsa_q_spi_notification.clear();
+	this->m_set_aggregated_gsa_r_spi_notification.clear();
+	this->m_set_gsa_r_to_modify.clear();
 }
 
 TypeId
@@ -913,8 +959,8 @@ GsaPushSession::SelfRemoval (void)
 		NS_ASSERT (false);
 	}
 
-	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_nq_sessions_replied.begin();
-			it != this->m_lst_ptr_nq_sessions_replied.end();
+	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_nq_sessions_acked_notified.begin();
+			it != this->m_lst_ptr_nq_sessions_acked_notified.end();
 			it++)
 	{
 		(*it)->ClearGsaPushSession();
@@ -930,7 +976,7 @@ GsaPushSession::MarkGmSessionReplied (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	this->m_flag_gm_session_replied = true;
+	this->m_flag_gm_session_acked_notified = true;
 }
 
 void
@@ -943,13 +989,13 @@ GsaPushSession::MarkNqSessionReplied (Ptr<GsamSession> nq_session)
 		NS_ASSERT (false);
 	}
 
-	std::size_t total_size = this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_replied.size();
+	std::size_t total_size = this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_acked_notified.size();
 
 	this->m_lst_ptr_nq_sessions_sent_unreplied.remove(nq_session);
 
-	this->m_lst_ptr_nq_sessions_replied.push_back(nq_session);
+	this->m_lst_ptr_nq_sessions_acked_notified.push_back(nq_session);
 
-	if (total_size != (this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_replied.size()))
+	if (total_size != (this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_acked_notified.size()))
 	{
 		NS_ASSERT (false);
 	}
@@ -975,6 +1021,13 @@ GsaPushSession::CreateGsaQ (uint32_t spi)
 	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
 	retval->SetSpi(spi);
 
+	if (this->m_ptr_gsa_q_to_install != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_gsa_q_to_install = retval;
+
 	return retval;
 }
 
@@ -985,6 +1038,13 @@ GsaPushSession::CreateGsaR (uint32_t spi)
 
 	Ptr<IpSecSAEntry> retval = Create<IpSecSAEntry>();
 	retval->SetSpi(spi);
+
+	if (this->m_ptr_gsa_r_to_install != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_ptr_gsa_r_to_install = retval;
 
 	return retval;
 }
@@ -1006,11 +1066,14 @@ GsaPushSession::InstallGsaPair (void)
 		NS_ASSERT (false);
 	}
 
-	Ptr<IpSecSAEntry> gsa_q = policy->GetOutboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_q->GetSpi());
-	Ptr<IpSecSAEntry> gsa_r = policy->GetInboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_r->GetSpi());
+	Ptr<IpSecSAEntry> gsa_q = policy->GetOutboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_q_to_install->GetSpi());
+	Ptr<IpSecSAEntry> gsa_r = policy->GetInboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_r_to_install->GetSpi());
 
 	this->m_ptr_gm_session->AssociateGsaQ(gsa_q);
 	this->m_ptr_gm_session->SetRelatedGsaR(gsa_r);
+
+	Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
+	info->OccupyIpsecSpi(this->m_ptr_gsa_r_to_install->GetSpi());
 
 	this->SelfRemoval();
 }
@@ -1025,7 +1088,7 @@ GsaPushSession::SwitchStatus (void)
 		NS_ASSERT (false);
 	}
 
-	this->m_flag_gm_session_replied = false;
+	this->m_flag_gm_session_acked_notified = false;
 	this->ClearNqSessions();
 
 	if (this->m_status == GsaPushSession::GSA_PUSH_ACK)
@@ -1043,17 +1106,136 @@ GsaPushSession::SwitchStatus (void)
 }
 
 void
-GsaPushSession::AggregateSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification)
+GsaPushSession::AggregateGsaQSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification)
 {
 	NS_LOG_FUNCTION (this);
 
-	std::list<uint32_t> lst_u32_spi_notification;
-	GsamUtility::LstSpiToLstU32(lst_spi_notification, lst_u32_spi_notification);
+	std::set<uint32_t> set_u32_spi_notification;
+	GsamUtility::LstSpiToSetU32(lst_spi_notification, set_u32_spi_notification);
 
-	this->m_lst_aggregated_spi_notification.sort();
-	lst_u32_spi_notification.sort();
+	std::set<uint32_t> result;
 
-	this->m_lst_aggregated_spi_notification = Igmpv3L4Protocol::ListUnion(this->m_lst_aggregated_spi_notification, lst_u32_spi_notification);
+	std::set_union(	this->m_set_aggregated_gsa_q_spi_notification.begin(), this->m_set_aggregated_gsa_q_spi_notification.end(),
+					set_u32_spi_notification.begin(), set_u32_spi_notification.end(),
+					std::back_inserter(result));
+
+	this->m_set_aggregated_gsa_q_spi_notification = result;
+}
+
+void
+GsaPushSession::AggregateGsaRSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification)
+{
+	NS_LOG_FUNCTION (this);
+
+	std::set<uint32_t> set_u32_spi_notification;
+	GsamUtility::LstSpiToSetU32(lst_spi_notification, set_u32_spi_notification);
+
+	std::set<uint32_t> result;
+
+	std::set_union(	this->m_set_aggregated_gsa_r_spi_notification.begin(), this->m_set_aggregated_gsa_r_spi_notification.end(),
+					set_u32_spi_notification.begin(), set_u32_spi_notification.end(),
+					std::back_inserter(result));
+
+	this->m_set_aggregated_gsa_r_spi_notification = result;
+}
+
+void
+GsaPushSession::GenerateNewSpisAndModitySa (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_status != GsaPushSession::SPI_REQUEST_RESPONSE)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (false == this->IsAllReplied())
+	{
+		NS_ASSERT (false);
+	}
+
+	if (this->m_ptr_gm_session == 0)
+	{
+		if (this->m_ptr_gsa_q_to_install == 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (this->m_ptr_gsa_r_to_install == 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (this->m_set_gsa_r_to_modify.size != 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		if ((this->m_set_aggregated_gsa_q_spi_notification.size() == 0) &&
+				(this->m_set_aggregated_gsa_r_spi_notification.size() == 0))
+		{
+			NS_ASSERT (false);
+		}
+
+		//gm session driven spi notification request response
+
+		if (this->m_set_aggregated_gsa_q_spi_notification.size() > 0)
+		{
+			//GM rejected stored but not yet installed gsa_q
+
+			uint32_t revised_gsa_q_spi = GsamInfo::GetNotOccupiedU32(this->m_set_aggregated_gsa_q_spi_notification);
+			this->m_ptr_gsa_q_to_install->SetSpi(revised_gsa_q_spi);
+		}
+
+		if (this->m_set_aggregated_gsa_r_spi_notification.size() > 0)
+		{
+			//nq rejected stored but not yet installed gsa_r
+			Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
+			uint32_t revised_gsa_r_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
+			this->m_ptr_gsa_r_to_install->SetSpi(revised_gsa_r_spi);
+		}
+
+		this->InstallGsaPair();
+
+	}
+	else
+	{
+		//nq sessions driven spi notification request response
+		if (this->m_ptr_gsa_q_to_install != 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (this->m_ptr_gsa_r_to_install != 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (this->m_set_gsa_r_to_modify.size == 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (this->m_set_aggregated_gsa_r_spi_notification.size() == 0)
+		{
+			NS_ASSERT (false);
+		}
+
+		for (	std::set<Ptr<IpSecSAEntry> >::iterator it = this->m_set_gsa_r_to_modify.begin();
+				it != this->m_set_gsa_r_to_modify.end();
+				it++)
+		{
+			Ptr<IpSecSAEntry> gsa_r_to_modify = (*it);
+
+			Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
+			uint32_t revised_gsa_r_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
+
+			gsa_r_to_modify->SetSpi(revised_gsa_r_spi);
+			info->OccupyIpsecSpi(revised_gsa_r_spi);
+		}
+	}
+
+
 }
 
 uint32_t
@@ -1092,7 +1274,7 @@ GsaPushSession::IsAllReplied (void) const
 	if (0 != this->m_ptr_gm_session)
 	{
 		//gm_session may be zero in phase of spi request of new incoming nq
-		if (false == this->m_flag_gm_session_replied)
+		if (false == this->m_flag_gm_session_acked_notified)
 		{
 			retval = false;
 		}
@@ -1111,24 +1293,24 @@ GsaPushSession::GetGsaQ (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_ptr_gsa_q == 0)
+	if (this->m_ptr_gsa_q_to_install == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	return this->m_ptr_gsa_q;
+	return this->m_ptr_gsa_q_to_install;
 }
 const Ptr<IpSecSAEntry>
 GsaPushSession::GetGsaR (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_ptr_gsa_r == 0)
+	if (this->m_ptr_gsa_r_to_install == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	return this->m_ptr_gsa_r;
+	return this->m_ptr_gsa_r_to_install;
 }
 
 void
@@ -1137,7 +1319,7 @@ GsaPushSession::ClearNqSessions (void)
 	NS_LOG_FUNCTION (this);
 
 	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
-	this->m_lst_ptr_nq_sessions_replied.clear();
+	this->m_lst_ptr_nq_sessions_acked_notified.clear();
 }
 
 /********************************************************
@@ -2298,7 +2480,8 @@ IpSecSAEntry::GetTypeId (void)
 }
 
 IpSecSAEntry::IpSecSAEntry ()
-  :  m_spi (0),
+  :  m_direction (IpSecSAEntry::NO_DIRECTION),
+	 m_spi (0),
 	 m_ptr_encrypt_fn (0),
 	 m_ptr_sad (0),
      m_ptr_policy (0)
@@ -2345,7 +2528,19 @@ IpSecSAEntry::DoDispose (void)
 bool
 operator == (IpSecSAEntry const& lhs, IpSecSAEntry const& rhs)
 {
-	return lhs.m_spi == rhs.m_spi;
+	bool retval = true;
+
+	if (lhs.m_direction != rhs.m_direction)
+	{
+		retval = false;
+	}
+
+	if (lhs.m_spi != rhs.m_spi)
+	{
+		retval = false;
+	}
+
+	return retval;
 }
 
 bool
@@ -2385,6 +2580,32 @@ IpSecSAEntry::AssociatePolicy (Ptr<IpSecPolicyEntry> policy)
 	this->m_ptr_policy = policy;
 }
 
+void
+IpSecSAEntry::SetInbound (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_direction != IpSecSAEntry::NO_DIRECTION)
+	{
+		NS_LOG_FUNCTION (false);
+	}
+
+	this->m_direction = IpSecSAEntry::INBOUND;
+}
+
+void
+IpSecSAEntry::SetOutbound (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_direction != IpSecSAEntry::NO_DIRECTION)
+	{
+		NS_LOG_FUNCTION (false);
+	}
+
+	this->m_direction = IpSecSAEntry::OUTBOUND;
+}
+
 uint32_t
 IpSecSAEntry::GetSpi (void) const
 {
@@ -2409,6 +2630,36 @@ IpSecSAEntry::GetPolicyEntry (void) const
 	return this->m_ptr_policy;
 }
 
+bool
+IpSecSAEntry::IsInbound (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+
+	if (this->m_direction == IpSecSAEntry::INBOUND)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
+bool
+IpSecSAEntry::IsOutbound (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+
+	if (this->m_direction == IpSecSAEntry::OUTBOUND)
+	{
+		retval = true;
+	}
+
+	return retval;
+}
+
 /********************************************************
  *        IpSecSADatabase
  ********************************************************/
@@ -2427,7 +2678,8 @@ IpSecSADatabase::GetTypeId (void)
 }
 
 IpSecSADatabase::IpSecSADatabase ()
-  :  m_ptr_root_database (0),
+  :  m_direction (IpSecSADatabase::NO_DIRECTION),
+	 m_ptr_root_database (0),
 	 m_ptr_policy_entry (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -2490,6 +2742,19 @@ IpSecSADatabase::SetRootDatabase (Ptr<IpSecDatabase> database)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_ptr_root_database = database;
+}
+
+void
+IpSecSADatabase::SetDirection (IpSecSADatabase::DIRECTION sad_direction)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_direction != IpSecSADatabase::NO_DIRECTION)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_direction = sad_direction;
 }
 
 Ptr<IpSecDatabase>
@@ -2555,6 +2820,14 @@ IpSecSADatabase::GetSpis (std::list<Ptr<Spi> >& retval) const
 	}
 }
 
+IpSecSADatabase::DIRECTION
+IpSecSADatabase::GetDirection (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_direction;
+}
+
 Ptr<IpSecSAEntry>
 IpSecSADatabase::CreateIpSecSAEntry (uint32_t spi)
 {
@@ -2570,6 +2843,19 @@ IpSecSADatabase::CreateIpSecSAEntry (uint32_t spi)
 	{
 		retval = this->m_ptr_policy_entry->GetSPD()->GetRootDatabase()->GetSAD()->CreateIpSecSAEntry(spi);
 		retval->AssociatePolicy(this->m_ptr_policy_entry);
+
+		if (this->m_direction == IpSecSADatabase::INBOUND)
+		{
+			retval->SetInbound();
+		}
+		else if (this->m_direction == IpSecSADatabase::OUTBOUND)
+		{
+			retval->SetOutbound();
+		}
+		else
+		{
+			//do nothing
+		}
 	}
 	this->PushBackEntry(retval);
 	return retval;
@@ -2909,6 +3195,7 @@ IpSecPolicyEntry::GetOutboundSAD (void)
 	if (this->m_ptr_outbound_sad == 0)
 	{
 		this->m_ptr_outbound_sad = Create<IpSecSADatabase>();
+		this->m_ptr_outbound_sad->SetDirection(IpSecSADatabase::OUTBOUND);
 		this->m_ptr_outbound_sad->AssociatePolicyEntry(this);
 		this->m_ptr_outbound_sad->SetRootDatabase(this->GetSPD()->GetRootDatabase());
 	}
@@ -2924,6 +3211,7 @@ IpSecPolicyEntry::GetInboundSAD (void)
 	if (this->m_ptr_inbound_sad == 0)
 	{
 		this->m_ptr_inbound_sad = Create<IpSecSADatabase>();
+		this->m_ptr_outbound_sad->SetDirection(IpSecSADatabase::INBOUND);
 		this->m_ptr_inbound_sad->AssociatePolicyEntry(this);
 		this->m_ptr_outbound_sad->SetRootDatabase(this->GetSPD()->GetRootDatabase());
 	}

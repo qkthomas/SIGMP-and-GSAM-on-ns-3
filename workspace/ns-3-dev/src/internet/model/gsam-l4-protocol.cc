@@ -403,6 +403,12 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 }
 
 void
+GsamL4Protocol::Send_GSA_RE_PUSH_GM (Ptr<GsamSession> session)
+{
+
+}
+
+void
 GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
@@ -2195,11 +2201,13 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 	const std::list<Ptr<Spi> > first_payload_spis = first_payload_sub->GetSpis();
 
 	Ptr<GsaPushSession> gsa_push_session_gm = session->GetGsaPushSession();
-	gsa_push_session_gm->AggregateSpiNotification(first_payload_spis);
+	gsa_push_session_gm->MarkGmSessionReplied();
+	gsa_push_session_gm->AggregateGsaQSpiNotification(first_payload_spis);
 
 	if (gsa_push_session_gm->IsAllReplied())
 	{
 		//create new spis base on what is received and modify those IpSecSAEntry
+		gsa_push_session_gm->GenerateNewSpisAndModitySa();
 	}
 
 	//and then send Gsa repush

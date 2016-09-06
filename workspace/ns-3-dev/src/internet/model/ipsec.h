@@ -41,6 +41,7 @@ public://static
 	static void Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input_value);
 	static Ipv4Address CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
 	static void LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32);
+	static void LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32);
 };
 
 class GsamConfig {
@@ -83,6 +84,7 @@ public:	//self-defined
 public: //const
 	Time GetRetransmissionDelay (void) const;
 	uint32_t GetLocalAvailableIpsecSpi (void) const;
+	uint32_t GetLocalAvailableIpsecSpi (const std::set<uint32_t>& external_occupied_u32_set) const;
 	uint32_t GenerateIpsecSpi (void) const;
 	bool IsIpsecSpiOccupied (uint32_t spi) const;
 private:
@@ -91,6 +93,8 @@ private:
 	void OccupyGsamSpi (uint64_t spi);
 	void OccupyIpsecSpi (uint32_t spi);
 	void OccupyGsaPushId (uint32_t gsa_push_id);
+public:
+	static uint32_t GetNotOccupiedU32 (const std::set<uint32_t>& set_u32_occupied);
 private:	//fields
 	std::set<uint64_t> m_set_occupied_gsam_spis;
 	std::set<uint32_t> m_set_occupied_ipsec_spis;	//ah or esp
@@ -198,7 +202,9 @@ public:	//non-const
 	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
 	void InstallGsaPair (void);
 	void SwitchStatus (void);
-	void AggregateSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
+	void AggregateGsaQSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
+	void AggregateGsaRSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
+	void GenerateNewSpisAndModitySa (void);	//this method may also invoke GsaPushSession::InstallGsaPair();
 public:	//const
 	uint32_t GetId (void) const;
 	GsaPushSession::GSA_PUSH_STATUS GetStatus (void) const;
@@ -212,13 +218,14 @@ private:	//fields
 	GsaPushSession::GSA_PUSH_STATUS m_status;
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;
-	bool m_flag_gm_session_replied;
+	bool m_flag_gm_session_acked_notified;
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent_unreplied;
-	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_replied;
-	Ptr<IpSecSAEntry> m_ptr_gsa_q;
-	Ptr<IpSecSAEntry> m_ptr_gsa_r;
-	std::list<uint32_t> m_lst_aggregated_spi_notification;
-	std::list<Ptr<IkeGroupNotifySubstructure> > m_lst_nq_spi_reject_payload_subs;
+	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_acked_notified;
+	Ptr<IpSecSAEntry> m_ptr_gsa_q_to_install;
+	Ptr<IpSecSAEntry> m_ptr_gsa_r_to_install;
+	std::set<uint32_t> m_set_aggregated_gsa_q_spi_notification;
+	std::set<uint32_t> m_set_aggregated_gsa_r_spi_notification;
+	std::set<Ptr<IpSecSAEntry> > m_set_gsa_r_to_modify;
 };
 
 class GsamSession : public Object {
@@ -384,6 +391,12 @@ private:	//fields
 };
 
 class IpSecSAEntry : public Object {
+public:
+	enum DIRECTION {
+		NO_DIRECTION = 0,
+		INBOUND = 1,
+		OUTBOUND = 2
+	};
 public:	//Object override
 	static TypeId GetTypeId (void);
 	IpSecSAEntry ();
@@ -404,10 +417,15 @@ public:
 	void SetSpi (uint32_t spi);
 	void SetSAD (Ptr<IpSecSADatabase> sad);
 	void AssociatePolicy (Ptr<IpSecPolicyEntry> policy);
+	void SetInbound (void);
+	void SetOutbound (void);
 public:	//const
 	uint32_t GetSpi (void) const;
 	Ptr<IpSecPolicyEntry> GetPolicyEntry (void) const;
+	bool IsInbound (void) const;
+	bool IsOutbound (void) const;
 private:	//fields
+	IpSecSAEntry::DIRECTION m_direction;
 	uint32_t m_spi;
 	Ptr<EncryptionFunction> m_ptr_encrypt_fn;
 	Ptr<IpSecSADatabase> m_ptr_sad;
@@ -415,6 +433,12 @@ private:	//fields
 };
 
 class IpSecSADatabase : public Object {
+public:
+	enum DIRECTION {
+		NO_DIRECTION = 0,
+		INBOUND = 1,
+		OUTBOUND = 2
+	};
 public:	//Object override
 	static TypeId GetTypeId (void);
 	IpSecSADatabase ();
@@ -434,14 +458,17 @@ public:	//self-defined
 	void RemoveEntry (Ptr<IpSecSAEntry> entry);
 	void AssociatePolicyEntry (Ptr<IpSecPolicyEntry> policy);
 	void SetRootDatabase (Ptr<IpSecDatabase> database);
+	void SetDirection (IpSecSADatabase::DIRECTION sad_direction);
 public:	//const
 	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 	Ptr<IpSecSAEntry> GetIpsecSAEntry (uint32_t spi) const;
 	Ptr<GsamInfo> GetInfo (void) const;
 	void GetSpis (std::list<Ptr<Spi> >& retval) const;
+	IpSecSADatabase::DIRECTION GetDirection (void) const;
 private:
 	void PushBackEntry (Ptr<IpSecSAEntry> entry);
 private:	//fields
+	IpSecSADatabase::DIRECTION m_direction;
 	Ptr<IpSecDatabase> m_ptr_root_database;
 	Ptr<IpSecPolicyEntry> m_ptr_policy_entry;	//inbound, outbound logical database ptr in policy entry
 	std::list<Ptr<IpSecSAEntry> > m_lst_entries;
