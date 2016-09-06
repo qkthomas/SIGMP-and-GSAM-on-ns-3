@@ -405,7 +405,45 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 void
 GsamL4Protocol::Send_GSA_RE_PUSH_GM (Ptr<GsamSession> session)
 {
+	NS_LOG_FUNCTION (this);
+	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
+	if (gsa_push_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+	Ptr<IpSecSAEntry> gsa_q = session->GetRelatedGsaQ();
+	if (gsa_q == 0)
+	{
+		NS_ASSERT (false);
+	}
+	Ptr<IpSecSAEntry> gsa_r = session->GetRelatedGsaR();
+	if (gsa_r == 0)
+	{
+		NS_ASSERT (false);
+	}
 
+	Ptr<IkeGsaPayloadSubstructure> re_push_payload_sub = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(gsa_push_session->GetId(),
+																											session->GetGroupAddress(),
+																											true);
+	re_push_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(gsa_q->GetSpi()), IkeGsaProposal::GSA_Q));
+	re_push_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(gsa_r->GetSpi()), IkeGsaProposal::GSA_R));
+	IkePayload re_push_payload;
+	re_push_payload.SetSubstructure(re_push_payload_sub);
+
+	uint32_t length_beside_ikeheader = re_push_payload.GetSerializedSize();
+
+	Ptr<Packet> packet = Create<Packet>();
+	packet->AddHeader(re_push_payload);
+
+	this->SendPhaseTwoMessage(	session,
+			IkeHeader::INFORMATIONAL,
+			false,
+			re_push_payload.GetPayloadType(),
+			length_beside_ikeheader,
+			packet,
+			true);
+
+	this->DeliverToNQs(gsa_push_session, re_push_payload);
 }
 
 void
@@ -1565,7 +1603,7 @@ GsamL4Protocol::HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& 
 	IkePayload first_payload;
 	IkePayloadHeader::PAYLOAD_TYPE first_payload_type = ikeheader.GetNextPayloadType();
 
-	if (first_payload_type == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
+	if (first_payload_type == IkePayloadHeader::GSA_PUSH)
 	{
 		if (session->GetCurrentMessageId() == (message_id - 1))
 		{
@@ -1593,7 +1631,7 @@ GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 	IkePayloadHeader::PAYLOAD_TYPE first_payload_type = ikeheader.GetNextPayloadType();
 
-	if (first_payload_type != IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
+	if (first_payload_type != IkePayloadHeader::GSA_PUSH)
 	{
 		NS_ASSERT (false);
 	}
@@ -1628,7 +1666,7 @@ GsamL4Protocol::HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& 
 	IkePayload first_payload;
 	IkePayloadHeader::PAYLOAD_TYPE first_payload_type = ikeheader.GetNextPayloadType();
 
-	if (first_payload_type == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
+	if (first_payload_type == IkePayloadHeader::GSA_PUSH)
 	{
 		if (session->GetCurrentMessageId() == (message_id - 1))
 		{
@@ -1655,7 +1693,7 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 {
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = ikeheader.GetNextPayloadType();
 
-	if (next_payload_type == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
+	if (next_payload_type == IkePayloadHeader::GSA_PUSH)
 	{
 		//ok
 	}
@@ -1713,7 +1751,7 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 		/********************debug**************************/
 
 		next_payload_type = pushed_gsa_payload.GetNextPayloadType();
-		if (next_payload_type == IkePayloadHeader::GROUP_SECURITY_ASSOCIATION)
+		if (next_payload_type == IkePayloadHeader::GSA_PUSH)
 		{
 			go_on = true;
 		}
@@ -2211,6 +2249,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 	}
 
 	//and then send Gsa repush
+	this->Send_GSA_RE_PUSH_GM(session);
 }
 
 void

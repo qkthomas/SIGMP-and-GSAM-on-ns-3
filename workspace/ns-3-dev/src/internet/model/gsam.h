@@ -95,8 +95,9 @@ public:	//Header override
 		CONFIGURATION = 47,
 		EXTENSIBLE_AUTHENTICATION = 48,
 		//added by Lin Chen, GSA type
-		GROUP_SECURITY_ASSOCIATION = 49,
-		GROUP_NOTIFY = 50
+		GSA_PUSH = 49,
+		GROUP_NOTIFY = 50,
+		GSA_REPUSH = 51
 	};
 public:	//translate enum
 	static uint8_t PayloadTypeToUnit8 (IkePayloadHeader::PAYLOAD_TYPE payload_type);
@@ -619,17 +620,25 @@ public:	//Header Override
 public:
 	using IkePayloadSubstructure::Deserialize;
 public:	//static
-	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (uint32_t gsa_push_id, IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest);
-	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (uint32_t gsa_push_id, Ipv4Address group_address);
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (	uint32_t gsa_push_id,
+																	IkeTrafficSelector ts_src,
+																	IkeTrafficSelector ts_dest,
+																	bool is_repush = false);
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (	uint32_t gsa_push_id,
+																	Ipv4Address group_address,
+																	bool is_repush = false);
 private:
 	void SetPushId (uint32_t gsa_push_id);
+	void SetRepush (void);
 public:	//const
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	const IkeTrafficSelector& GetSourceTrafficSelector (void) const;
 	const IkeTrafficSelector& GetDestTrafficSelector (void) const;
 	uint32_t GetGsaPushId (void) const;
+	bool IsRepush (void) const;
 private:
+	bool m_flag_repush;
 	uint32_t m_gsa_push_id;
 	IkeTrafficSelector m_src_ts;
 	IkeTrafficSelector m_dest_ts;

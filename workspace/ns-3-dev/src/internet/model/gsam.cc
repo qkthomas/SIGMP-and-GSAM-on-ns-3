@@ -1180,11 +1180,16 @@ IkePayload::GetEmptyPayloadFromPayloadType (IkePayloadHeader::PAYLOAD_TYPE paylo
 		//not implemented
 		NS_ASSERT (false);
 		break;
-	case IkePayloadHeader::GROUP_SECURITY_ASSOCIATION:
+	case IkePayloadHeader::GSA_PUSH:
 		retval.SetSubstructure(Create<IkeGsaPayloadSubstructure>());
 		break;
 	case IkePayloadHeader::GROUP_NOTIFY:
 		retval.SetSubstructure(Create<IkeGroupNotifySubstructure>());
+		break;
+	case IkePayloadHeader::GSA_REPUSH:
+		ptr_substructure = Create<IkeGsaPayloadSubstructure>();
+		DynamicCast<IkeGsaPayloadSubstructure>(ptr_substructure)->SetRepush();
+		retval.SetSubstructure(ptr_substructure);
 		break;
 	default:
 		NS_ASSERT (false);
@@ -2135,7 +2140,8 @@ IkeGsaPayloadSubstructure::GetTypeId (void)
 }
 
 IkeGsaPayloadSubstructure::IkeGsaPayloadSubstructure ()
-  :  m_gsa_push_id (0)
+  :  m_flag_repush (false),
+	 m_gsa_push_id (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -2257,7 +2263,10 @@ IkeGsaPayloadSubstructure::Print (std::ostream &os) const
 }
 
 Ptr<IkeGsaPayloadSubstructure>
-IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id, IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest)
+IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
+													IkeTrafficSelector ts_src,
+													IkeTrafficSelector ts_dest,
+													bool is_repush = false)
 {
 	Ptr<IkeGsaPayloadSubstructure> retval = Create<IkeGsaPayloadSubstructure>();
 	retval->SetPushId(gsa_push_id);
@@ -2267,11 +2276,13 @@ IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id, IkeTra
 }
 
 Ptr<IkeGsaPayloadSubstructure>
-IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id, Ipv4Address group_address)
+IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
+													Ipv4Address group_address,
+													bool is_repush = false)
 {
 	IkeTrafficSelector ts_src = IkeTrafficSelector::GenerateSrcSecureGroupTs();
 	IkeTrafficSelector ts_dest = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
-	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (gsa_push_id, ts_src, ts_dest);
+	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (gsa_push_id, ts_src, ts_dest, is_repush);
 	return retval;
 }
 
@@ -2286,11 +2297,17 @@ IkeGsaPayloadSubstructure::SetPushId (uint32_t gsa_push_id)
 	this->m_gsa_push_id = gsa_push_id;
 }
 
+void
+IkeGsaPayloadSubstructure::SetRepush (void)
+{
+	this->m_flag_repush = true;
+}
+
 IkePayloadHeader::PAYLOAD_TYPE
 IkeGsaPayloadSubstructure::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return IkePayloadHeader::GROUP_SECURITY_ASSOCIATION;
+	return IkePayloadHeader::GSA_PUSH;
 }
 
 const IkeTrafficSelector&
@@ -2312,6 +2329,13 @@ IkeGsaPayloadSubstructure::GetGsaPushId (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_gsa_push_id;
+}
+
+bool
+IkeGsaPayloadSubstructure::IsRepush (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_repush;
 }
 
 /********************************************************
