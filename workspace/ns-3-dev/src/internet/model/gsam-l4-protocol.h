@@ -109,7 +109,9 @@ private:	//phase 2, Q
 	void HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void DeliverToNQs (Ptr<GsaPushSession> gsa_push_session, const IkePayload& payload_without_header);
+	void DeliverToNQs (	Ptr<GsaPushSession> gsa_push_session,
+						const IkePayload& payload_without_header,
+						IkeHeader::EXCHANGE_TYPE exchange_type = IkeHeader::INFORMATIONAL);
 private:	//phase 2, GM, NQ
 	void HandleGsaInformational (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);

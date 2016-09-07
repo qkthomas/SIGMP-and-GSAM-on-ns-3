@@ -205,12 +205,16 @@ public:	//non-const
 	void AggregateGsaQSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
 	void AggregateGsaRSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
 	void GenerateNewSpisAndModitySa (void);	//this method may also invoke GsaPushSession::InstallGsaPair();
+	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet);
+	void PushBackNqRejectionGroupNotifySub (Ptr<IkeGroupNotifySubstructure> sub);
 public:	//const
 	uint32_t GetId (void) const;
 	GsaPushSession::GSA_PUSH_STATUS GetStatus (void) const;
 	bool IsAllReplied (void) const;
 	const Ptr<IpSecSAEntry> GetGsaQ (void) const;
 	const Ptr<IpSecSAEntry> GetGsaR (void) const;
+	uint32_t GetOldGsaQSpi (void) const;
+	uint32_t GetOldGsaRSpi (void) const;
 private:
 	void ClearNqSessions (void);
 private:	//fields
@@ -222,10 +226,12 @@ private:	//fields
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent_unreplied;
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_acked_notified;
 	Ptr<IpSecSAEntry> m_ptr_gsa_q_to_install;
+	uint32_t m_gsa_q_spi_before_revision;
 	Ptr<IpSecSAEntry> m_ptr_gsa_r_to_install;
+	uint32_t m_gsa_r_spi_before_revision;
 	std::set<uint32_t> m_set_aggregated_gsa_q_spi_notification;
 	std::set<uint32_t> m_set_aggregated_gsa_r_spi_notification;
-	std::set<Ptr<IpSecSAEntry> > m_set_gsa_r_to_modify;
+	std::list<Ptr<IkeGroupNotifySubstructure> > m_lst_nq_rejected_spis_subs;
 };
 
 class GsamSession : public Object {
@@ -577,6 +583,7 @@ public:	//const
 	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 	Ptr<GsamInfo> GetInfo (void) const;
 	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
+	Ptr<IpSecPolicyEntry> GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
 private:	//fields
 	Ptr<IpSecDatabase> m_ptr_root_database;
 	std::list<Ptr<IpSecPolicyEntry> > m_lst_entries;

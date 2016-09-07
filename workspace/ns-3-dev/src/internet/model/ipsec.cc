@@ -802,7 +802,9 @@ GsaPushSession::GsaPushSession ()
 	 m_ptr_gm_session (0),
 	 m_flag_gm_session_acked_notified (false),
 	 m_ptr_gsa_q_to_install (0),
-	 m_ptr_gsa_r_to_install (0)
+	 m_gsa_q_spi_before_revision (0),
+	 m_ptr_gsa_r_to_install (0),
+	 m_gsa_r_spi_before_revision (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -818,7 +820,7 @@ GsaPushSession::~GsaPushSession()
 	this->m_ptr_database = 0;
 	this->m_set_aggregated_gsa_q_spi_notification.clear();
 	this->m_set_aggregated_gsa_r_spi_notification.clear();
-	this->m_set_gsa_r_to_modify.clear();
+	this->m_lst_nq_rejected_spis_subs.clear();
 }
 
 TypeId
@@ -1154,7 +1156,7 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 		NS_ASSERT (false);
 	}
 
-	if (this->m_ptr_gm_session == 0)
+	if (this->m_ptr_gm_session != 0)
 	{
 		if (this->m_ptr_gsa_q_to_install == 0)
 		{
@@ -1162,11 +1164,6 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 		}
 
 		if (this->m_ptr_gsa_r_to_install == 0)
-		{
-			NS_ASSERT (false);
-		}
-
-		if (this->m_set_gsa_r_to_modify.size != 0)
 		{
 			NS_ASSERT (false);
 		}
@@ -1184,6 +1181,7 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 			//GM rejected stored but not yet installed gsa_q
 
 			uint32_t revised_gsa_q_spi = GsamInfo::GetNotOccupiedU32(this->m_set_aggregated_gsa_q_spi_notification);
+			this->m_gsa_q_spi_before_revision = this->m_ptr_gsa_q_to_install->GetSpi();
 			this->m_ptr_gsa_q_to_install->SetSpi(revised_gsa_q_spi);
 		}
 
@@ -1192,6 +1190,7 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 			//nq rejected stored but not yet installed gsa_r
 			Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
 			uint32_t revised_gsa_r_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
+			this->m_gsa_r_spi_before_revision = this->m_ptr_gsa_r_to_install->GetSpi();
 			this->m_ptr_gsa_r_to_install->SetSpi(revised_gsa_r_spi);
 		}
 
@@ -1199,6 +1198,39 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 
 	}
 	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet)
+{
+	NS_LOG_FUNCTION (this);
+	//nq sessions driven spi notification request response
+
+	if (this->m_status != GsaPushSession::SPI_REQUEST_RESPONSE)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (false == this->IsAllReplied())
+	{
+		NS_ASSERT (false);
+	}
+
+
+	if (this->m_lst_nq_rejected_spis_subs.size != 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if(this->m_set_aggregated_gsa_r_spi_notification.size() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (this->m_ptr_gm_session == 0)
 	{
 		//nq sessions driven spi notification request response
 		if (this->m_ptr_gsa_q_to_install != 0)
@@ -1211,7 +1243,7 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 			NS_ASSERT (false);
 		}
 
-		if (this->m_set_gsa_r_to_modify.size == 0)
+		if (this->m_lst_nq_rejected_spis_subs.size == 0)
 		{
 			NS_ASSERT (false);
 		}
@@ -1221,21 +1253,81 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 			NS_ASSERT (false);
 		}
 
-		for (	std::set<Ptr<IpSecSAEntry> >::iterator it = this->m_set_gsa_r_to_modify.begin();
-				it != this->m_set_gsa_r_to_modify.end();
-				it++)
+		Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
+		IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
+
+		for (	std::list<Ptr<IkeGroupNotifySubstructure> >::const_iterator const_sub_it = this->m_lst_nq_rejected_spis_subs.begin();
+				const_sub_it != this->m_lst_nq_rejected_spis_subs.end();
+				const_sub_it++)
 		{
-			Ptr<IpSecSAEntry> gsa_r_to_modify = (*it);
+			const Ptr<IkeGroupNotifySubstructure> value_const_it = *const_sub_it;
 
-			Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
-			uint32_t revised_gsa_r_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
+			if (value_const_it->GetSpiSize() != IPsec::AH_ESP_SPI_SIZE)
+			{
+				NS_ASSERT (false);
+			}
 
-			gsa_r_to_modify->SetSpi(revised_gsa_r_spi);
-			info->OccupyIpsecSpi(revised_gsa_r_spi);
+			IkeTrafficSelector ts_src = value_const_it->GetTrafficSelectorSrc();
+			IkeTrafficSelector ts_dest = value_const_it->GetTrafficSelectorDest();
+			//find policy
+			Ptr<IpSecPolicyEntry> policy = this->m_ptr_database->GetPolicyDatabase()->GetPolicy(ts_src, ts_dest);
+			if (policy == 0)
+			{
+				NS_ASSERT (false);
+			}
+
+			Ptr<IkeGsaPayloadSubstructure> new_gsa_payload_sub = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(this->GetId(),
+																													ts_src,
+																													ts_dest,
+																													true);
+
+			Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
+			const std::list<Ptr<Spi> >& reject_spis_const_it = value_const_it->GetSpis();
+			for (std::list<Ptr<Spi> >::const_iterator const_spi_it = reject_spis_const_it.begin();
+					const_spi_it != reject_spis_const_it.end();
+					const_spi_it++)
+			{
+				Ptr<Spi> value_const_spi_it = (*const_spi_it);
+				//find sa
+				Ptr<IpSecSAEntry> sa_to_modify = inbound_sad->GetIpsecSAEntry(value_const_spi_it->ToUint32());
+				if (sa_to_modify == 0)
+				{
+					NS_ASSERT (false);
+				}
+				uint32_t old_spi = sa_to_modify->GetSpi();
+				uint32_t new_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
+				//aggregate new_gsa_payload_sub
+				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_spi),
+																							IkeGsaProposal::GSA_R_TO_BE_MODIFIED));
+				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_spi),
+																							IkeGsaProposal::GSA_R_REPLACEMENT));
+				//alter local gsa r spi
+				sa_to_modify->SetSpi(new_spi);
+				info->OccupyIpsecSpi(new_spi);
+			}
+
+			//aggregate payload to packet
+			IkePayload new_gsa_payload;
+			new_gsa_payload.SetSubstructure(new_gsa_payload_sub);
+			new_gsa_payload.SetNextPayloadType(next_payload_type);
+			next_payload_type = new_gsa_payload.GetPayloadType();
+			packet->AddHeader(new_gsa_payload);
 		}
 	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
 
-
+void
+GsaPushSession::PushBackNqRejectionGroupNotifySub (Ptr<IkeGroupNotifySubstructure> sub)
+{
+	if (0 == sub)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_lst_nq_rejected_spis_subs.push_back(sub);
 }
 
 uint32_t
@@ -1311,6 +1403,20 @@ GsaPushSession::GetGsaR (void) const
 	}
 
 	return this->m_ptr_gsa_r_to_install;
+}
+
+uint32_t
+GsaPushSession::GetOldGsaQSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_gsa_q_spi_before_revision;
+}
+
+uint32_t
+GsaPushSession::GetOldGsaRSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_gsa_r_spi_before_revision;
 }
 
 void
@@ -3441,6 +3547,27 @@ IpSecPolicyDatabase::GetInboundSpis (std::list<Ptr<Spi> >& retval) const
 	{
 		(*const_it)->GetInboundSpis(retval);
 	}
+}
+
+Ptr<IpSecPolicyEntry>
+IpSecPolicyDatabase::GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<IpSecPolicyEntry> retval = 0;
+
+	for (std::list<Ptr<IpSecPolicyEntry> >::iterator it = this->m_lst_entries.begin();
+			it != this->m_lst_entries.end();
+			it++)
+	{
+		if (((*it)->GetTrafficSelectorSrc() == ts_src) &&
+				((*it)->GetTrafficSelectorDest() == ts_dest))
+		{
+			retval = (*it);
+		}
+	}
+
+	return retval;
 }
 
 /********************************************************

@@ -1196,8 +1196,12 @@ class IkeGsaProposal : public IkeSaProposal {
 public:
 	enum GSA_TYPE {
 		UNINITIALIZED = 0,
-		GSA_Q = 1,
-		GSA_R = 2
+		NEW_GSA_Q = 1,
+		NEW_GSA_R = 2,
+		GSA_Q_TO_BE_MODIFIED = 3,
+		GSA_R_TO_BE_MODIFIED = 4,
+		GSA_Q_REPLACEMENT = 5,
+		GSA_R_REPLACEMENT = 6
 	};
 
 public:

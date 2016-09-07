@@ -2047,8 +2047,8 @@ IkeSaPayloadSubstructure::GenerateGsaPayload (IkeTrafficSelector ts_src, IkeTraf
 
 	Ptr<IkeSaPayloadSubstructure> retval = Create<IkeSaPayloadSubstructure>();
 
-	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_q, IkeGsaProposal::GSA_Q));
-	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_r, IkeGsaProposal::GSA_R));
+	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_q, IkeGsaProposal::NEW_GSA_Q));
+	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_r, IkeGsaProposal::NEW_GSA_R));
 
 	retval->SetLastProposal();
 	retval->SetProposalNum();
@@ -2307,7 +2307,15 @@ IkePayloadHeader::PAYLOAD_TYPE
 IkeGsaPayloadSubstructure::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return IkePayloadHeader::GSA_PUSH;
+
+	IkePayloadHeader::PAYLOAD_TYPE retval = IkePayloadHeader::GSA_PUSH;
+
+	if (true == this->IsRepush())
+	{
+		retval = IkePayloadHeader::GSA_REPUSH;
+	}
+
+	return retval;
 }
 
 const IkeTrafficSelector&
@@ -4404,11 +4412,11 @@ IkeGsaProposal::Serialize (Buffer::Iterator start) const
 	{
 		i.WriteU8(0);
 	}
-	else if (this->m_gsa_type == IkeGsaProposal::GSA_Q)
+	else if (this->m_gsa_type == IkeGsaProposal::NEW_GSA_Q)
 	{
 		i.WriteU8(1);
 	}
-	else if (this->m_gsa_type == IkeGsaProposal::GSA_R)
+	else if (this->m_gsa_type == IkeGsaProposal::NEW_GSA_R)
 	{
 		i.WriteU8(2);
 	}
@@ -4471,11 +4479,11 @@ IkeGsaProposal::Deserialize (Buffer::Iterator start)
 	}
 	else if (reserved_gsa_type == 1)
 	{
-		this->m_gsa_type = IkeGsaProposal::GSA_Q;
+		this->m_gsa_type = IkeGsaProposal::NEW_GSA_Q;
 	}
 	else if (reserved_gsa_type == 2)
 	{
-		this->m_gsa_type = IkeGsaProposal::GSA_R;
+		this->m_gsa_type = IkeGsaProposal::NEW_GSA_R;
 	}
 	else
 	{
@@ -4537,7 +4545,7 @@ IkeGsaProposal::SetAsGsaQ (void)
 		NS_ASSERT (false);
 	}
 
-	this->m_gsa_type = IkeGsaProposal::GSA_Q;
+	this->m_gsa_type = IkeGsaProposal::NEW_GSA_Q;
 }
 
 void
@@ -4550,7 +4558,7 @@ IkeGsaProposal::SetAsGsaR (void)
 		NS_ASSERT (false);
 	}
 
-	this->m_gsa_type = IkeGsaProposal::GSA_R;
+	this->m_gsa_type = IkeGsaProposal::NEW_GSA_R;
 }
 
 void
@@ -4566,7 +4574,7 @@ IkeGsaProposal::IsGsaQ (void) const
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
 
-	if (this->m_gsa_type == IkeGsaProposal::GSA_Q)
+	if (this->m_gsa_type == IkeGsaProposal::NEW_GSA_Q)
 	{
 		retval = true;
 	}
@@ -4580,7 +4588,7 @@ IkeGsaProposal::IsGsaR (void) const
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
 
-	if (this->m_gsa_type == IkeGsaProposal::GSA_R)
+	if (this->m_gsa_type == IkeGsaProposal::NEW_GSA_R)
 	{
 		retval = true;
 	}
