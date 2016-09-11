@@ -554,22 +554,22 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsamSession> session, uint32_t gsa_push_id)
+GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsamSession> session, Ptr<GsaPushSession> gsa_push_session)
 {
 	NS_LOG_FUNCTION (this);
-	Ptr<GsaPushSession> gsa_push_session = 0;
-	if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
-	{
-		//nq session
-		//case 1: solo newly join session and gsa_push_id == 0, the nq session will create and attach to a new gsa push session on its own
-		//cast 2: multiple nq sessions accompanying a gm session, gsa_push_id != 0.
-		//do nothing
-	}
-	else
-	{
-		//gm session
-		gsa_push_session = session->GetGsaPushSession();
-	}
+//	Ptr<GsaPushSession> gsa_push_session = 0;
+//	if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
+//	{
+//		//nq session
+//		//case 1: solo newly join session and gsa_push_id == 0, the nq session will create and attach to a new gsa push session on its own
+//		//cast 2: multiple nq sessions accompanying a gm session, gsa_push_id != 0.
+//		//do nothing
+//	}
+//	else
+//	{
+//		//gm session
+//		gsa_push_session = session->GetGsaPushSession();
+//	}
 	if (0 != gsa_push_session)
 	{
 		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
@@ -624,15 +624,22 @@ GsamL4Protocol::DeliverToNQs (	Ptr<GsaPushSession> gsa_push_session,
 {
 	NS_LOG_FUNCTION (this);
 
+//	if (gsa_push_session == 0)
+//	{
+//		//method is invoked by a nq session
+//		gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
+//	}
+//	else
+//	{
+//		//method is invoked by a gm session
+//		//do nothing
+//	}
+
 	if (gsa_push_session == 0)
 	{
-		//method is invoked by a nq session
-		gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
-	}
-	else
-	{
-		//method is invoked by a gm session
-		//do nothing
+		NS_ASSERT (false);
+		//why changed?
+		//see GsamL4Protocol::HandleGsaRejectionFromNQ
 	}
 
 	Ptr<GsamSessionGroup> session_group_nq = this->GetIpSecDatabase()->GetSessionGroup(GsamConfig::GetIgmpv3DestGrpReportAddress());
@@ -2232,7 +2239,7 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 	{
 		NS_ASSERT (false);
 	}
-	this->Send_SPI_REQUEST(session, first_payload_sub->GetGsaPushId());
+	this->Send_SPI_REQUEST(session, session->GetGsaPushSession());
 }
 
 void
@@ -2275,6 +2282,156 @@ void
 GsamL4Protocol::HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	IkePayloadHeader::PAYLOAD_TYPE first_payload_type = ikeheader.GetNextPayloadType();
+
+	if (first_payload_type == IkePayloadHeader::GROUP_NOTIFY)
+	{
+		IkePayload fisrt_group_notify_payload;
+		packet->RemoveHeader(fisrt_group_notify_payload);
+		Ptr<IkeGroupNotifySubstructure> fisrt_group_notify_sub = DynamicCast<IkeGroupNotifySubstructure>(fisrt_group_notify_payload.GetSubstructure());
+
+		uint8_t first_group_notify_type = fisrt_group_notify_sub->GetNotifyMessageType();
+		packet->AddHeader(fisrt_group_notify_payload);
+		if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT)
+		{
+			this->HandleGsaAckFromNQ(packet, session);
+		}
+		else if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION)
+		{
+			this->HandleGsaRejectionFromNQ(packet, session);
+		}
+		else if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_R_SPI_NOTIFICATION)
+		{
+			this->HandleGsaSpiNotificationFromNQ(packet, session);
+		}
+		else
+		{
+			NS_LOG_FUNCTION (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	IkePayload ack_payload = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::GROUP_NOTIFY);
+	packet->RemoveHeader(ack_payload);
+
+	//do nothing
+	//Q just sends what it already has to NQ
+}
+
+void
+GsamL4Protocol::HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	//There should be no gsa push session attached to the nq session on the Q, yet.
+	Ptr<GsaPushSession> gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
+
+	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
+
+	do {
+		IkePayload gsa_rejection_payload;
+		packet->RemoveHeader(gsa_rejection_payload);
+		IkePayloadHeader::PAYLOAD_TYPE this_payload_type = gsa_rejection_payload.GetPayloadType();
+
+		if (this_payload_type != IkePayloadHeader::GROUP_NOTIFY)
+		{
+			NS_ASSERT (false);
+		}
+
+		Ptr<IkeGroupNotifySubstructure> gsa_rejection_sub = DynamicCast<IkeGroupNotifySubstructure>(gsa_rejection_payload.GetSubstructure());
+
+		if (0 == gsa_rejection_sub->GetSpiNum())
+		{
+			NS_ASSERT (false);
+		}
+
+		if (IPsec::AH_ESP_SPI_SIZE != gsa_rejection_sub->GetSpiSize())
+		{
+			NS_ASSERT (false);
+		}
+
+		if (0 != gsa_rejection_sub->GetGsaPushId())
+		{
+			NS_ASSERT (false);
+		}
+
+		gsa_push_session->PushBackNqRejectionGroupNotifySub(gsa_rejection_sub);
+
+		next_payload_type = gsa_rejection_payload.GetNextPayloadType();
+	} while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD);
+
+	this->Send_SPI_REQUEST(session, gsa_push_session);
+}
+
+void
+GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
+	uint32_t gsa_push_id = 0;
+	Ptr<GsaPushSession> gsa_push_session = 0;
+	do {
+		IkePayload spi_notify_payload;
+		packet->RemoveHeader(spi_notify_payload);
+		IkePayloadHeader::PAYLOAD_TYPE this_payload_type = spi_notify_payload.GetPayloadType();
+
+		if (this_payload_type != IkePayloadHeader::GROUP_NOTIFY)
+		{
+			NS_ASSERT (false);
+		}
+
+		Ptr<IkeGroupNotifySubstructure> gsa_rejection_sub = DynamicCast<IkeGroupNotifySubstructure>(spi_notify_payload.GetSubstructure());
+
+		if (0 == gsa_push_id)
+		{
+			//ok
+			//1st while iterration
+			gsa_push_id = gsa_rejection_sub->GetGsaPushId();
+		}
+		else if (gsa_push_id == gsa_rejection_sub->GetGsaPushId())
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+
+		if (0 == gsa_push_session)
+		{
+			gsa_push_session = session->GetGsaPushSession(gsa_push_id);
+		}
+
+		gsa_push_session->AggregateGsaRSpiNotification(gsa_rejection_sub->GetSpis());
+
+		next_payload_type = spi_notify_payload.GetNextPayloadType();
+	} while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD);
+
+}
+
+void
+GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_session)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (0 == gsa_push_session)
+	{
+		NS_ASSERT (false);
+	}
+
+	//send all info update to NQs sessions
+	//send GM related parts of info to GM sessions
+
+	Ptr<Packet> packet = Create<Packet>();
+	gsa_push_session->AlterRejectedGsaAndAggregatePacket(packet);
 }
 
 Ptr<Igmpv3L4Protocol>

@@ -1273,6 +1273,7 @@ public:	//const
 	uint8_t GetProtocolId (void) const;
 	uint8_t GetSpiSize (void) const;
 	uint8_t GetNotifyMessageType (void) const;
+	uint8_t GetSpiNum (void) const;
 	uint32_t GetGsaPushId (void) const;
 	const IkeTrafficSelector& GetTrafficSelectorSrc (void) const;
 	const IkeTrafficSelector& GetTrafficSelectorDest (void) const;

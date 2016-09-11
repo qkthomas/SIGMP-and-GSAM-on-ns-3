@@ -102,13 +102,17 @@ private:	//phase 2, Q
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_RE_PUSH_GM (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
-	void Send_SPI_REQUEST (Ptr<GsamSession> session, uint32_t gsa_push_id);
+	void Send_SPI_REQUEST (Ptr<GsamSession> session, Ptr<GsaPushSession> gsa_push_session);
 	void HandleGsaAckRejectSpiResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& pushed_gsa_payload, Ptr<GsamSession> session);
 	void HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session);
 	void HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session);
+	void HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session);
+	void HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session);
+	void ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_session);
 	void DeliverToNQs (	Ptr<GsaPushSession> gsa_push_session,
 						const IkePayload& payload_without_header,
 						IkeHeader::EXCHANGE_TYPE exchange_type = IkeHeader::INFORMATIONAL);

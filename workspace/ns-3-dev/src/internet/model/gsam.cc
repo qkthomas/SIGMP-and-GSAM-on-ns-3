@@ -4975,6 +4975,14 @@ IkeGroupNotifySubstructure::GetNotifyMessageType (void) const
 	return this->m_notify_message_type;
 }
 
+uint8_t
+IkeGroupNotifySubstructure::GetSpiNum (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_num_spis;
+}
+
 uint32_t
 IkeGroupNotifySubstructure::GetGsaPushId (void) const
 {
