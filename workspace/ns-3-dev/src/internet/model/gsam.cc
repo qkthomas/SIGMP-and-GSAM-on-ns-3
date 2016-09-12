@@ -857,10 +857,69 @@ Spi::SetValueFromUint64 (const uint64_t value)
 	GsamUtility::Uint64ToBytes(this->m_lst_var, value);
 }
 
-void
-Spi::Copy (Spi spi)
+bool
+operator < (const Spi& lhs, const Spi& rhs)
 {
-	NS_LOG_FUNCTION (this);
+	bool retval = false;
+
+	if (lhs.m_lst_var.size() != rhs.m_lst_var.size())
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		if (lhs.m_lst_var.size() == 4)
+		{
+			retval = (lhs.ToUint32() < rhs.ToUint32());
+			return retval;
+		}
+		else if (lhs.m_lst_var.size() == 8)
+		{
+			retval = (lhs.ToUint64() < rhs.ToUint64());
+			return retval;
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+
+	return retval;
+}
+
+bool
+operator == (const Spi& lhs, const Spi& rhs)
+{
+	bool retval = true;
+
+	if (lhs.m_lst_var.size() != rhs.m_lst_var.size())
+	{
+		retval = false;
+		return retval;
+	}
+
+	if (lhs.m_lst_var.size() == 4)
+	{
+		retval = (lhs.ToUint32() == rhs.ToUint32());
+		return retval;
+	}
+	else if (lhs.m_lst_var.size() == 8)
+	{
+		retval = (lhs.ToUint64() == rhs.ToUint64());
+		return retval;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	return retval;
+}
+
+bool
+operator != (const Spi& lhs, const Spi& rhs)
+{
+	return !(lhs == rhs);
 }
 
 /********************************************************
@@ -2047,8 +2106,8 @@ IkeSaPayloadSubstructure::GenerateGsaPayload (IkeTrafficSelector ts_src, IkeTraf
 
 	Ptr<IkeSaPayloadSubstructure> retval = Create<IkeSaPayloadSubstructure>();
 
-	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_q, IkeGsaProposal::NEW_GSA_Q));
-	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(ts_src, ts_dest, spi_gsa_r, IkeGsaProposal::NEW_GSA_R));
+	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(spi_gsa_q, IkeGsaProposal::NEW_GSA_Q));
+	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(spi_gsa_r, IkeGsaProposal::NEW_GSA_R));
 
 	retval->SetLastProposal();
 	retval->SetProposalNum();
@@ -3172,35 +3231,6 @@ IkeNotifySubstructure::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return IkePayloadHeader::NOTIFY;
-}
-
-Ptr<IkeNotifySubstructure>
-IkeNotifySubstructure::GenerateGsaQNotification (Spi spi)
-{
-	Ptr<IkeNotifySubstructure> retval = Create<IkeNotifySubstructure>();
-	retval->m_protocol_id = IPsec::AH;
-	retval->m_spi = spi;
-	retval->m_notify_message_type = IkeNotifySubstructure::GSA_Q_SPI_NOTIFICATION;
-	return retval;
-}
-
-Ptr<IkeNotifySubstructure>
-IkeNotifySubstructure::GenerateGsaRNotification (Spi spi)
-{
-	Ptr<IkeNotifySubstructure> retval = Create<IkeNotifySubstructure>();
-	retval->m_protocol_id = IPsec::AH;
-	retval->m_spi = spi;
-	retval->m_notify_message_type = IkeNotifySubstructure::GSA_R_SPI_NOTIFICATION;
-	return retval;
-}
-
-Ptr<IkeNotifySubstructure>
-IkeNotifySubstructure::GenerateGsaAcknowledgedment (void)
-{
-	Ptr<IkeNotifySubstructure> retval = Create<IkeNotifySubstructure>();
-	retval->m_protocol_id = IPsec::AH;
-	retval->m_notify_message_type = IkeNotifySubstructure::GSA_ACKNOWLEDGEDMENT;
-	return retval;
 }
 
 /********************************************************
@@ -4633,7 +4663,7 @@ IkeGroupNotifySubstructure::IkeGroupNotifySubstructure ()
 IkeGroupNotifySubstructure::~IkeGroupNotifySubstructure ()
 {
 	NS_LOG_FUNCTION (this);
-	this->m_lst_ptr_spis.clear();
+	this->m_set_u32_spis.clear();
 }
 
 uint32_t
@@ -4645,11 +4675,11 @@ IkeGroupNotifySubstructure::GetSerializedSize (void) const
 	size += 4;	//before two traffic selectors
 	size += this->m_ts_src.GetSerializedSize();
 	size += this->m_ts_dest.GetSerializedSize();
-	for (	std::list<Ptr<Spi> >::const_iterator const_it = this->m_lst_ptr_spis.begin();
-			const_it != this->m_lst_ptr_spis.end();
+	for (	std::set<uint32_t>::const_iterator const_it = this->m_set_u32_spis.begin();
+			const_it != this->m_set_u32_spis.end();
 			const_it++)
 	{
-		size += (*const_it)->GetSerializedSize();
+		size += sizeof(*const_it);
 	}
 	return size;
 }
@@ -4670,7 +4700,7 @@ IkeGroupNotifySubstructure::Serialize (Buffer::Iterator start) const
 	i.WriteU8(this->m_protocol_id);
 	i.WriteU8(this->m_spi_size);
 	i.WriteU8(this->m_notify_message_type);
-	i.WriteU8(this->m_lst_ptr_spis.size());
+	i.WriteU8(this->m_set_u32_spis.size());
 	i.WriteHtonU32(this->m_gsa_push_id);
 
 	this->m_ts_src.Serialize(i);
@@ -4679,16 +4709,11 @@ IkeGroupNotifySubstructure::Serialize (Buffer::Iterator start) const
 	this->m_ts_dest.Serialize(i);
 	i.Next(this->m_ts_dest.GetSerializedSize());
 
-	for (	std::list<Ptr<Spi> >::const_iterator const_it = this->m_lst_ptr_spis.begin();
-			const_it != this->m_lst_ptr_spis.end();
+	for (	std::set<uint32_t>::const_iterator const_it = this->m_set_u32_spis.begin();
+			const_it != this->m_set_u32_spis.end();
 			const_it++)
 	{
-		if (this->m_spi_size != (*const_it)->GetSerializedSize())
-		{
-			NS_ASSERT (false);
-		}
-		(*const_it)->Serialize(i);
-		i.Next((*const_it)->GetSerializedSize());
+		i.WriteHtonU32(*const_it);
 	}
 }
 
@@ -4733,7 +4758,7 @@ IkeGroupNotifySubstructure::Deserialize (Buffer::Iterator start)
 			NS_ASSERT (false);
 		}
 		size += spi_size;
-		this->PushBackSpi(ptr_spi);
+		this->InsertSpi(ptr_spi);
 	}
 	return size;
 }
@@ -4832,7 +4857,7 @@ IkeGroupNotifySubstructure::SetGsaPushId (uint32_t gsa_push_id)
 }
 
 void
-IkeGroupNotifySubstructure::PushBackSpi (Ptr<Spi> ptr_spi)
+IkeGroupNotifySubstructure::InsertSpi (Ptr<Spi> ptr_spi)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -4846,12 +4871,21 @@ IkeGroupNotifySubstructure::PushBackSpi (Ptr<Spi> ptr_spi)
 		NS_ASSERT (false);
 	}
 
-	this->m_lst_ptr_spis.push_back(ptr_spi);
+	this->m_set_u32_spis.insert(ptr_spi->ToUint32());
 	this->m_num_spis++;
 }
 
 void
-IkeGroupNotifySubstructure::PushBackSpis (const std::list<Ptr<Spi> >& lst_ptr_spis)
+IkeGroupNotifySubstructure::InsertSpi (uint32_t spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_set_u32_spis.insert(spi);
+	this->m_num_spis++;
+}
+
+void
+IkeGroupNotifySubstructure::InertSpis (const std::list<Ptr<Spi> >& lst_ptr_spis)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -4879,12 +4913,12 @@ IkeGroupNotifySubstructure::PushBackSpis (const std::list<Ptr<Spi> >& lst_ptr_sp
 			NS_ASSERT (false);
 		}
 
-		this->PushBackSpi(ptr_spi);
+		this->InsertSpi(ptr_spi);
 	}
 }
 
 void
-IkeGroupNotifySubstructure::PushBackSpis (const std::list<uint32_t>& lst_u32_spis)
+IkeGroupNotifySubstructure::InsertSpis (const std::list<uint32_t>& lst_u32_spis)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -4899,7 +4933,25 @@ IkeGroupNotifySubstructure::PushBackSpis (const std::list<uint32_t>& lst_u32_spi
 
 		Ptr<Spi> ptr_spi = Create<Spi>();
 		ptr_spi->SetValueFromUint32(*const_it);
-		this->PushBackSpi(ptr_spi);
+		this->InsertSpi(ptr_spi);
+	}
+}
+
+void
+IkeGroupNotifySubstructure::InsertSpis (const std::set<uint32_t>& set_u32_spis)
+{
+	NS_LOG_FUNCTION (this);
+
+	for (	std::set<uint32_t>::const_iterator const_it = set_u32_spis.begin();
+			const_it != set_u32_spis.end();
+			const_it++)
+	{
+		if (this->m_spi_size != 4)
+		{
+			NS_ASSERT (false);
+		}
+
+		this->InsertSpi(*const_it);
 	}
 }
 
@@ -5005,11 +5057,11 @@ IkeGroupNotifySubstructure::GetTrafficSelectorDest (void) const
 	return this->m_ts_dest;
 }
 
-const std::list<Ptr<Spi> >&
+const std::set<uint32_t>&
 IkeGroupNotifySubstructure::GetSpis (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_lst_ptr_spis;
+	return this->m_set_u32_spis;
 }
 
 IkePayloadHeader::PAYLOAD_TYPE

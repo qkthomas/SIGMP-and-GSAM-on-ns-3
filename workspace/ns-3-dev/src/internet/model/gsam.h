@@ -282,7 +282,10 @@ public:	//self-defined
 	uint64_t ToUint64 (void) const;
 	void SetValueFromUint32 (const uint32_t value);
 	void SetValueFromUint64 (const uint64_t value);
-	void Copy (Spi spi);
+public:	//operators
+	friend bool operator < (const Spi& lhs, const Spi& rhs);
+	friend bool operator == (const Spi& lhs, const Spi& rhs);
+	friend bool operator != (const Spi& lhs, const Spi& rhs);
 public:
 	using IkePayloadSubstructure::Deserialize;
 private:
@@ -892,10 +895,6 @@ public:	//const
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
-public:	//
-	static Ptr<IkeNotifySubstructure> GenerateGsaQNotification (Spi spi);
-	static Ptr<IkeNotifySubstructure> GenerateGsaRNotification (Spi spi);
-	static Ptr<IkeNotifySubstructure> GenerateGsaAcknowledgedment (void);
 private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;
@@ -1266,9 +1265,11 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//non_const
-	void PushBackSpi (Ptr<Spi> ptr_spi);
-	void PushBackSpis (const std::list<Ptr<Spi> >& lst_ptr_spis);
-	void PushBackSpis (const std::list<uint32_t>& lst_u32_spis);
+	void InsertSpi (Ptr<Spi> ptr_spi);
+	void InsertSpi (uint32_t spi);
+	void InertSpis (const std::list<Ptr<Spi> >& lst_ptr_spis);
+	void InsertSpis (const std::list<uint32_t>& lst_u32_spis);
+	void InsertSpis (const std::set<uint32_t>& set_u32_spis);
 public:	//const
 	uint8_t GetProtocolId (void) const;
 	uint8_t GetSpiSize (void) const;
@@ -1277,7 +1278,7 @@ public:	//const
 	uint32_t GetGsaPushId (void) const;
 	const IkeTrafficSelector& GetTrafficSelectorSrc (void) const;
 	const IkeTrafficSelector& GetTrafficSelectorDest (void) const;
-	const std::list<Ptr<Spi> >& GetSpis (void) const;
+	const std::set<uint32_t>& GetSpis (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//static
 	static Ptr<IkeGroupNotifySubstructure> GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
@@ -1301,7 +1302,7 @@ private:
 	uint32_t m_gsa_push_id;
 	IkeTrafficSelector m_ts_src;
 	IkeTrafficSelector m_ts_dest;
-	std::list<Ptr<Spi> > m_lst_ptr_spis;
+	std::set<uint32_t> m_set_u32_spis;
 };
 
 }  // namespace ns3

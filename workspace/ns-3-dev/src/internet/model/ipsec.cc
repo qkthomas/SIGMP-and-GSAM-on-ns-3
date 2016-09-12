@@ -472,7 +472,7 @@ void
 GsamInfo::OccupyGsaPushId (uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
-	std::pair<std::set<uint32_t>::iterator, bool> result = this->m_set_occupied_gsa_push_ids.insert(spi);
+	std::pair<std::set<uint32_t>::iterator, bool> result = this->m_set_occupied_gsa_push_ids.insert(gsa_push_id);
 
 	if (result.second == false)
 	{
@@ -798,6 +798,8 @@ GsaPushSession::GetTypeId (void)
 GsaPushSession::GsaPushSession ()
   :  m_id (0),
 	 m_status (GsaPushSession::NONE),
+	 m_flag_gms_spi_requested (false),
+	 m_flag_nqs_spi_requested (false),
 	 m_ptr_database (0),
 	 m_ptr_gm_session (0),
 	 m_flag_gm_session_acked_notified (false),
@@ -815,6 +817,8 @@ GsaPushSession::~GsaPushSession()
 	this->m_ptr_gm_session = 0;
 	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
 	this->m_lst_ptr_nq_sessions_acked_notified.clear();
+	this->m_lst_ptr_other_gm_sessions_sent_unreplied.clear();
+	this->m_lst_ptr_other_gm_sessions_replied_notified.clear();
 	this->m_ptr_gsa_q_to_install = 0;
 	this->m_ptr_gsa_r_to_install = 0;
 	this->m_ptr_database = 0;
@@ -840,6 +844,12 @@ void
 GsaPushSession::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
+}
+
+bool
+operator < (GsaPushSession const& lhs, GsaPushSession const& rhs)
+{
+	return lhs.m_id < rhs.m_id;
 }
 
 bool
@@ -1004,6 +1014,28 @@ GsaPushSession::MarkNqSessionReplied (Ptr<GsamSession> nq_session)
 }
 
 void
+GsaPushSession::MarkOtherGmSessionReplied (Ptr<GsamSession> other_gm_session)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (other_gm_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	std::size_t total_size = this->m_lst_ptr_other_gm_sessions_sent_unreplied.size() + this->m_lst_ptr_other_gm_sessions_replied_notified.size();
+
+	this->m_lst_ptr_other_gm_sessions_sent_unreplied.remove(other_gm_session);
+
+	this->m_lst_ptr_other_gm_sessions_replied_notified.push_back(other_gm_session);
+
+	if (total_size != (this->m_lst_ptr_other_gm_sessions_sent_unreplied.size() + this->m_lst_ptr_other_gm_sessions_replied_notified.size()))
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
 GsaPushSession::PushBackNqSession (Ptr<GsamSession> nq_session)
 {
 	NS_LOG_FUNCTION (this);
@@ -1013,6 +1045,18 @@ GsaPushSession::PushBackNqSession (Ptr<GsamSession> nq_session)
 	}
 
 	this->m_lst_ptr_nq_sessions_sent_unreplied.push_back(nq_session);
+}
+
+void
+GsaPushSession::PushBackOtherGmSession (Ptr<GsamSession> other_gm_session)
+{
+	NS_LOG_FUNCTION (this);
+	if (other_gm_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_lst_ptr_other_gm_sessions_sent_unreplied.push_back(other_gm_session);
 }
 
 Ptr<IpSecSAEntry>
@@ -1062,16 +1106,42 @@ GsaPushSession::InstallGsaPair (void)
 	}
 
 	Ptr<IpSecPolicyEntry> policy = this->m_ptr_gm_session->GetRelatedPolicy();
+	Ptr<GsamSessionGroup> session_group = this->m_ptr_gm_session->GetSessionGroup();
+	Ptr<IpSecSAEntry> gsa_q = 0;
+	if (0 != session_group)
+	{
+		if (0 != session_group->GetRelatedGsaQ())
+		{
+			gsa_q = session_group->GetRelatedGsaQ();
+		}
+		else
+		{
+			//ignore
+		}
+	}
+	else
+	{
+		//ignore
+	}
 
 	if (policy == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	Ptr<IpSecSAEntry> gsa_q = policy->GetOutboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_q_to_install->GetSpi());
-	Ptr<IpSecSAEntry> gsa_r = policy->GetInboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_r_to_install->GetSpi());
+	//the new gm session can already have Gsa Q because there is a existing gm session group for that group address
+	if (0 == gsa_q)
+	{
+		gsa_q = policy->GetOutboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_q_to_install->GetSpi());
+		this->m_ptr_gm_session->AssociateGsaQ(gsa_q);
+	}
+	else
+	{
+		gsa_q->SetSpi(this->m_ptr_gsa_q_to_install->GetSpi());
+	}
 
-	this->m_ptr_gm_session->AssociateGsaQ(gsa_q);
+	//gsa_r must be completely new
+	Ptr<IpSecSAEntry> gsa_r = policy->GetInboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_r_to_install->GetSpi());
 	this->m_ptr_gm_session->SetRelatedGsaR(gsa_r);
 
 	Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
@@ -1092,6 +1162,8 @@ GsaPushSession::SwitchStatus (void)
 
 	this->m_flag_gm_session_acked_notified = false;
 	this->ClearNqSessions();
+	this->m_flag_gms_spi_requested = false;
+	this->m_flag_nqs_spi_requested = false;
 
 	if (this->m_status == GsaPushSession::GSA_PUSH_ACK)
 	{
@@ -1362,7 +1434,51 @@ GsaPushSession::PushBackNqRejectionGroupNotifySub (Ptr<IkeGroupNotifySubstructur
 	{
 		NS_ASSERT (false);
 	}
-	this->m_lst_nq_rejected_spis_subs.push_back(sub);
+
+	Ptr<IkeGroupNotifySubstructure> sub_with_same_ts_in_the_list = 0;
+
+	for (	std::list<Ptr<IkeGroupNotifySubstructure> >::iterator it = this->m_lst_nq_rejected_spis_subs.begin();
+			it != this->m_lst_nq_rejected_spis_subs.end();
+			it++)
+	{
+		if ((*it)->GetNotifyMessageType() != IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION)
+		{
+			NS_ASSERT (false);
+		}
+
+		if ((*it)->GetTrafficSelectorSrc() == sub->GetTrafficSelectorSrc())
+		{
+			if ((*it)->GetTrafficSelectorDest() == sub->GetTrafficSelectorDest())
+			{
+				sub_with_same_ts_in_the_list = (*it);
+				break;
+			}
+		}
+	}
+
+	if (0 == sub_with_same_ts_in_the_list)
+	{
+		this->m_lst_nq_rejected_spis_subs.push_back(sub);
+	}
+	else
+	{
+		//merge spis
+		sub_with_same_ts_in_the_list->InsertSpis(sub->GetSpis());
+	}
+}
+
+void
+GsaPushSession::SetFlagGmsSpiRequested (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_gms_spi_requested = true;
+}
+
+void
+GsaPushSession::SetFlagNqsSpiRequested (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_flag_nqs_spi_requested = true;
 }
 
 uint32_t
@@ -1408,6 +1524,11 @@ GsaPushSession::IsAllReplied (void) const
 	}
 
 	if (this->m_lst_ptr_nq_sessions_sent_unreplied.size() != 0)
+	{
+		retval = false;
+	}
+
+	if (this->m_lst_ptr_other_gm_sessions_sent_unreplied.size() != 0)
 	{
 		retval = false;
 	}
@@ -1461,6 +1582,42 @@ GsaPushSession::ClearNqSessions (void)
 
 	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
 	this->m_lst_ptr_nq_sessions_acked_notified.clear();
+}
+
+Ptr<GsamSession>
+GsaPushSession::GetGmSession (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_ptr_gm_session;
+}
+
+bool
+GsaPushSession::IsGmsSpiRequested (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_gms_spi_requested;
+}
+
+bool
+GsaPushSession::IsNqsSpiRequested (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_nqs_spi_requested;
+}
+
+const std::list<Ptr<GsamSession> >&
+GsaPushSession::GetNqSessions (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_ptr_nq_sessions_acked_notified;
+}
+
+const std::list<Ptr<GsamSession> >&
+GsaPushSession::GetOtherGmSessions (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_ptr_other_gm_sessions_replied_notified;
 }
 
 /********************************************************
@@ -1522,7 +1679,7 @@ GsamSession::~GsamSession()
 	this->m_ptr_related_gsa_r = 0;
 	this->m_ptr_push_session = 0;
 	this->m_last_sent_packet = 0;
-	this-m_nq_set_ptr_push_sessions.clear();
+	this-m_set_ptr_push_sessions.clear();
 }
 
 TypeId
@@ -1988,13 +2145,8 @@ GsamSession::SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 void
 GsamSession::InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 {
-	if (this->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
-	{
-		//make sure it is a nq session on Q
-		NS_ASSERT (false);
-	}
 
-	std::pair<std::set<Ptr<GsaPushSession> >::iterator, bool> insert_result = this->m_nq_set_ptr_push_sessions.insert(gsa_push_session);
+	std::pair<std::set<Ptr<GsaPushSession> >::iterator, bool> insert_result = this->m_set_ptr_push_sessions.insert(gsa_push_session);
 
 	if (insert_result.second == true)
 	{
@@ -2228,8 +2380,8 @@ GsamSession::GetGsaPushSession (uint32_t gsa_push_id)
 	}
 	else
 	{
-		for (std::set<Ptr<GsaPushSession> >::iterator it = this->m_nq_set_ptr_push_sessions.begin();
-				it != this->m_nq_set_ptr_push_sessions.end();
+		for (std::set<Ptr<GsaPushSession> >::iterator it = this->m_set_ptr_push_sessions.begin();
+				it != this->m_set_ptr_push_sessions.end();
 				it++)
 		{
 			Ptr<GsaPushSession> value_it = *it;
@@ -2260,6 +2412,15 @@ GsamSession::GetCachePacket (void) const
 	}
 
 	return this->m_last_sent_packet;
+}
+
+Ptr<GsamSessionGroup>
+GsamSession::GetSessionGroup (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	//return value is allowed to be zero
+	return this->m_ptr_session_group;
 }
 
 /********************************************************
@@ -3066,7 +3227,7 @@ IpSecPolicyEntry::IpSecPolicyEntry ()
 	 m_src_transport_protocol_ending_num (0),
 	 m_dest_transport_protocol_starting_num (0),
 	 m_dest_transport_protocol_ending_num (0),
-	 m_process_choise (IpSecPolicyEntry::BYPASS),
+	 m_process_choise (IPsec::BYPASS),
 	 m_ptr_spd (0),
 	 m_ptr_outbound_sad (0)
 {

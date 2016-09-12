@@ -172,6 +172,11 @@ public:
 		GSA_PUSH_ACK = 1,
 		SPI_REQUEST_RESPONSE = 2
 	};
+
+	enum SPI_REQUEST_TYPE {
+		GSA_Q_SPI_REQUEST = 1,
+		GSA_R_SPI_REQUEST = 2
+	};
 public:	//Object override
 	static TypeId GetTypeId (void);
 	virtual ~GsaPushSession();
@@ -187,6 +192,7 @@ private:
 	GsaPushSession ();
 	virtual void DoDispose (void);
 public:	//operator
+	friend bool operator < (GsaPushSession const& lhs, GsaPushSession const& rhs);
 	friend bool operator == (GsaPushSession const& lhs, GsaPushSession const& rhs);
 public:	//static
 	static Ptr<GsaPushSession> CreatePushSession(uint32_t id);
@@ -197,7 +203,9 @@ public:	//non-const
 	void SelfRemoval (void);
 	void MarkGmSessionReplied (void);
 	void MarkNqSessionReplied (Ptr<GsamSession> nq_session);
+	void MarkOtherGmSessionReplied (Ptr<GsamSession> other_gm_session);
 	void PushBackNqSession (Ptr<GsamSession> nq_session);
+	void PushBackOtherGmSession (Ptr<GsamSession> other_gm_session);
 	Ptr<IpSecSAEntry> CreateGsaQ (uint32_t spi);
 	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
 	void InstallGsaPair (void);
@@ -208,6 +216,8 @@ public:	//non-const
 	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
 											 std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >& retval_lst_gm_session_packet_bundles);
 	void PushBackNqRejectionGroupNotifySub (Ptr<IkeGroupNotifySubstructure> sub);
+	void SetFlagGmsSpiRequested (void);
+	void SetFlagNqsSpiRequested (void);
 public:	//const
 	uint32_t GetId (void) const;
 	GsaPushSession::GSA_PUSH_STATUS GetStatus (void) const;
@@ -216,16 +226,28 @@ public:	//const
 	const Ptr<IpSecSAEntry> GetGsaR (void) const;
 	uint32_t GetOldGsaQSpi (void) const;
 	uint32_t GetOldGsaRSpi (void) const;
+	Ptr<GsamSession> GetGmSession (void) const;
+	bool IsGmsSpiRequested (void) const;
+	bool IsNqsSpiRequested (void) const;
+	const std::list<Ptr<GsamSession> >& GetNqSessions (void) const;
+	const std::list<Ptr<GsamSession> >& GetOtherGmSessions (void) const;
 private:
 	void ClearNqSessions (void);
 private:	//fields
 	uint32_t m_id;
 	GsaPushSession::GSA_PUSH_STATUS m_status;
+	bool m_flag_gms_spi_requested;
+	bool m_flag_nqs_spi_requested;
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;
 	bool m_flag_gm_session_acked_notified;
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent_unreplied;
 	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_acked_notified;
+
+	//for spi request only
+	std::list<Ptr<GsamSession> > m_lst_ptr_other_gm_sessions_sent_unreplied;
+	std::list<Ptr<GsamSession> > m_lst_ptr_other_gm_sessions_replied_notified;
+
 	Ptr<IpSecSAEntry> m_ptr_gsa_q_to_install;
 	uint32_t m_gsa_q_spi_before_revision;
 	Ptr<IpSecSAEntry> m_ptr_gsa_r_to_install;
@@ -326,6 +348,7 @@ public: //const
 	bool IsHostNonQuerier (void) const;
 	Ptr<GsaPushSession> GetGsaPushSession (void) const;
 	Ptr<Packet> GetCachePacket (void) const;
+	Ptr<GsamSessionGroup> GetSessionGroup (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields
@@ -341,7 +364,10 @@ private:	//fields
 	Timer m_timer_timeout;
 	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
 	Ptr<GsaPushSession> m_ptr_push_session;
-	std::set<Ptr<GsaPushSession> > m_nq_set_ptr_push_sessions;
+	//nq session or
+	//other gm sessions for spi request
+	std::set<Ptr<GsaPushSession> > m_set_ptr_push_sessions;
+
 	Ptr<Packet> m_last_sent_packet;
 };
 
