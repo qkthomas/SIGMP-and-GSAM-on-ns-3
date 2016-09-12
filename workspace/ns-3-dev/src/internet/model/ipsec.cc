@@ -1204,7 +1204,8 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 }
 
 void
-GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet)
+GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
+													std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >& retval_lst_gm_session_packet_bundles)
 {
 	NS_LOG_FUNCTION (this);
 	//nq sessions driven spi notification request response
@@ -1262,6 +1263,11 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet)
 		{
 			const Ptr<IkeGroupNotifySubstructure> value_const_it = *const_sub_it;
 
+			if (value_const_it->GetNotifyMessageType() != IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION)
+			{
+				NS_ASSERT (false);
+			}
+
 			if (value_const_it->GetSpiSize() != IPsec::AH_ESP_SPI_SIZE)
 			{
 				NS_ASSERT (false);
@@ -1272,6 +1278,12 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet)
 			//find policy
 			Ptr<IpSecPolicyEntry> policy = this->m_ptr_database->GetPolicyDatabase()->GetPolicy(ts_src, ts_dest);
 			if (policy == 0)
+			{
+				NS_ASSERT (false);
+			}
+
+			Ptr<GsamSessionGroup> gm_session_group = this->m_ptr_database->GetSessionGroup(GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(ts_src, ts_dest));
+			if (0 == gm_session_group)
 			{
 				NS_ASSERT (false);
 			}
@@ -1289,21 +1301,44 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet)
 			{
 				Ptr<Spi> value_const_spi_it = (*const_spi_it);
 				//find sa
-				Ptr<IpSecSAEntry> sa_to_modify = inbound_sad->GetIpsecSAEntry(value_const_spi_it->ToUint32());
-				if (sa_to_modify == 0)
+				Ptr<IpSecSAEntry> gsa_r_to_modify = inbound_sad->GetIpsecSAEntry(value_const_spi_it->ToUint32());
+				if (gsa_r_to_modify == 0)
 				{
 					NS_ASSERT (false);
 				}
-				uint32_t old_spi = sa_to_modify->GetSpi();
-				uint32_t new_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
+				uint32_t gsa_r_old_spi = gsa_r_to_modify->GetSpi();
+				uint32_t gsa_r_new_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
 				//aggregate new_gsa_payload_sub
-				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_spi),
+				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_old_spi),
 																							IkeGsaProposal::GSA_R_TO_BE_MODIFIED));
-				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_spi),
+				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_new_spi),
 																							IkeGsaProposal::GSA_R_REPLACEMENT));
+
+				//aggregate packet to send to gm session because of change of gsa_r;
+				Ptr<GsamSession> gsa_r_related_gm_session = gm_session_group->GetSessionByGsaRSpi(gsa_r_old_spi);
+				if (0 == gsa_r_related_gm_session)
+				{
+					NS_ASSERT (false);
+				}
+
+				Ptr<IkeGsaPayloadSubstructure> gsa_payload_sub_to_gm = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(this->GetId(),
+																														ts_src,
+																														ts_dest,
+																														true);
+				gsa_payload_sub_to_gm->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_old_spi),
+																							IkeGsaProposal::GSA_R_TO_BE_MODIFIED));
+				gsa_payload_sub_to_gm->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_new_spi),
+																							IkeGsaProposal::GSA_R_REPLACEMENT));
+				IkePayload gsa_payload_to_gm;
+				gsa_payload_to_gm.SetSubstructure(gsa_payload_sub_to_gm);
+				Ptr<Packet> packet_to_gm_session = Create<Packet>();
+				packet_to_gm_session->AddHeader(gsa_payload_to_gm);
+				std::pair<Ptr<GsamSession>, Ptr<Packet> > gm_session_packet_bundle = std::make_pair(gsa_r_related_gm_session, packet_to_gm_session);
+				retval_lst_gm_session_packet_bundles.push_back(gm_session_packet_bundle);
+
 				//alter local gsa r spi
-				sa_to_modify->SetSpi(new_spi);
-				info->OccupyIpsecSpi(new_spi);
+				gsa_r_to_modify->SetSpi(gsa_r_new_spi);
+				info->OccupyIpsecSpi(gsa_r_new_spi);
 			}
 
 			//aggregate payload to packet
@@ -2537,6 +2572,42 @@ GsamSessionGroup::GetSessionsConst (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_lst_sessions;
+}
+
+Ptr<GsamSession>
+GsamSessionGroup::GetSessionByGsaRSpi (uint32_t gsa_r_spi)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> retval = 0;
+	bool flag_guard_second_session_found = false;
+
+	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_sessions.begin();
+			it != this->m_lst_sessions.end();
+			it++)
+	{
+		Ptr<GsamSession> value_it = (*it);
+		Ptr<IpSecSAEntry> gsa_r = value_it->GetRelatedGsaR();
+
+		if (0 != gsa_r)
+		{
+			if (gsa_r->GetSpi() == gsa_r_spi)
+			{
+				if (true == flag_guard_second_session_found)
+				{
+					NS_ASSERT (false);
+				}
+				retval = value_it;
+				flag_guard_second_session_found = true;
+			}
+		}
+		else //0 == gsa_r, skip
+		{
+
+		}
+	}
+
+	return retval;
 }
 
 Ptr<IpSecSAEntry>

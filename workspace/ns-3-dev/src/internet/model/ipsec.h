@@ -205,7 +205,8 @@ public:	//non-const
 	void AggregateGsaQSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
 	void AggregateGsaRSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
 	void GenerateNewSpisAndModitySa (void);	//this method may also invoke GsaPushSession::InstallGsaPair();
-	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet);
+	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
+											 std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >& retval_lst_gm_session_packet_bundles);
 	void PushBackNqRejectionGroupNotifySub (Ptr<IkeGroupNotifySubstructure> sub);
 public:	//const
 	uint32_t GetId (void) const;
@@ -385,6 +386,7 @@ public:	//const
 	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
 	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
 	const std::list<Ptr<GsamSession> >& GetSessionsConst (void) const;
+	Ptr<GsamSession> GetSessionByGsaRSpi (uint32_t gsa_r_spi);
 private:
 	Ptr<IpSecSAEntry> InstallInboundGsa (uint32_t spi);
 	Ptr<IpSecSAEntry> InstallOutboundGsa (uint32_t spi);

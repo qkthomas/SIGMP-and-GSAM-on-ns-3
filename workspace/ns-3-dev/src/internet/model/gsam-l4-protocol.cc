@@ -670,6 +670,52 @@ GsamL4Protocol::DeliverToNQs (	Ptr<GsaPushSession> gsa_push_session,
 }
 
 void
+GsamL4Protocol::DeliverToNQs (	Ptr<GsaPushSession> gsa_push_session,
+					Ptr<Packet> packet_without_ikeheader,
+					IkePayloadHeader::PAYLOAD_TYPE first_payload_type,
+					IkeHeader::EXCHANGE_TYPE exchange_type)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (gsa_push_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	Ptr<GsamSessionGroup> session_group_nq = this->GetIpSecDatabase()->GetSessionGroup(GsamConfig::GetIgmpv3DestGrpReportAddress());
+
+	std::list<Ptr<GsamSession> > lst_sessions_nq = session_group_nq->GetSessions();
+
+	for (	std::list<Ptr<GsamSession> >::iterator it = lst_sessions_nq.begin();
+			it != lst_sessions_nq.end();
+			it++)
+	{
+		Ptr<GsamSession> nq_session = (*it);
+
+		if (0 == nq_session->GetGsaPushSession(gsa_push_session->GetId()))
+		{
+			NS_ASSERT (false);
+			gsa_push_session->PushBackNqSession(nq_session);
+			nq_session->InsertGsaPushSession(gsa_push_session);
+		}
+		else
+		{
+			//do nothing
+		}
+
+		uint32_t length_beside_ikeheader = packet_without_ikeheader->GetSize();
+
+		this->SendPhaseTwoMessage(nq_session,
+								exchange_type,
+								false,
+								first_payload_type,
+								length_beside_ikeheader,
+								packet_without_ikeheader,
+								true);
+	}
+}
+
+void
 GsamL4Protocol::SendPhaseOneMessage (	Ptr<GsamSession> session,
 								IkeHeader::EXCHANGE_TYPE exchange_type,
 								bool is_responder,
@@ -2415,6 +2461,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSess
 		next_payload_type = spi_notify_payload.GetNextPayloadType();
 	} while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD);
 
+	this->ProcessGsaSpiNotificationFromNQ(gsa_push_session);
 }
 
 void
@@ -2430,8 +2477,42 @@ GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_se
 	//send all info update to NQs sessions
 	//send GM related parts of info to GM sessions
 
-	Ptr<Packet> packet = Create<Packet>();
-	gsa_push_session->AlterRejectedGsaAndAggregatePacket(packet);
+	Ptr<Packet> packet_without_ikeheader_for_nqs = Create<Packet>();
+	std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > > retval_lst_gm_session_packet_without_ikeheader_bundles;
+
+	gsa_push_session->AlterRejectedGsaAndAggregatePacket(packet_without_ikeheader_for_nqs,
+														retval_lst_gm_session_packet_without_ikeheader_bundles);
+
+	for(std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >::iterator it = retval_lst_gm_session_packet_without_ikeheader_bundles.begin();
+			it != retval_lst_gm_session_packet_without_ikeheader_bundles.end();
+			it++)
+	{
+		Ptr<GsamSession> gm_session = it->first;
+		Ptr<Packet> packet_to_gm = it->second;
+
+		if (0 == gm_session)
+		{
+			NS_ASSERT (false);
+		}
+
+		if (0 == packet_to_gm)
+		{
+			NS_ASSERT (false);
+		}
+
+		this->SendPhaseTwoMessage(gm_session,
+									IkeHeader::CREATE_CHILD_SA,
+									false,
+									IkePayloadHeader::GSA_REPUSH,
+									packet_to_gm->GetSize(),
+									packet_to_gm,
+									true
+									);
+	}
+	this->DeliverToNQs(gsa_push_session,
+						packet_without_ikeheader_for_nqs,
+						IkePayloadHeader::GSA_REPUSH,
+						IkeHeader::CREATE_CHILD_SA);
 }
 
 Ptr<Igmpv3L4Protocol>
