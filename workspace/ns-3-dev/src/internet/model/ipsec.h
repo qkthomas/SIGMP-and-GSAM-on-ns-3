@@ -210,8 +210,8 @@ public:	//non-const
 	Ptr<IpSecSAEntry> CreateGsaR (uint32_t spi);
 	void InstallGsaPair (void);
 	void SwitchStatus (void);
-	void AggregateGsaQSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
-	void AggregateGsaRSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification);
+	void AggregateGsaQSpiNotification (const std::set<uint32_t>& set_spi_notification);
+	void AggregateGsaRSpiNotification (const std::set<uint32_t>& set_spi_notification);
 	void GenerateNewSpisAndModitySa (void);	//this method may also invoke GsaPushSession::InstallGsaPair();
 	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
 											 std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >& retval_lst_gm_session_packet_bundles);

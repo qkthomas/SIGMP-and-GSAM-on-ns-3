@@ -1180,34 +1180,28 @@ GsaPushSession::SwitchStatus (void)
 }
 
 void
-GsaPushSession::AggregateGsaQSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification)
+GsaPushSession::AggregateGsaQSpiNotification (const std::set<uint32_t>& set_spi_notification)
 {
 	NS_LOG_FUNCTION (this);
-
-	std::set<uint32_t> set_u32_spi_notification;
-	GsamUtility::LstSpiToSetU32(lst_spi_notification, set_u32_spi_notification);
 
 	std::set<uint32_t> result;
 
 	std::set_union(	this->m_set_aggregated_gsa_q_spi_notification.begin(), this->m_set_aggregated_gsa_q_spi_notification.end(),
-					set_u32_spi_notification.begin(), set_u32_spi_notification.end(),
+					set_spi_notification.begin(), set_spi_notification.end(),
 					std::back_inserter(result));
 
 	this->m_set_aggregated_gsa_q_spi_notification = result;
 }
 
 void
-GsaPushSession::AggregateGsaRSpiNotification (const std::list<Ptr<Spi> >& lst_spi_notification)
+GsaPushSession::AggregateGsaRSpiNotification (const std::set<uint32_t>& set_spi_notification)
 {
 	NS_LOG_FUNCTION (this);
-
-	std::set<uint32_t> set_u32_spi_notification;
-	GsamUtility::LstSpiToSetU32(lst_spi_notification, set_u32_spi_notification);
 
 	std::set<uint32_t> result;
 
 	std::set_union(	this->m_set_aggregated_gsa_r_spi_notification.begin(), this->m_set_aggregated_gsa_r_spi_notification.end(),
-					set_u32_spi_notification.begin(), set_u32_spi_notification.end(),
+					set_spi_notification.begin(), set_spi_notification.end(),
 					std::back_inserter(result));
 
 	this->m_set_aggregated_gsa_r_spi_notification = result;
@@ -1366,14 +1360,14 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
 																													true);
 
 			Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
-			const std::list<Ptr<Spi> >& reject_spis_const_it = value_const_it->GetSpis();
-			for (std::list<Ptr<Spi> >::const_iterator const_spi_it = reject_spis_const_it.begin();
+			const std::set<uint32_t>& reject_spis_const_it = value_const_it->GetSpis();
+			for (std::set<uint32_t>::const_iterator const_spi_it = reject_spis_const_it.begin();
 					const_spi_it != reject_spis_const_it.end();
 					const_spi_it++)
 			{
-				Ptr<Spi> value_const_spi_it = (*const_spi_it);
+				uint32_t value_const_spi_it = (*const_spi_it);
 				//find sa
-				Ptr<IpSecSAEntry> gsa_r_to_modify = inbound_sad->GetIpsecSAEntry(value_const_spi_it->ToUint32());
+				Ptr<IpSecSAEntry> gsa_r_to_modify = inbound_sad->GetIpsecSAEntry(value_const_spi_it);
 				if (gsa_r_to_modify == 0)
 				{
 					NS_ASSERT (false);
@@ -3799,6 +3793,7 @@ IpSecPolicyDatabase::GetPolicy (const IkeTrafficSelector& ts_src, const IkeTraff
 		}
 	}
 
+	//retval is allowed to be zero
 	return retval;
 }
 

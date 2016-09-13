@@ -4450,6 +4450,22 @@ IkeGsaProposal::Serialize (Buffer::Iterator start) const
 	{
 		i.WriteU8(2);
 	}
+	else if (this->m_gsa_type == IkeGsaProposal::GSA_Q_TO_BE_MODIFIED)
+	{
+		i.WriteU8(3);
+	}
+	else if (this->m_gsa_type == IkeGsaProposal::GSA_R_TO_BE_MODIFIED)
+	{
+		i.WriteU8(4);
+	}
+	else if (this->m_gsa_type == IkeGsaProposal::GSA_Q_REPLACEMENT)
+	{
+		i.WriteU8(5);
+	}
+	else if (this->m_gsa_type == IkeGsaProposal::GSA_R_REPLACEMENT)
+	{
+		i.WriteU8(6);
+	}
 	else
 	{
 		NS_ASSERT (false);
@@ -4515,6 +4531,22 @@ IkeGsaProposal::Deserialize (Buffer::Iterator start)
 	{
 		this->m_gsa_type = IkeGsaProposal::NEW_GSA_R;
 	}
+	else if (reserved_gsa_type == 3)
+	{
+		this->m_gsa_type = IkeGsaProposal::GSA_Q_TO_BE_MODIFIED;
+	}
+	else if (reserved_gsa_type == 4)
+	{
+		this->m_gsa_type = IkeGsaProposal::GSA_R_TO_BE_MODIFIED;
+	}
+	else if (reserved_gsa_type == 5)
+	{
+		this->m_gsa_type = IkeGsaProposal::GSA_Q_REPLACEMENT;
+	}
+	else if (reserved_gsa_type == 6)
+	{
+		this->m_gsa_type = IkeGsaProposal::GSA_R_REPLACEMENT;
+	}
 	else
 	{
 		NS_ASSERT (false);
@@ -4566,7 +4598,7 @@ IkeGsaProposal::Print (std::ostream &os) const
 }
 
 void
-IkeGsaProposal::SetAsGsaQ (void)
+IkeGsaProposal::SetAsNewGsaQ (void)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -4579,7 +4611,7 @@ IkeGsaProposal::SetAsGsaQ (void)
 }
 
 void
-IkeGsaProposal::SetAsGsaR (void)
+IkeGsaProposal::SetAsNewGsaR (void)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -4599,7 +4631,7 @@ IkeGsaProposal::SetGsaType (IkeGsaProposal::GSA_TYPE gsa_type)
 }
 
 bool
-IkeGsaProposal::IsGsaQ (void) const
+IkeGsaProposal::IsNewGsaQ (void) const
 {
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
@@ -4613,7 +4645,7 @@ IkeGsaProposal::IsGsaQ (void) const
 }
 
 bool
-IkeGsaProposal::IsGsaR (void) const
+IkeGsaProposal::IsNewGsaR (void) const
 {
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
@@ -4624,6 +4656,14 @@ IkeGsaProposal::IsGsaR (void) const
 	}
 
 	return retval;
+}
+
+IkeGsaProposal::GSA_TYPE
+IkeGsaProposal::GetGsaType (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return this->m_gsa_type;
 }
 
 Ptr<IkeGsaProposal>

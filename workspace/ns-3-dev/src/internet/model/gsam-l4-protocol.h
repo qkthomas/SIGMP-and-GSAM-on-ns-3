@@ -100,7 +100,7 @@ private:	//phase 1, responder
 private:	//phase 2, Q
 	void Send_GSA_PUSH (Ptr<GsamSession> session);
 	void Send_GSA_PUSH_GM (Ptr<GsamSession> session);
-	void Send_GSA_RE_PUSH_GM (Ptr<GsaPushSession> gsa_push_session);
+	void Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session);
 	void Send_GSA_PUSH_NQ (Ptr<GsamSession> session);
 	void Send_SPI_REQUEST (Ptr<GsaPushSession> gsa_push_session);
 	void Send_SPI_REQUEST (Ptr<GsaPushSession> gsa_push_session, GsaPushSession::SPI_REQUEST_TYPE spi_request_type);
@@ -128,6 +128,10 @@ private:	//phase 2, GM, NQ
 	void HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleSpiRequestGMNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void SendSpiReportGMNQ (Ptr<GsamSession> session, uint32_t gsa_push_id);
+	void HandleCreateChildSa (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
+	void HandleGsaRepush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaRepushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 private:	//phase 2, GM
 	void HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
 	void HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);

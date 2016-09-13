@@ -1214,12 +1214,13 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//non-const
-	void SetAsGsaQ (void);
-	void SetAsGsaR (void);
+	void SetAsNewGsaQ (void);
+	void SetAsNewGsaR (void);
 	void SetGsaType (IkeGsaProposal::GSA_TYPE gsa_type);
 public:	//const
-	bool IsGsaQ (void) const;
-	bool IsGsaR (void) const;
+	bool IsNewGsaQ (void) const;
+	bool IsNewGsaR (void) const;
+	IkeGsaProposal::GSA_TYPE GetGsaType (void) const;
 public:
 	static Ptr<IkeGsaProposal> GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type);
 private:

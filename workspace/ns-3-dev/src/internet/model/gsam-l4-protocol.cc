@@ -403,7 +403,7 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 }
 
 void
-GsamL4Protocol::Send_GSA_RE_PUSH_GM (Ptr<GsaPushSession> gsa_push_session)
+GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 {
 	NS_LOG_FUNCTION (this);
 	if (gsa_push_session == 0)
@@ -421,6 +421,7 @@ GsamL4Protocol::Send_GSA_RE_PUSH_GM (Ptr<GsaPushSession> gsa_push_session)
 	Ptr<IpSecSAEntry> new_gsa_q = gm_session->GetRelatedGsaQ();
 	if (new_gsa_q == 0)
 	{
+		//the revise gsa pair should have already been installed
 		NS_ASSERT (false);
 	}
 	uint32_t old_gsa_r_spi = gsa_push_session->GetOldGsaRSpi();
@@ -431,35 +432,37 @@ GsamL4Protocol::Send_GSA_RE_PUSH_GM (Ptr<GsaPushSession> gsa_push_session)
 	Ptr<IpSecSAEntry> new_gsa_r = gm_session->GetRelatedGsaR();
 	if (new_gsa_r == 0)
 	{
+		//the revise gsa pair should have already been installed
 		NS_ASSERT (false);
 	}
 
-	Ptr<IkeGsaPayloadSubstructure> re_push_payload_sub = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(gsa_push_session->GetId(),
+	//send to the gm and nqs
+	Ptr<IkeGsaPayloadSubstructure> re_push_gm_nqs_payload_sub = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(gsa_push_session->GetId(),
 																											gm_session->GetGroupAddress(),
 																											true);
 
-	re_push_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_gsa_q_spi),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_gsa_q_spi),
 																				IkeGsaProposal::GSA_Q_TO_BE_MODIFIED));
-	re_push_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_gsa_q->GetSpi()),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_gsa_q->GetSpi()),
 																				IkeGsaProposal::GSA_Q_REPLACEMENT));
-	re_push_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_gsa_r_spi),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_gsa_r_spi),
 																				IkeGsaProposal::GSA_R_TO_BE_MODIFIED));
-	re_push_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_gsa_r->GetSpi()),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_gsa_r->GetSpi()),
 																				IkeGsaProposal::GSA_R_REPLACEMENT));
-	IkePayload re_push_payload;
-	re_push_payload.SetSubstructure(re_push_payload_sub);
+	IkePayload re_push_gm_nqs_payload;
+	re_push_gm_nqs_payload.SetSubstructure(re_push_gm_nqs_payload_sub);
 
-	uint32_t length_beside_ikeheader = re_push_payload.GetSerializedSize();
+	uint32_t length_beside_ikeheader_gm_nqs = re_push_gm_nqs_payload.GetSerializedSize();
 
-	Ptr<Packet> packet = Create<Packet>();
-	packet->AddHeader(re_push_payload);
+	Ptr<Packet> packet_gm_nqs = Create<Packet>();
+	packet_gm_nqs->AddHeader(re_push_gm_nqs_payload);
 
 	this->SendPhaseTwoMessage(	gm_session,
 			IkeHeader::CREATE_CHILD_SA,
 			false,
-			re_push_payload.GetPayloadType(),
-			length_beside_ikeheader,
-			packet,
+			re_push_gm_nqs_payload.GetPayloadType(),
+			length_beside_ikeheader_gm_nqs,
+			packet_gm_nqs,
 			true);
 
 	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetNqSessions().begin();
@@ -470,12 +473,30 @@ GsamL4Protocol::Send_GSA_RE_PUSH_GM (Ptr<GsaPushSession> gsa_push_session)
 		this->SendPhaseTwoMessage(	nq_session,
 					IkeHeader::CREATE_CHILD_SA,
 					false,
-					re_push_payload.GetPayloadType(),
-					length_beside_ikeheader,
-					packet,
+					re_push_gm_nqs_payload.GetPayloadType(),
+					length_beside_ikeheader_gm_nqs,
+					packet_gm_nqs,
 					true);
 
 	}
+
+	//send to other gms
+	Ptr<IkeGsaPayloadSubstructure> re_push_other_gms_payload_sub = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(gsa_push_session->GetId(),
+																											gm_session->GetGroupAddress(),
+																											true);
+
+	re_push_other_gms_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(old_gsa_q_spi),
+																						IkeGsaProposal::GSA_Q_TO_BE_MODIFIED));
+	re_push_other_gms_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(new_gsa_q->GetSpi()),
+																						IkeGsaProposal::GSA_Q_REPLACEMENT));
+
+	IkePayload re_push_other_gms_payload;
+	re_push_other_gms_payload.SetSubstructure(re_push_other_gms_payload_sub);
+
+	uint32_t length_beside_ikeheader_other_gms = re_push_other_gms_payload.GetSerializedSize();
+
+	Ptr<Packet> packet_other_gms = Create<Packet>();
+	packet_other_gms->AddHeader(re_push_other_gms_payload);
 
 	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetOtherGmSessions().begin();
 			const_it != gsa_push_session->GetOtherGmSessions().end();
@@ -483,12 +504,12 @@ GsamL4Protocol::Send_GSA_RE_PUSH_GM (Ptr<GsaPushSession> gsa_push_session)
 	{
 		Ptr<GsamSession> other_gm_session = *const_it;
 		this->SendPhaseTwoMessage(	other_gm_session,
-					IkeHeader::CREATE_CHILD_SA,
-					false,
-					re_push_payload.GetPayloadType(),
-					length_beside_ikeheader,
-					packet,
-					true);
+									IkeHeader::CREATE_CHILD_SA,
+									false,
+									re_push_other_gms_payload.GetPayloadType(),
+									length_beside_ikeheader_other_gms,
+									packet_other_gms,
+									true);
 
 	}
 }
@@ -1595,6 +1616,7 @@ GsamL4Protocol::HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ik
 
 	if (session->GetCurrentMessageId() < message_id)
 	{
+		session->SetMessageId(message_id);
 		if (true == session->IsHostNonQuerier())
 		{
 			this->HandleGsaPushSpiRequestNQ(packet, ikeheader, session);
@@ -1611,7 +1633,6 @@ GsamL4Protocol::HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ik
 		{
 			NS_ASSERT (false);
 		}
-		session->SetMessageId(message_id);
 	}
 	else if (session->GetCurrentMessageId() == message_id)
 	{
@@ -1643,6 +1664,7 @@ GsamL4Protocol::HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ik
 	else if (session->GetCurrentMessageId() == (message_id - 1))
 	{
 		//ok for spi request
+		//this condition is included in the first if
 	}
 	else
 	{
@@ -1724,6 +1746,215 @@ GsamL4Protocol::SendSpiReportGMNQ (Ptr<GsamSession> session, uint32_t gsa_push_i
 						spi_report_payload.GetSerializedSize(),
 						packet,
 						false);
+}
+
+void
+GsamL4Protocol::HandleCreateChildSa (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
+
+	if (session == 0)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		bool is_invitation = ikeheader.IsInitiator();
+		bool is_response = ikeheader.IsResponder();
+
+		if (	(true == is_invitation) &&
+				(false == is_response))
+		{
+			if ((true == session->IsHostGroupMember()) ||
+					(true == session->IsHostNonQuerier()))
+			{
+				this->HandleGsaRepush(packet, ikeheader, session);
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
+		}
+		else
+		{
+			//error
+			//only GM or NQ would get to this, not Q
+			NS_ASSERT (false);
+		}
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaRepush (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (session->GetCurrentMessageId() == (ikeheader.GetMessageId() - 1))
+	{
+		session->SetMessageId(ikeheader.GetMessageId())
+		if (true == session->IsHostGroupMember())
+		{
+			this->HandleGsaRepushGM(packet, ikeheader, session);
+		}
+		else if (true == session->IsHostNonQuerier())
+		{
+			this->HandleGsaRepushNQ(packet, ikeheader, session);
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaRepushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = ikeheader.GetNextPayloadType();
+
+	while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD)
+	{
+		if (next_payload_type != IkePayloadHeader::GSA_REPUSH)
+		{
+			NS_ASSERT (false);
+		}
+
+		IkePayload gsa_repush_payload = IkePayload::GetEmptyPayloadFromPayloadType(next_payload_type);
+		Ptr<IkeGsaPayloadSubstructure> gsa_repush_sub = DynamicCast<IkeGsaPayloadSubstructure>(gsa_repush_payload.GetSubstructure());
+
+		const IkeTrafficSelector& ts_src = gsa_repush_sub->GetSourceTrafficSelector();
+		const IkeTrafficSelector& ts_dest = gsa_repush_sub->GetDestTrafficSelector();
+
+		if (session->GetGroupAddress() != GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(ts_src, ts_dest))
+		{
+			NS_ASSERT (false);
+		}
+
+		if (0 != (gsa_repush_sub->GetProposals().size() % 2))
+		{
+			//must be even number
+			NS_ASSERT (false);
+		}
+
+		for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it_proposals = gsa_repush_sub->GetProposals().begin();
+				const_it_proposals != gsa_repush_sub->GetProposals().end();
+				const_it_proposals++)
+		{
+			Ptr<IkeGsaProposal> gsa_proposal_to_modify = DynamicCast<IkeGsaProposal>(*const_it_proposals);
+
+			if (gsa_proposal_to_modify->GetGsaType() == IkeGsaProposal::GSA_Q_TO_BE_MODIFIED)
+			{
+				Ptr<GsamSessionGroup> session_group = session->GetSessionGroup();
+				if (0 == session_group)
+				{
+					NS_ASSERT (false);
+				}
+
+				const_it_proposals++;
+
+				Ptr<IkeGsaProposal> gsa_proposal_replacement = DynamicCast<IkeGsaProposal>(*const_it_proposals);
+
+				if (gsa_proposal_replacement->GetGsaType() == IkeGsaProposal::GSA_Q_REPLACEMENT)
+				{
+					Ptr<IpSecSAEntry> session_gsa_q = session->GetRelatedGsaQ();
+					if (0 == session_gsa_q)
+					{
+						//install a new gsa q with the incoming spi replacement
+						Ptr<IpSecSADatabase> inbound_sad = session->GetRelatedPolicy()->GetInboundSAD();
+						Ptr<IpSecSAEntry> new_gsa_q = inbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
+						session->AssociateGsaQ(new_gsa_q);
+					}
+					else
+					{
+						//change spi
+						session_gsa_q->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+					}
+				}
+				else
+				{
+					NS_ASSERT (false);
+				}
+			}
+			else if (gsa_proposal_to_modify->GetGsaType() == IkeGsaProposal::GSA_R_TO_BE_MODIFIED)
+			{
+				Ptr<GsamSessionGroup> session_group = session->GetSessionGroup();
+				if (0 == session_group)
+				{
+					NS_ASSERT (false);
+				}
+
+				const_it_proposals++;
+
+				Ptr<IkeGsaProposal> gsa_proposal_replacement = DynamicCast<IkeGsaProposal>(*const_it_proposals);
+
+				if (gsa_proposal_replacement->GetGsaType() == IkeGsaProposal::GSA_R_REPLACEMENT)
+				{
+					Ptr<IpSecSAEntry> session_gsa_r = session->GetRelatedGsaR();
+					if (0 == session_gsa_r)
+					{
+						//install a new gsa q with the incoming spi replacement
+						Ptr<IpSecSADatabase> outbound_sad = session->GetRelatedPolicy()->GetOutboundSAD();
+						Ptr<IpSecSAEntry> new_gsa_r = outbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
+						session->SetRelatedGsaR(new_gsa_r);
+					}
+					else
+					{
+						//change spi
+						session_gsa_r->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+					}
+				}
+				else
+				{
+					NS_ASSERT (false);
+				}
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
+		}
+		next_payload_type = gsa_repush_payload.GetNextPayloadType();
+	}
+}
+
+void
+GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = ikeheader.GetNextPayloadType();
+
+	while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD)
+	{
+		if (next_payload_type != IkePayloadHeader::GSA_REPUSH)
+		{
+			NS_ASSERT (false);
+		}
+
+		IkePayload gsa_repush_payload = IkePayload::GetEmptyPayloadFromPayloadType(next_payload_type);
+		Ptr<IkeGsaPayloadSubstructure> gsa_repush_sub = DynamicCast<IkeGsaPayloadSubstructure>(gsa_repush_payload.GetSubstructure());
+
+		const IkeTrafficSelector& ts_src = gsa_repush_sub->GetSourceTrafficSelector();
+		const IkeTrafficSelector& ts_dest = gsa_repush_sub->GetDestTrafficSelector();
+
+		Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
+		Ptr<IpSecPolicyEntry> policy = spd->GetPolicy(ts_src, ts_dest);
+		if (0 == policy)
+		{
+			//nq should have what Q has
+			NS_ASSERT (false);
+		}
+
+
+		next_payload_type = gsa_repush_payload.GetNextPayloadType();
+	}
 }
 
 void
@@ -2220,7 +2451,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 	{
 		const Ptr<IkeGsaProposal> gsa_proposal = DynamicCast<IkeGsaProposal>(*const_it);
 
-		if (true == gsa_proposal->IsGsaQ())
+		if (true == gsa_proposal->IsNewGsaQ())
 		{
 			Spi gsa_q_proposal_spi = gsa_proposal->GetSpi();
 			lst_u32_gsa_q_spis_to_install.push_back(gsa_q_proposal_spi.ToUint32());
@@ -2410,7 +2641,7 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 		NS_ASSERT (false);
 	}
 
-	const std::list<Ptr<Spi> >& lst_spi_first_payload_sub = first_payload_sub->GetSpis();
+	const std::set<uint32_t>& lst_spi_first_payload_sub = first_payload_sub->GetSpis();
 
 	if (lst_spi_first_payload_sub.size() != 1)
 	{
@@ -2418,9 +2649,9 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 	}
 
 	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
-	const Ptr<Spi> gsa_q = lst_spi_first_payload_sub.front();
+	uint32_t gsa_q = *(lst_spi_first_payload_sub.begin());
 
-	if (gsa_q->ToUint32() != gsa_push_session->GetGsaQ()->GetSpi())
+	if (gsa_q != gsa_push_session->GetGsaQ()->GetSpi())
 	{
 		NS_ASSERT (false);
 	}
@@ -2452,7 +2683,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 		NS_ASSERT (false);
 	}
 
-	const std::list<Ptr<Spi> > first_payload_spis = first_payload_sub->GetSpis();
+	const std::set<uint32_t> first_payload_spis = first_payload_sub->GetSpis();
 
 	Ptr<GsaPushSession> gsa_push_session = 0;
 	if (first_payload_sub->GetGsaPushId() == session->GetGsaPushSession())
@@ -2475,7 +2706,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 		//create new spis base on what is received and modify those IpSecSAEntry
 		gsa_push_session->GenerateNewSpisAndModitySa();
 		//and then send Gsa repush
-		this->Send_GSA_RE_PUSH_GM(gsa_push_session);
+		this->Send_GSA_RE_PUSH(gsa_push_session);
 	}
 }
 
@@ -2709,7 +2940,10 @@ GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSess
 		next_payload_type = spi_notify_payload.GetNextPayloadType();
 	} while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD);
 
-	this->ProcessGsaSpiNotificationFromNQ(gsa_push_session);
+	if (true == gsa_push_session->IsAllReplied())
+	{
+		this->ProcessGsaSpiNotificationFromNQ(gsa_push_session);
+	}
 }
 
 void
@@ -2722,45 +2956,69 @@ GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_se
 		NS_ASSERT (false);
 	}
 
-	//send all info update to NQs sessions
-	//send GM related parts of info to GM sessions
-
-	Ptr<Packet> packet_without_ikeheader_for_nqs = Create<Packet>();
-	std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > > retval_lst_gm_session_packet_without_ikeheader_bundles;
-
-	gsa_push_session->AlterRejectedGsaAndAggregatePacket(packet_without_ikeheader_for_nqs,
-														retval_lst_gm_session_packet_without_ikeheader_bundles);
-
-	for(std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >::iterator it = retval_lst_gm_session_packet_without_ikeheader_bundles.begin();
-			it != retval_lst_gm_session_packet_without_ikeheader_bundles.end();
-			it++)
+	if (0 == gsa_push_session->GetGmSession())
 	{
-		Ptr<GsamSession> gm_session = it->first;
-		Ptr<Packet> packet_to_gm = it->second;
+		//send all info update to NQs sessions
+		//send GM related parts of info to GM sessions
+		Ptr<Packet> packet_without_ikeheader_for_nqs = Create<Packet>();
+		std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > > retval_lst_gm_session_packet_without_ikeheader_bundles;
 
-		if (0 == gm_session)
+		gsa_push_session->AlterRejectedGsaAndAggregatePacket(	packet_without_ikeheader_for_nqs,
+																retval_lst_gm_session_packet_without_ikeheader_bundles);
+
+		for(std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >::const_iterator const_it = retval_lst_gm_session_packet_without_ikeheader_bundles.begin();
+				const_it != retval_lst_gm_session_packet_without_ikeheader_bundles.end();
+				const_it++)
 		{
-			NS_ASSERT (false);
+			Ptr<GsamSession> gm_session = const_it->first;
+			Ptr<Packet> packet_to_gm = const_it->second;
+
+			if (0 == gm_session)
+			{
+				NS_ASSERT (false);
+			}
+
+			if (0 == packet_to_gm)
+			{
+				NS_ASSERT (false);
+			}
+
+			this->SendPhaseTwoMessage(	gm_session,
+										IkeHeader::CREATE_CHILD_SA,
+										false,
+										IkePayloadHeader::GSA_REPUSH,
+										packet_to_gm->GetSize(),
+										packet_to_gm,
+										true);
 		}
 
-		if (0 == packet_to_gm)
+		for (std::list<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetNqSessions().begin();
+				const_it != gsa_push_session->GetNqSessions().end();
+				const_it++)
 		{
-			NS_ASSERT (false);
-		}
+			Ptr<GsamSession> nq_session = *const_it;
 
-		this->SendPhaseTwoMessage(gm_session,
-									IkeHeader::CREATE_CHILD_SA,
-									false,
-									IkePayloadHeader::GSA_REPUSH,
-									packet_to_gm->GetSize(),
-									packet_to_gm,
-									true
-									);
+			if (0 == nq_session)
+			{
+				NS_ASSERT (false);
+			}
+
+			this->SendPhaseTwoMessage(	nq_session,
+										IkeHeader::CREATE_CHILD_SA,
+										false,
+										IkePayloadHeader::GSA_REPUSH,
+										packet_without_ikeheader_for_nqs->GetSize(),
+										packet_without_ikeheader_for_nqs,
+										true);
+		}
 	}
-	this->DeliverToNQs(gsa_push_session,
-						packet_without_ikeheader_for_nqs,
-						IkePayloadHeader::GSA_REPUSH,
-						IkeHeader::CREATE_CHILD_SA);
+	else
+	{
+		//install Gsa
+		//send revised spi q, spi r, if exists, to new GM and all other GMs of the same group, if they exist.
+		//send revised spi q, spi r to all NQs
+		this->Send_GSA_RE_PUSH(gsa_push_session);
+	}
 }
 
 Ptr<Igmpv3L4Protocol>
