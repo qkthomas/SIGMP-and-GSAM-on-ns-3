@@ -1944,13 +1944,33 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 		const IkeTrafficSelector& ts_src = gsa_repush_sub->GetSourceTrafficSelector();
 		const IkeTrafficSelector& ts_dest = gsa_repush_sub->GetDestTrafficSelector();
 
+		Ipv4Address group_address = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(ts_src, ts_dest);
+
 		Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
 		Ptr<IpSecPolicyEntry> policy = spd->GetPolicy(ts_src, ts_dest);
 		if (0 == policy)
 		{
 			//nq should have what Q has
-			NS_ASSERT (false);
+			//but may be it's a policy of a rejected spi
+			Ptr<GsamSessionGroup> session_group = this->m_ptr_database->GetSessionGroup(group_address);
+			if (0 != session_group->GetRelatedPolicy())
+			{
+				NS_ASSERT (false);
+			}
+			else
+			{
+				//etablish policy
+				session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+				policy = spd->GetPolicy(ts_src, ts_dest);
+				if (0 == policy)
+				{
+					NS_ASSERT (false);
+				}
+			}
 		}
+		//policy isn't 0 any more
+		//install gsa, q or r
+		//to be continue
 
 
 		next_payload_type = gsa_repush_payload.GetNextPayloadType();
@@ -1967,7 +1987,7 @@ GsamL4Protocol::RejectGsaR (Ptr<GsamSession> session,
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<IkeGroupNotifySubstructure> gsa_r_spis_to_reject_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(IPsec::AH,
+	Ptr<IkeGroupNotifySubstructure> gsa_r_spis_to_reject_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(IPsec::SA_PROPOSAL_AH,
 																																				IPsec::AH_ESP_SPI_SIZE,
 																																				IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION,
 																																				gsa_push_id,
@@ -2506,7 +2526,8 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 			NS_ASSERT (false);
 		}
 
-		session_group->EtablishPolicy(ts_src, ts_dest, IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+
+		session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
 
 		//install gsa_q and gsa_r(s)
 		if (session_group->GetRelatedGsaQ() != 0)
@@ -3125,6 +3146,7 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 		{
 			session->EtablishPolicy(*const_it_tsi_selector,
 									*const_it_tsr_selector,
+									IPsec::IP_ID_AH,
 									IPsec::PROTECT,
 									GsamConfig::GetDefaultIpsecMode());
 		}

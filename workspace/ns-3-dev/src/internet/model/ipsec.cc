@@ -207,7 +207,7 @@ GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelect
 }
 
 void
-LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32)
+GsamUtility::LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32)
 {
 	for (std::list<Ptr<Spi> >::const_iterator const_it = lst_spi.begin();
 			const_it != lst_spi.end();
@@ -218,7 +218,7 @@ LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval
 }
 
 void
-LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32)
+GsamUtility::LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32)
 {
 	for (std::list<Ptr<Spi> >::const_iterator const_it = lst_spi.begin();
 			const_it != lst_spi.end();
@@ -226,6 +226,28 @@ LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_
 	{
 		retval_lst_u32.insert((*const_it)->ToUint32());
 	}
+}
+
+uint8_t
+GsamUtility::ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id)
+{
+	uint8_t retval = 0;
+	switch (sa_protocol_id)
+	{
+		case IPsec::SA_PROPOSAL_IKE:
+			NS_ASSERT (false);
+			break;
+		case IPsec::SA_PROPOSAL_AH:
+			retval = IPsec::IP_ID_AH;
+			break;
+		case IPsec::SA_PROPOSAL_ESP:
+			retval = IPsec::IP_ID_ESP;
+			break;
+		default:
+			NS_ASSERT (false);
+	}
+
+	return retval;
 }
 
 /********************************************************
@@ -260,13 +282,13 @@ GsamConfig::GetDefaultIpsecMode (void)
 uint8_t
 GsamConfig::GetDefaultIpsecProtocolId (void)
 {
-	return IpSecPolicyEntry::AH;
+	return IPsec::IP_ID_AH;
 }
 
 IPsec::SA_Proposal_PROTOCOL_ID
 GsamConfig::GetDefaultGSAProposalId (void)
 {
-	return IPsec::AH;
+	return IPsec::SA_PROPOSAL_AH;
 }
 
 Time
@@ -2208,7 +2230,7 @@ GsamSession::EtablishPolicy (	const IkeTrafficSelector& ts_src,
 		NS_ASSERT (false);
 	}
 
-	this->m_ptr_session_group->EtablishPolicy(ts_src, ts_dest, policy_process_choice, ipsec_mode);
+	this->m_ptr_session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), policy_process_choice, ipsec_mode);
 }
 
 void
@@ -2588,55 +2610,15 @@ GsamSessionGroup::EtablishPolicy (Ipv4Address group_address,
 void
 GsamSessionGroup::EtablishPolicy (	const IkeTrafficSelector& ts_src,
 									const IkeTrafficSelector& ts_dest,
+									uint8_t protocol_id,
 									IPsec::PROCESS_CHOICE policy_process_choice,
 									IPsec::MODE ipsec_mode)
 {
 	NS_LOG_FUNCTION (this);
-	if (ts_src.GetStartingAddress() == ts_src.GetEndingAddress())
-	{
-		//ok
-		if (ts_src.GetStartingAddress().Get() == 0)
-		{
-			//ok
-		}
-		else
-		{
-			//not ok
-			NS_ASSERT (false);
-		}
-	}
-	else
-	{
-		//not ok
-		NS_ASSERT (false);
-	}
 
-	if (ts_dest.GetStartingAddress() == ts_dest.GetEndingAddress())
-	{
-		//ok
-	}
-	else
-	{
-		//not ok
-		NS_ASSERT (false);
-	}
+	Ipv4Address group_address = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(ts_src, ts_dest);
 
-	if (ts_dest.GetEndingAddress() == this->GetGroupAddress())
-	{
-		//ok
-	}
-	else
-	{
-		//not ok
-		NS_ASSERT (false);
-	}
-
-	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->CreatePolicyEntry();
-	policy->SetTrafficSelectors(ts_src, ts_dest);
-	policy->SetProcessChoice(policy_process_choice);
-	policy->SetIpsecMode(ipsec_mode);
-
-	this->AssociateWithPolicy(policy);
+	this->EtablishPolicy(group_address, protocol_id, policy_process_choice, ipsec_mode);
 }
 
 void

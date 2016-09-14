@@ -42,6 +42,7 @@ public://static
 	static Ipv4Address CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
 	static void LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32);
 	static void LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32);
+	static uint8_t ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id);
 };
 
 class GsamConfig {
@@ -402,6 +403,7 @@ public: //self-defined
 							IPsec::MODE ipsec_mode);
 	void EtablishPolicy (	const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
+							uint8_t protocol_id,
 							IPsec::PROCESS_CHOICE policy_process_choice,
 							IPsec::MODE ipsec_mode);
 	void InstallGsaQ (uint32_t spi);
@@ -509,14 +511,6 @@ private:	//fields
 };
 
 class IpSecPolicyEntry : public Object {
-public:
-
-	enum PROTOCOL_ID {
-		IGMP = 2,
-		ESP = 50,
-		AH = 51
-	};
-
 public:	//Object override
 	static TypeId GetTypeId (void);
 	IpSecPolicyEntry ();

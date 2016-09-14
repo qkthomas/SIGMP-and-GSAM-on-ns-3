@@ -39,10 +39,10 @@ class IkeGsaProposal;
 class IPsec {
 public:
 	enum SA_Proposal_PROTOCOL_ID {
-		RESERVED = 0,
-		IKE = 1,
-		AH = 2,
-		ESP = 3
+		SA_PROPOSAL_RESERVED = 0,
+		SA_PROPOSAL_IKE = 1,
+		SA_PROPOSAL_AH = 2,
+		SA_PROPOSAL_ESP = 3
 	};
 
 	enum MODE {
@@ -60,6 +60,12 @@ public:
 		DISCARD = 0,
 		BYPASS = 1,
 		PROTECT = 2
+	};
+
+	enum IP_PROTOCOL_ID {
+		IP_ID_IGMP = 2,
+		IP_ID_ESP = 50,
+		IP_ID_AH = 51
 	};
 };
 
@@ -525,6 +531,7 @@ public:	//non-const
 public:	//const
 	bool IsLast (void) const;
 	Spi GetSpi (void) const;
+	IPsec::SA_Proposal_PROTOCOL_ID GetProtocolId (void) const;
 protected:
 	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
 	/*
@@ -578,6 +585,7 @@ public:	//self-defined
 public:	//const
 	const std::list<Ptr<IkeSaProposal> >& GetProposals (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
+	IPsec::SA_Proposal_PROTOCOL_ID GetFirstProposalProtocolId (void) const;
 protected:
 	/*
 	 * Iterate the list of proposals and set the last one's "field last"

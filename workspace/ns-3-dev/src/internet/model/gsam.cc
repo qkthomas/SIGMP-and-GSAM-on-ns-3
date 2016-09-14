@@ -1897,6 +1897,33 @@ IkeSaProposal::GetSpi (void) const
 	return this->m_spi;
 }
 
+IPsec::SA_Proposal_PROTOCOL_ID
+IkeSaProposal::GetProtocolId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	IPsec::SA_Proposal_PROTOCOL_ID retval = IPsec::SA_PROPOSAL_IKE;
+
+	if (1 == this->m_protocol_id)
+	{
+		//do nothing keep retval == IPsec::SA_PROPOSAL_IKE
+	}
+	else if (2 == this->m_protocol_id)
+	{
+		retval = IPsec::SA_PROPOSAL_AH;
+	}
+	else if (3 == this->m_protocol_id)
+	{
+		retval = IPsec::SA_PROPOSAL_ESP;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	return retval;
+}
+
 uint8_t
 IkeSaProposal::GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
 {
@@ -1905,13 +1932,13 @@ IkeSaProposal::GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_i
 	uint8_t size = 0;
 
 	switch (protocol_id) {
-	case IPsec::IKE:
+	case IPsec::SA_PROPOSAL_IKE:
 		size = 8;	//8 bytes
 		break;
-	case IPsec::AH:
+	case IPsec::SA_PROPOSAL_AH:
 		size = 4;
 		break;
-	case IPsec::ESP:
+	case IPsec::SA_PROPOSAL_ESP:
 		size = 4;
 		break;
 	default:
@@ -1948,7 +1975,7 @@ IkeSaProposal::GenerateInitIkeProposal ()
 {
 	Ptr<IkeSaProposal> retval = Create<IkeSaProposal>();
 	//set ike
-	retval->SetProtocolId(IPsec::IKE);
+	retval->SetProtocolId(IPsec::SA_PROPOSAL_IKE);
 	//no need to set spi, set transform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
 	retval->PushBackTransform(transform);
@@ -1961,7 +1988,7 @@ IkeSaProposal::GenerateAuthIkeProposal (Spi spi)
 {
 	Ptr<IkeSaProposal> retval = Create<IkeSaProposal>();
 	//set ike
-	retval->SetProtocolId(IPsec::IKE);
+	retval->SetProtocolId(IPsec::SA_PROPOSAL_IKE);
 	//set spi
 	retval->SetSPI(spi);
 	//set trasform
@@ -2146,6 +2173,19 @@ IkeSaPayloadSubstructure::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return IkePayloadHeader::SECURITY_ASSOCIATION;
+}
+
+IPsec::SA_Proposal_PROTOCOL_ID
+IkeSaPayloadSubstructure::GetFirstProposalProtocolId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_lst_proposal.size() == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_lst_proposal.front()->GetProtocolId();
 }
 
 void
@@ -3581,7 +3621,7 @@ IkeTrafficSelector::GenerateDefaultSigmpTs(void)
 {
 	IkeTrafficSelector retval;
 	retval.m_ts_type = IkeTrafficSelector::TS_IPV4_ADDR_RANGE;
-	retval.m_ip_protocol_id = IpSecPolicyEntry::IGMP;
+	retval.m_ip_protocol_id = IPsec::IP_ID_IGMP;
 	retval.m_start_port = 0;
 	retval.m_end_port = 0;
 	retval.m_starting_address = GsamConfig::GetSecGrpAddressStart();
@@ -4815,15 +4855,15 @@ IkeGroupNotifySubstructure::SetProtocolId (uint8_t protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (protocol_id == IPsec::IKE)
+	if (protocol_id == IPsec::SA_PROPOSAL_IKE)
 	{
 		//ok
 	}
-	else if (protocol_id == IPsec::AH)
+	else if (protocol_id == IPsec::SA_PROPOSAL_AH)
 	{
 		//ok
 	}
-	else if (protocol_id == IPsec::ESP)
+	else if (protocol_id == IPsec::SA_PROPOSAL_ESP)
 	{
 		//ok
 	}
@@ -4999,15 +5039,15 @@ uint8_t
 IkeGroupNotifySubstructure::GetProtocolId (void) const
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_protocol_id == IPsec::IKE)
+	if (this->m_protocol_id == IPsec::SA_PROPOSAL_IKE)
 	{
 		//ok
 	}
-	else if (this->m_protocol_id == IPsec::AH)
+	else if (this->m_protocol_id == IPsec::SA_PROPOSAL_AH)
 	{
 		//ok
 	}
-	else if (this->m_protocol_id == IPsec::ESP)
+	else if (this->m_protocol_id == IPsec::SA_PROPOSAL_ESP)
 	{
 		//ok
 	}
