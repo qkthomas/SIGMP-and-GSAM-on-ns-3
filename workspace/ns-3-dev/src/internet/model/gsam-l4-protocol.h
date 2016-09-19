@@ -186,7 +186,7 @@ private:	//private staitc
 	static void ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals,
 										Ptr<IkeSaProposal> retval_chosen_proposal);
 	static void NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
-												const std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
+												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);
 	/*
@@ -197,10 +197,6 @@ private:	//database operation
 	void CreateIpSecPolicy (Ptr<GsamSession> session,
 							const std::list<IkeTrafficSelector>& tsi_selectors,
 							const std::list<IkeTrafficSelector>& tsr_selectors);
-	Ptr<IpSecSAEntry> CreateOutboundSa (Ptr<GsamSession> session, Spi spi);
-	Ptr<IpSecSAEntry> CreateInboundSa (Ptr<GsamSession> session, Spi spi);
-	void SetOutbountSa (Ptr<GsamSession> session, Ptr<IpSecSAEntry> outbound_sa);
-	void SetInbountSa (Ptr<GsamSession> session, Ptr<IpSecSAEntry> inbound_sa);
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;

@@ -206,6 +206,15 @@ GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelect
 	return group_address;
 }
 
+std::pair<IkeTrafficSelector, IkeTrafficSelector>
+GsamUtility::GetTsPairFromGroupAddress (Ipv4Address group_address)
+{
+	std::pair<IkeTrafficSelector, IkeTrafficSelector> retval;
+	retval.second.SetStartingAddress(group_address);
+	retval.second.SetEndingAddress(group_address);
+	return retval;
+}
+
 void
 GsamUtility::LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32)
 {
@@ -378,10 +387,8 @@ GsamInfo::GetLocalAvailableIpsecSpi (const std::set<uint32_t>& external_occupied
 	uint32_t spi = 0;
 
 	std::set<uint32_t> set_u32_merged;
-
-	std::set_union(	this->m_set_occupied_ipsec_spis.begin(), this->m_set_occupied_ipsec_spis.end(),
-			external_occupied_u32_set.begin(), external_occupied_u32_set.end(),
-			std::back_inserter(set_u32_merged));
+	set_u32_merged.insert(this->m_set_occupied_ipsec_spis.begin(), this->m_set_occupied_ipsec_spis.end());
+	set_u32_merged.insert(external_occupied_u32_set.begin(), external_occupied_u32_set.end());
 
 	do {
 		spi = rand();
@@ -916,8 +923,6 @@ operator == (GsaPushSession const& lhs, GsaPushSession const& rhs)
 Ptr<GsaPushSession>
 GsaPushSession::CreatePushSession (uint32_t id)
 {
-	NS_LOG_FUNCTION (this);
-
 	if (id == 0)
 	{
 		NS_ASSERT (false);
@@ -1206,13 +1211,7 @@ GsaPushSession::AggregateGsaQSpiNotification (const std::set<uint32_t>& set_spi_
 {
 	NS_LOG_FUNCTION (this);
 
-	std::set<uint32_t> result;
-
-	std::set_union(	this->m_set_aggregated_gsa_q_spi_notification.begin(), this->m_set_aggregated_gsa_q_spi_notification.end(),
-					set_spi_notification.begin(), set_spi_notification.end(),
-					std::back_inserter(result));
-
-	this->m_set_aggregated_gsa_q_spi_notification = result;
+	this->m_set_aggregated_gsa_q_spi_notification.insert (set_spi_notification.begin(), set_spi_notification.end());
 }
 
 void
@@ -1220,13 +1219,7 @@ GsaPushSession::AggregateGsaRSpiNotification (const std::set<uint32_t>& set_spi_
 {
 	NS_LOG_FUNCTION (this);
 
-	std::set<uint32_t> result;
-
-	std::set_union(	this->m_set_aggregated_gsa_r_spi_notification.begin(), this->m_set_aggregated_gsa_r_spi_notification.end(),
-					set_spi_notification.begin(), set_spi_notification.end(),
-					std::back_inserter(result));
-
-	this->m_set_aggregated_gsa_r_spi_notification = result;
+	this->m_set_aggregated_gsa_r_spi_notification.insert(set_spi_notification.begin(), set_spi_notification.end());
 }
 
 void
@@ -1309,7 +1302,7 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
 	}
 
 
-	if (this->m_lst_nq_rejected_spis_subs.size != 0)
+	if (this->m_lst_nq_rejected_spis_subs.size() != 0)
 	{
 		NS_ASSERT (false);
 	}
@@ -1332,7 +1325,7 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
 			NS_ASSERT (false);
 		}
 
-		if (this->m_lst_nq_rejected_spis_subs.size == 0)
+		if (this->m_lst_nq_rejected_spis_subs.size() == 0)
 		{
 			NS_ASSERT (false);
 		}
@@ -1695,7 +1688,7 @@ GsamSession::~GsamSession()
 	this->m_ptr_related_gsa_r = 0;
 	this->m_ptr_push_session = 0;
 	this->m_last_sent_packet = 0;
-	this-m_set_ptr_push_sessions.clear();
+	this->m_set_ptr_push_sessions.clear();
 }
 
 TypeId
@@ -2199,38 +2192,6 @@ GsamSession::CreateAndSetGsaPushSession (void)
 	Ptr<GsaPushSession> retval = this->GetDatabase()->CreateGsaPushSession();
 	this->SetGsaPushSession(retval);
 	return retval;
-}
-
-void
-GsamSession::EtablishPolicy (Ipv4Address group_address,
-								uint8_t protocol_id,
-								IPsec::PROCESS_CHOICE policy_process_choice,
-								IPsec::MODE ipsec_mode)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_ptr_session_group == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	this->m_ptr_session_group->EtablishPolicy(group_address, protocol_id, policy_process_choice, ipsec_mode);
-}
-
-void
-GsamSession::EtablishPolicy (	const IkeTrafficSelector& ts_src,
-								const IkeTrafficSelector& ts_dest,
-								IPsec::PROCESS_CHOICE policy_process_choice,
-								IPsec::MODE ipsec_mode)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_ptr_session_group == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	this->m_ptr_session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), policy_process_choice, ipsec_mode);
 }
 
 void
@@ -3983,7 +3944,7 @@ IpSecDatabase::GetSessionGroups (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	return this->m_lst_ptr_session_groups
+	return this->m_lst_ptr_session_groups;
 }
 
 Ptr<GsamInfo>

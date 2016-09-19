@@ -40,6 +40,7 @@ public://static
 	static void Uint32ToBytes (std::list<uint8_t>& lst_retval, const uint32_t input_value);
 	static void Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input_value);
 	static Ipv4Address CheckAndGetGroupAddressFromTrafficSelectors (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
+	static std::pair<IkeTrafficSelector, IkeTrafficSelector> GetTsPairFromGroupAddress (Ipv4Address group_address);
 	static void LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32);
 	static void LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32);
 	static uint8_t ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id);
@@ -82,6 +83,7 @@ public:	//self-defined
 	void FreeIpsecSpi (uint32_t spi);
 	void SetSecGrpStart (Ipv4Address address);
 	void SetSecGrpEnd (Ipv4Address address);
+	void OccupyIpsecSpi (uint32_t spi);
 public: //const
 	Time GetRetransmissionDelay (void) const;
 	uint32_t GetLocalAvailableIpsecSpi (void) const;
@@ -92,7 +94,6 @@ private:
 	uint64_t GetLocalAvailableGsamSpi (void) const;
 	uint32_t GetLocalAvailableGsaPushId (void) const;
 	void OccupyGsamSpi (uint64_t spi);
-	void OccupyIpsecSpi (uint32_t spi);
 	void OccupyGsaPushId (uint32_t gsa_push_id);
 public:
 	static uint32_t GetNotOccupiedU32 (const std::set<uint32_t>& set_u32_occupied);
@@ -180,6 +181,7 @@ public:
 	};
 public:	//Object override
 	static TypeId GetTypeId (void);
+	GsaPushSession ();
 	virtual ~GsaPushSession();
 	virtual TypeId GetInstanceTypeId (void) const;
 protected:
@@ -190,7 +192,6 @@ protected:
 	virtual void NotifyNewAggregate ();
 
 private:
-	GsaPushSession ();
 	virtual void DoDispose (void);
 public:	//operator
 	friend bool operator < (GsaPushSession const& lhs, GsaPushSession const& rhs);
@@ -318,14 +319,6 @@ public:	//self defined
 	void InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
 	void ClearGsaPushSession (void);
 	Ptr<GsaPushSession> CreateAndSetGsaPushSession (void);
-	void EtablishPolicy (Ipv4Address group_address,
-							uint8_t protocol_id,
-							IPsec::PROCESS_CHOICE policy_process_choice,
-							IPsec::MODE ipsec_mode);
-	void EtablishPolicy (	const IkeTrafficSelector& ts_src,
-							const IkeTrafficSelector& ts_dest,
-							IPsec::PROCESS_CHOICE policy_process_choice,
-							IPsec::MODE ipsec_mode);
 	void SetCachePacket (Ptr<Packet> packet);
 	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_push_id);
 public: //const

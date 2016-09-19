@@ -739,7 +739,6 @@ Spi::Spi ()
 	NS_LOG_FUNCTION (this);
 }
 
-explicit
 Spi::Spi (uint32_t spi)
 {
 	NS_LOG_FUNCTION (this);
@@ -1063,61 +1062,6 @@ IkePayload::GetNextPayloadType (void) const
 
 const Ptr<IkePayloadSubstructure>
 IkePayload::GetSubstructure (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_ptr_substructure;
-}
-
-const std::list<Ptr<IkeSaProposal> >&
-IkePayload::GetSAProposals (void) const
-{
-#warning "this is deprecated"
-	NS_LOG_FUNCTION (this);
-
-	if (this->GetPayloadType() != IkePayloadHeader::SECURITY_ASSOCIATION)
-	{
-		NS_ASSERT (false);
-	}
-
-	Ptr<IkeSaPayloadSubstructure> ptr_derived = DynamicCast<IkeSaPayloadSubstructure>(this->m_ptr_substructure);
-
-	return ptr_derived->GetProposals();
-}
-
-const std::list<IkeTrafficSelector>&
-IkePayload::GetTrafficSelectors (void) const
-{
-#warning "this is deprecated"
-	NS_LOG_FUNCTION (this);
-
-	if ((this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR) &&
-			(this->GetPayloadType() != IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER))
-	{
-		NS_ASSERT (false);
-	}
-
-	Ptr<IkeTrafficSelectorSubstructure> ptr_derived = DynamicCast<IkeTrafficSelectorSubstructure>(this->m_ptr_substructure);
-
-	return ptr_derived->GetTrafficSelectors();
-}
-
-Ipv4Address
-IkePayload::GetIpv4AddressId (void) const
-{
-#warning "this is deprecated"
-	NS_LOG_FUNCTION (this);
-	if (this->GetPayloadType() != IkePayloadHeader::IDENTIFICATION_INITIATOR)
-	{
-		NS_ASSERT (false);
-	}
-
-	Ptr<IkeIdSubstructure> ptr_derived = DynamicCast<IkeIdSubstructure>(this->m_ptr_substructure);
-
-	return ptr_derived->GetIpv4AddressFromData();
-}
-
-Ptr<IkePayloadSubstructure>
-IkePayload::GetPayloadSubstructure (void) const
 {
 	NS_LOG_FUNCTION (this);
 	if (this->m_ptr_substructure == 0)
@@ -2126,20 +2070,6 @@ IkeSaPayloadSubstructure::GenerateAuthIkePayload (Spi spi)
 	retval->SetProposalNum();
 	return retval;
 }
-Ptr<IkeSaPayloadSubstructure>
-IkeSaPayloadSubstructure::GenerateGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r)
-{
-#warning "method IkeSaPayloadSubstructure::GenerateGsaPayload is deprecated"
-
-	Ptr<IkeSaPayloadSubstructure> retval = Create<IkeSaPayloadSubstructure>();
-
-	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(spi_gsa_q, IkeGsaProposal::NEW_GSA_Q));
-	retval->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(spi_gsa_r, IkeGsaProposal::NEW_GSA_R));
-
-	retval->SetLastProposal();
-	retval->SetProposalNum();
-	return retval;
-}
 
 void
 IkeSaPayloadSubstructure::PushBackProposal (Ptr<IkeSaProposal> proposal)
@@ -2220,229 +2150,6 @@ IkeSaPayloadSubstructure::SetProposalNum (void)
 		(*it)->SetProposalNumber(proposal_num);
 		proposal_num++;
 	}
-}
-
-/********************************************************
- *        IkeGsaPayloadSubstructure
- ********************************************************/
-
-NS_OBJECT_ENSURE_REGISTERED (IkeGsaPayloadSubstructure);
-
-TypeId
-IkeGsaPayloadSubstructure::GetTypeId (void)
-{
-	static TypeId tid = TypeId ("ns3::IkeGsaPayloadSubstructure")
-	    .SetParent<IkeSaPayloadSubstructure> ()
-	    //.SetGroupName("Internet")
-		.AddConstructor<IkeGsaPayloadSubstructure> ();
-	  return tid;
-}
-
-IkeGsaPayloadSubstructure::IkeGsaPayloadSubstructure ()
-  :  m_flag_repush (false),
-	 m_gsa_push_id (0)
-{
-	NS_LOG_FUNCTION (this);
-}
-
-IkeGsaPayloadSubstructure::~IkeGsaPayloadSubstructure ()
-{
-	NS_LOG_FUNCTION (this);
-}
-
-uint32_t
-IkeGsaPayloadSubstructure::GetSerializedSize (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	uint32_t size = 0;
-
-	size += sizeof (this->m_gsa_push_id);
-	size += this->m_src_ts.GetSerializedSize();
-	size += this->m_dest_ts.GetSerializedSize();
-
-	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = this->m_lst_proposal.begin();
-			const_it != this->m_lst_proposal.end();
-			const_it++)
-	{
-		size += (*const_it)->GetSerializedSize();
-	}
-
-	return size;
-}
-
-TypeId
-IkeGsaPayloadSubstructure::GetInstanceTypeId (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	return IkeGsaPayloadSubstructure::GetTypeId();
-}
-
-void
-IkeGsaPayloadSubstructure::Serialize (Buffer::Iterator start) const
-{
-	NS_LOG_FUNCTION (this << &start);
-	Buffer::Iterator i = start;
-
-	i.WriteHtonU32(this->m_gsa_push_id);
-
-	this->m_src_ts.Serialize(i);
-	i.Next(this->m_src_ts.GetSerializedSize());
-
-	this->m_dest_ts.Serialize(i);
-	i.Next(this->m_dest_ts.GetSerializedSize());
-
-	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = this->m_lst_proposal.begin();
-			const_it != this->m_lst_proposal.end();
-			const_it++)
-	{
-		(*const_it)->Serialize(i);
-		i.Next((*const_it)->GetSerializedSize());
-	}
-}
-
-uint32_t
-IkeGsaPayloadSubstructure::Deserialize (Buffer::Iterator start)
-{
-	NS_LOG_FUNCTION (this << &start);
-	Buffer::Iterator i = start;
-	uint32_t size = 0;
-
-	uint16_t length_rest = this->m_length;
-
-	this->m_gsa_push_id = i.ReadNtohU32();
-	length_rest -= sizeof (this->m_gsa_push_id);
-	size += sizeof (this->m_gsa_push_id);
-
-	this->m_src_ts.Deserialize(i);
-	uint32_t src_ts_size = this->m_src_ts.GetSerializedSize();
-	i.Next(src_ts_size);
-	length_rest -= src_ts_size;
-	size += src_ts_size;
-
-	this->m_dest_ts.Deserialize(i);
-	uint32_t dest_ts_size = this->m_dest_ts.GetSerializedSize();
-	i.Next(dest_ts_size);
-	length_rest -= dest_ts_size;
-	size += dest_ts_size;
-
-	while (length_rest > 0)
-	{
-		Ptr<IkeSaProposal> proposal = Create<IkeSaProposal>();
-		proposal->Deserialize(i);
-		uint32_t proposal_size = proposal->GetSerializedSize();
-		i.Next(proposal_size);
-		length_rest -= proposal_size;
-		size += proposal_size;
-		this->m_lst_proposal.push_back(proposal);
-
-		if (length_rest == 0)
-		{
-			if (true != proposal->IsLast())
-			{
-				NS_ASSERT (false);
-			}
-		}
-	}
-
-	NS_ASSERT (size == this->m_length);
-
-	return size;
-}
-
-void
-IkeGsaPayloadSubstructure::Print (std::ostream &os) const
-{
-	NS_LOG_FUNCTION (this << &os);
-
-	IkePayloadSubstructure::Print(os);
-
-	os << "IkeGSAPayloadSubstructure: " << this << std::endl;
-}
-
-Ptr<IkeGsaPayloadSubstructure>
-IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
-													IkeTrafficSelector ts_src,
-													IkeTrafficSelector ts_dest,
-													bool is_repush = false)
-{
-	Ptr<IkeGsaPayloadSubstructure> retval = Create<IkeGsaPayloadSubstructure>();
-	retval->SetPushId(gsa_push_id);
-	retval->m_src_ts = ts_src;
-	retval->m_dest_ts = ts_dest;
-	return retval;
-}
-
-Ptr<IkeGsaPayloadSubstructure>
-IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
-													Ipv4Address group_address,
-													bool is_repush = false)
-{
-	IkeTrafficSelector ts_src = IkeTrafficSelector::GenerateSrcSecureGroupTs();
-	IkeTrafficSelector ts_dest = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
-	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (gsa_push_id, ts_src, ts_dest, is_repush);
-	return retval;
-}
-
-void
-IkeGsaPayloadSubstructure::SetPushId (uint32_t gsa_push_id)
-{
-	if (0 == gsa_push_id)
-	{
-		NS_ASSERT (false);
-	}
-
-	this->m_gsa_push_id = gsa_push_id;
-}
-
-void
-IkeGsaPayloadSubstructure::SetRepush (void)
-{
-	this->m_flag_repush = true;
-}
-
-IkePayloadHeader::PAYLOAD_TYPE
-IkeGsaPayloadSubstructure::GetPayloadType (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	IkePayloadHeader::PAYLOAD_TYPE retval = IkePayloadHeader::GSA_PUSH;
-
-	if (true == this->IsRepush())
-	{
-		retval = IkePayloadHeader::GSA_REPUSH;
-	}
-
-	return retval;
-}
-
-const IkeTrafficSelector&
-IkeGsaPayloadSubstructure::GetSourceTrafficSelector (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_src_ts;
-}
-
-const IkeTrafficSelector&
-IkeGsaPayloadSubstructure::GetDestTrafficSelector (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_dest_ts;
-}
-
-uint32_t
-IkeGsaPayloadSubstructure::GetGsaPushId (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_gsa_push_id;
-}
-
-bool
-IkeGsaPayloadSubstructure::IsRepush (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_flag_repush;
 }
 
 /********************************************************
@@ -3550,7 +3257,7 @@ void
 IkeTrafficSelector::SetStartPort (uint16_t start_port)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_start_port;
+	this->m_start_port = start_port;
 }
 
 void
@@ -4717,6 +4424,229 @@ IkeGsaProposal::GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type)
 }
 
 /********************************************************
+ *        IkeGsaPayloadSubstructure
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IkeGsaPayloadSubstructure);
+
+TypeId
+IkeGsaPayloadSubstructure::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IkeGsaPayloadSubstructure")
+	    .SetParent<IkeSaPayloadSubstructure> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<IkeGsaPayloadSubstructure> ();
+	  return tid;
+}
+
+IkeGsaPayloadSubstructure::IkeGsaPayloadSubstructure ()
+  :  m_flag_repush (false),
+	 m_gsa_push_id (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IkeGsaPayloadSubstructure::~IkeGsaPayloadSubstructure ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+uint32_t
+IkeGsaPayloadSubstructure::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	uint32_t size = 0;
+
+	size += sizeof (this->m_gsa_push_id);
+	size += this->m_src_ts.GetSerializedSize();
+	size += this->m_dest_ts.GetSerializedSize();
+
+	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = this->m_lst_proposal.begin();
+			const_it != this->m_lst_proposal.end();
+			const_it++)
+	{
+		size += (*const_it)->GetSerializedSize();
+	}
+
+	return size;
+}
+
+TypeId
+IkeGsaPayloadSubstructure::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	return IkeGsaPayloadSubstructure::GetTypeId();
+}
+
+void
+IkeGsaPayloadSubstructure::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteHtonU32(this->m_gsa_push_id);
+
+	this->m_src_ts.Serialize(i);
+	i.Next(this->m_src_ts.GetSerializedSize());
+
+	this->m_dest_ts.Serialize(i);
+	i.Next(this->m_dest_ts.GetSerializedSize());
+
+	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = this->m_lst_proposal.begin();
+			const_it != this->m_lst_proposal.end();
+			const_it++)
+	{
+		(*const_it)->Serialize(i);
+		i.Next((*const_it)->GetSerializedSize());
+	}
+}
+
+uint32_t
+IkeGsaPayloadSubstructure::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+	uint32_t size = 0;
+
+	uint16_t length_rest = this->m_length;
+
+	this->m_gsa_push_id = i.ReadNtohU32();
+	length_rest -= sizeof (this->m_gsa_push_id);
+	size += sizeof (this->m_gsa_push_id);
+
+	this->m_src_ts.Deserialize(i);
+	uint32_t src_ts_size = this->m_src_ts.GetSerializedSize();
+	i.Next(src_ts_size);
+	length_rest -= src_ts_size;
+	size += src_ts_size;
+
+	this->m_dest_ts.Deserialize(i);
+	uint32_t dest_ts_size = this->m_dest_ts.GetSerializedSize();
+	i.Next(dest_ts_size);
+	length_rest -= dest_ts_size;
+	size += dest_ts_size;
+
+	while (length_rest > 0)
+	{
+		Ptr<IkeSaProposal> proposal = Create<IkeSaProposal>();
+		proposal->Deserialize(i);
+		uint32_t proposal_size = proposal->GetSerializedSize();
+		i.Next(proposal_size);
+		length_rest -= proposal_size;
+		size += proposal_size;
+		this->m_lst_proposal.push_back(proposal);
+
+		if (length_rest == 0)
+		{
+			if (true != proposal->IsLast())
+			{
+				NS_ASSERT (false);
+			}
+		}
+	}
+
+	NS_ASSERT (size == this->m_length);
+
+	return size;
+}
+
+void
+IkeGsaPayloadSubstructure::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+
+	IkePayloadSubstructure::Print(os);
+
+	os << "IkeGSAPayloadSubstructure: " << this << std::endl;
+}
+
+Ptr<IkeGsaPayloadSubstructure>
+IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
+													IkeTrafficSelector ts_src,
+													IkeTrafficSelector ts_dest,
+													bool is_repush)
+{
+	Ptr<IkeGsaPayloadSubstructure> retval = Create<IkeGsaPayloadSubstructure>();
+	retval->SetPushId(gsa_push_id);
+	retval->m_src_ts = ts_src;
+	retval->m_dest_ts = ts_dest;
+	return retval;
+}
+
+Ptr<IkeGsaPayloadSubstructure>
+IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
+													Ipv4Address group_address,
+													bool is_repush)
+{
+	IkeTrafficSelector ts_src = IkeTrafficSelector::GenerateSrcSecureGroupTs();
+	IkeTrafficSelector ts_dest = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
+	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (gsa_push_id, ts_src, ts_dest, is_repush);
+	return retval;
+}
+
+void
+IkeGsaPayloadSubstructure::SetPushId (uint32_t gsa_push_id)
+{
+	if (0 == gsa_push_id)
+	{
+		NS_ASSERT (false);
+	}
+
+	this->m_gsa_push_id = gsa_push_id;
+}
+
+void
+IkeGsaPayloadSubstructure::SetRepush (void)
+{
+	this->m_flag_repush = true;
+}
+
+IkePayloadHeader::PAYLOAD_TYPE
+IkeGsaPayloadSubstructure::GetPayloadType (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	IkePayloadHeader::PAYLOAD_TYPE retval = IkePayloadHeader::GSA_PUSH;
+
+	if (true == this->IsRepush())
+	{
+		retval = IkePayloadHeader::GSA_REPUSH;
+	}
+
+	return retval;
+}
+
+const IkeTrafficSelector&
+IkeGsaPayloadSubstructure::GetSourceTrafficSelector (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_src_ts;
+}
+
+const IkeTrafficSelector&
+IkeGsaPayloadSubstructure::GetDestTrafficSelector (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_dest_ts;
+}
+
+uint32_t
+IkeGsaPayloadSubstructure::GetGsaPushId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_gsa_push_id;
+}
+
+bool
+IkeGsaPayloadSubstructure::IsRepush (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_flag_repush;
+}
+
+/********************************************************
  *        IkeGroupNotifySubstructure
  ********************************************************/
 
@@ -4928,7 +4858,7 @@ IkeGroupNotifySubstructure::SetGsaPushId (uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (0 == uint32_t)
+	if (0 == gsa_push_id)
 	{
 		NS_ASSERT (false);
 	}

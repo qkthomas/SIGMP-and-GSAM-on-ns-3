@@ -26,6 +26,7 @@
 #include "ns3/trailer.h"
 #include "ns3/ipv4-address.h"
 #include <list>
+#include <set>
 #include "ns3/object.h"
 
 namespace ns3 {
@@ -327,10 +328,6 @@ public:	//const
 	IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 	IkePayloadHeader::PAYLOAD_TYPE GetNextPayloadType (void) const;
 	const Ptr<IkePayloadSubstructure> GetSubstructure (void) const;
-	const std::list<Ptr<IkeSaProposal> >& GetSAProposals (void) const;
-	const std::list<IkeTrafficSelector>& GetTrafficSelectors (void) const;
-	Ipv4Address GetIpv4AddressId (void) const;
-	Ptr<IkePayloadSubstructure> GetPayloadSubstructure (void) const;
 	bool HasPayloadSubstructure (void) const;
 public:	//non-const
 //	void SetPayload (IkePayloadSubstructure substructure);
@@ -578,7 +575,6 @@ public:	//Header Override
 public:	//static
 	static Ptr<IkeSaPayloadSubstructure> GenerateInitIkePayload (void);
 	static Ptr<IkeSaPayloadSubstructure> GenerateAuthIkePayload (Spi spi);
-	static Ptr<IkeSaPayloadSubstructure> GenerateGsaPayload (IkeTrafficSelector ts_src, IkeTrafficSelector ts_dest, Spi spi_gsa_q, Spi spi_gsa_r);
 public:	//self-defined
 	void PushBackProposal (Ptr<IkeSaProposal> proposal);
 	void PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals);
@@ -600,59 +596,6 @@ public:
 	using IkePayloadSubstructure::Deserialize;
 protected:
 	std::list<Ptr<IkeSaProposal> > m_lst_proposal;	//proposals? Since it can be more than one.
-};
-
-class IkeGsaPayloadSubstructure : public IkeSaPayloadSubstructure {
-	/*
-	 *                      1                   2                   3
-     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * ~                          Gsa Push Id                          ~
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * ~                   <Source Traffic Selector>                   ~
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * ~                <Destination Traffic Selector>                 ~
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * |                                                               |
-     * ~                          <Proposals>                          ~
-     * |                                                               |
-     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 */
-public:
-	static TypeId GetTypeId (void);
-	IkeGsaPayloadSubstructure ();
-	virtual ~IkeGsaPayloadSubstructure ();
-public:	//Header Override
-	virtual uint32_t GetSerializedSize (void) const;
-	virtual TypeId GetInstanceTypeId (void) const;
-	virtual void Serialize (Buffer::Iterator start) const;
-	virtual uint32_t Deserialize (Buffer::Iterator start);
-	virtual void Print (std::ostream &os) const;
-public:
-	using IkePayloadSubstructure::Deserialize;
-public:	//static
-	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (	uint32_t gsa_push_id,
-																	IkeTrafficSelector ts_src,
-																	IkeTrafficSelector ts_dest,
-																	bool is_repush = false);
-	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (	uint32_t gsa_push_id,
-																	Ipv4Address group_address,
-																	bool is_repush = false);
-private:
-	void SetPushId (uint32_t gsa_push_id);
-	void SetRepush (void);
-public:	//const
-	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
-public:
-	const IkeTrafficSelector& GetSourceTrafficSelector (void) const;
-	const IkeTrafficSelector& GetDestTrafficSelector (void) const;
-	uint32_t GetGsaPushId (void) const;
-	bool IsRepush (void) const;
-private:
-	bool m_flag_repush;
-	uint32_t m_gsa_push_id;
-	IkeTrafficSelector m_src_ts;
-	IkeTrafficSelector m_dest_ts;
 };
 
 class IkeKeyExchangeSubStructure : public IkePayloadSubstructure {
@@ -966,7 +909,7 @@ class IkeTrafficSelector : public Object {
      * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 *
 	 */
-
+public:
 	enum TS_TYPE {
 		TS_IPV4_ADDR_RANGE = 7,
 		TS_IPV6_ADDR_RANGE = 8
@@ -1233,6 +1176,60 @@ public:
 	static Ptr<IkeGsaProposal> GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type);
 private:
 	IkeGsaProposal::GSA_TYPE m_gsa_type;
+};
+
+class IkeGsaPayloadSubstructure : public IkeSaPayloadSubstructure {
+	/*
+	 *                      1                   2                   3
+     *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                          Gsa Push Id                          ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                   <Source Traffic Selector>                   ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * ~                <Destination Traffic Selector>                 ~
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * |                                                               |
+     * ~                          <Proposals>                          ~
+     * |                                                               |
+     * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+public:
+	static TypeId GetTypeId (void);
+	IkeGsaPayloadSubstructure ();
+	virtual ~IkeGsaPayloadSubstructure ();
+public:	//Header Override
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual void Print (std::ostream &os) const;
+public:
+	using IkePayloadSubstructure::Deserialize;
+public:	//static
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (	uint32_t gsa_push_id,
+																	IkeTrafficSelector ts_src,
+																	IkeTrafficSelector ts_dest,
+																	bool is_repush = false);
+	static Ptr<IkeGsaPayloadSubstructure> GenerateEmptyGsaPayload (	uint32_t gsa_push_id,
+																	Ipv4Address group_address,
+																	bool is_repush = false);
+public:
+	void SetRepush (void);
+private:
+	void SetPushId (uint32_t gsa_push_id);
+public:	//const
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
+public:
+	const IkeTrafficSelector& GetSourceTrafficSelector (void) const;
+	const IkeTrafficSelector& GetDestTrafficSelector (void) const;
+	uint32_t GetGsaPushId (void) const;
+	bool IsRepush (void) const;
+private:
+	bool m_flag_repush;
+	uint32_t m_gsa_push_id;
+	IkeTrafficSelector m_src_ts;
+	IkeTrafficSelector m_dest_ts;
 };
 
 class IkeGroupNotifySubstructure : public IkePayloadSubstructure {
