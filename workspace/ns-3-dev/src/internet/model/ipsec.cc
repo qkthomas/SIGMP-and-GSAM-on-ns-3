@@ -34,6 +34,8 @@ NS_LOG_COMPONENT_DEFINE ("GsamSa");
  *        GsamUtility
  ********************************************************/
 
+uint8_t GsamUtility::m_spi_rejection_propability = 0;
+
 uint32_t
 GsamUtility::BytesToUint32 (const std::list<uint8_t>& lst_bytes)
 {
@@ -257,6 +259,18 @@ GsamUtility::ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID 
 	}
 
 	return retval;
+}
+
+uint8_t
+GsamUtility::GetSpiRejectPropability (void)
+{
+	return GsamUtility::m_spi_rejection_propability;
+}
+
+void
+GsamUtility::SetSpiRejectPropability (uint8_t between_0_and_100)
+{
+	GsamUtility::m_spi_rejection_propability = between_0_and_100;
 }
 
 /********************************************************
@@ -542,6 +556,18 @@ GsamInfo::FreeIpsecSpi (uint32_t spi)
 	uint8_t deleted_num_spis = 0;
 
 	deleted_num_spis = this->m_set_occupied_ipsec_spis.erase(spi);
+
+	NS_ASSERT (deleted_num_spis == 1);
+}
+
+void
+GsamInfo::FreeGsaPushId (uint32_t gsa_push_id)
+{
+	NS_LOG_FUNCTION (this);
+
+	uint8_t deleted_num_spis = 0;
+
+	deleted_num_spis = this->m_set_occupied_gsa_push_ids.erase(gsa_push_id);
 
 	NS_ASSERT (deleted_num_spis == 1);
 }
@@ -843,6 +869,7 @@ GsaPushSession::GsaPushSession ()
 GsaPushSession::~GsaPushSession()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_ptr_database->GetInfo()->FreeGsaPushId(this->m_id);
 	this->m_ptr_gm_session = 0;
 	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
 	this->m_lst_ptr_nq_sessions_acked_notified.clear();
@@ -2657,12 +2684,34 @@ GsamSessionGroup::GetRelatedGsaQ (void) const
 }
 
 Ptr<IpSecPolicyEntry>
-GsamSessionGroup::GetRelatedPolicy (void) const
+GsamSessionGroup::GetRelatedPolicy (void)
 {
 	NS_LOG_FUNCTION (this);
 
+	if (this->m_group_address == GsamConfig::GetIgmpv3DestGrpReportAddress())
+	{
+		//nq session on Q or on NQ
+		NS_ASSERT (false);
+	}
+
+	Ptr<IpSecPolicyEntry> retval = 0;
+
+	if (0 != this->m_ptr_related_policy)
+	{
+		retval = this->m_ptr_related_policy;
+	}
+	else
+	{
+		std::pair<IkeTrafficSelector, IkeTrafficSelector> tss = GsamUtility::GetTsPairFromGroupAddress(this->m_group_address);
+		retval = this->m_ptr_database->GetPolicyDatabase()->GetPolicy(tss.first, tss.second);
+		if (0 != retval)
+		{
+			this->m_ptr_related_policy = retval;
+		}
+	}
+
 	//return value can be zero. For the use of judging the need of creating policy
-	return this->m_ptr_related_policy;
+	return retval;
 }
 
 const std::list<Ptr<GsamSession> >&
@@ -2767,10 +2816,11 @@ IpSecSAEntry::IpSecSAEntry ()
 IpSecSAEntry::~IpSecSAEntry()
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_ptr_sad != 0)
+	if (IpSecSAEntry::INBOUND == this->m_direction)
 	{
-		this->m_ptr_sad->RemoveEntry(this);
+		this->m_ptr_sad->GetRootDatabase()->GetInfo()->FreeIpsecSpi(this->m_spi);
 	}
+
 	this->m_ptr_encrypt_fn = 0;
 	this->m_ptr_sad = 0;
 }
@@ -3174,12 +3224,10 @@ IpSecPolicyEntry::IpSecPolicyEntry ()
 IpSecPolicyEntry::~IpSecPolicyEntry()
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_ptr_spd != 0)
-	{
-		this->m_ptr_spd->RemoveEntry(this);
-	}
+
 	this->m_ptr_spd = 0;
 	this->m_ptr_outbound_sad = 0;
+	this->m_ptr_inbound_sad = 0;
 }
 
 TypeId

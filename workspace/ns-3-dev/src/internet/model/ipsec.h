@@ -44,6 +44,10 @@ public://static
 	static void LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32);
 	static void LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32);
 	static uint8_t ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id);
+	static uint8_t GetSpiRejectPropability (void);
+	static void SetSpiRejectPropability (uint8_t between_0_and_100);
+private:
+	static uint8_t m_spi_rejection_propability;
 };
 
 class GsamConfig {
@@ -81,6 +85,7 @@ public:	//self-defined
 	void SetRetransmissionDelay (Time time);
 	void FreeGsamSpi (uint64_t spi);
 	void FreeIpsecSpi (uint32_t spi);
+	void FreeGsaPushId (uint32_t gsa_push_id);
 	void SetSecGrpStart (Ipv4Address address);
 	void SetSecGrpEnd (Ipv4Address address);
 	void OccupyIpsecSpi (uint32_t spi);
@@ -401,11 +406,11 @@ public: //self-defined
 							IPsec::MODE ipsec_mode);
 	void InstallGsaQ (uint32_t spi);
 	void InstallGsaR (uint32_t spi);
+	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void);
 public:	//const
 	Ipv4Address GetGroupAddress (void) const;
 	Ptr<IpSecDatabase> GetDatabase (void) const;
 	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
-	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
 	const std::list<Ptr<GsamSession> >& GetSessionsConst (void) const;
 	Ptr<GsamSession> GetSessionByGsaRSpi (uint32_t gsa_r_spi);
 private:

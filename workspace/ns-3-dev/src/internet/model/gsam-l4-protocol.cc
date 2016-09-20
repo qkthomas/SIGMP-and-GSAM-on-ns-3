@@ -2020,6 +2020,11 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 		}
 		else
 		{
+			Ptr<GsamSessionGroup> session_group = this->m_ptr_database->GetSessionGroup(group_address);
+			if (0 == session_group)
+			{
+				NS_ASSERT (false);
+			}
 			//find gsa r or gsa q to modify
 			for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it_proposals = gsa_repush_sub->GetProposals().begin();
 					const_it_proposals != gsa_repush_sub->GetProposals().end();
@@ -2029,11 +2034,6 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 
 				if (gsa_proposal_to_modify->GetGsaType() == IkeGsaProposal::GSA_Q_TO_BE_MODIFIED)
 				{
-					Ptr<GsamSessionGroup> session_group = session->GetSessionGroup();
-					if (0 == session_group)
-					{
-						NS_ASSERT (false);
-					}
 
 					const_it_proposals++;
 
@@ -2041,23 +2041,22 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 
 					if (gsa_proposal_replacement->GetGsaType() == IkeGsaProposal::GSA_Q_REPLACEMENT)
 					{
-						Ptr<IpSecSAEntry> session_gsa_q = session->GetRelatedGsaQ();
-						if (0 == session_gsa_q)
+						Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
+						Ptr<IpSecSAEntry> gsa_q_in_sad = outbound_sad->GetIpsecSAEntry(gsa_proposal_to_modify->GetSpi().ToUint32());
+						if (0 == gsa_q_in_sad)
 						{
-							//The reason why (0 == session_gsa_q) is that it was rejected?
+							//The reason why (0 == gsa_q_in_sad) is that it was rejected?
 							//install a new gsa q with the incoming spi replacement
-							Ptr<IpSecSADatabase> inbound_sad = session->GetRelatedPolicy()->GetInboundSAD();
-							Ptr<IpSecSAEntry> new_gsa_q = inbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
-							session->AssociateGsaQ(new_gsa_q);
+							Ptr<IpSecSAEntry> new_gsa_q = outbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
 						}
 						else
 						{
 							//change spi
-							if (session_gsa_q->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
+							if (gsa_q_in_sad->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
 							{
 								NS_ASSERT (false);
 							}
-							session_gsa_q->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+							gsa_q_in_sad->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
 						}
 					}
 					else
@@ -2067,11 +2066,6 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 				}
 				else if (gsa_proposal_to_modify->GetGsaType() == IkeGsaProposal::GSA_R_TO_BE_MODIFIED)
 				{
-					Ptr<GsamSessionGroup> session_group = session->GetSessionGroup();
-					if (0 == session_group)
-					{
-						NS_ASSERT (false);
-					}
 
 					const_it_proposals++;
 
@@ -2079,23 +2073,22 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 
 					if (gsa_proposal_replacement->GetGsaType() == IkeGsaProposal::GSA_R_REPLACEMENT)
 					{
-						Ptr<IpSecSAEntry> session_gsa_r = session->GetRelatedGsaR();
-						if (0 == session_gsa_r)
+						Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
+						Ptr<IpSecSAEntry> gsa_r_in_sad = inbound_sad->GetIpsecSAEntry(gsa_proposal_to_modify->GetSpi().ToUint32());
+						if (0 == gsa_r_in_sad)
 						{
-							//The reason why (0 == session_gsa_r) is that it was rejected?
+							//The reason why (0 == gsa_r_in_sad) is that it was rejected?
 							//install a new gsa q with the incoming spi replacement
-							Ptr<IpSecSADatabase> outbound_sad = session->GetRelatedPolicy()->GetOutboundSAD();
-							Ptr<IpSecSAEntry> new_gsa_r = outbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
-							session->SetRelatedGsaR(new_gsa_r);
+							Ptr<IpSecSAEntry> new_gsa_r = inbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
 						}
 						else
 						{
 							//change spi
-							if (session_gsa_r->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
+							if (gsa_r_in_sad->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
 							{
 								NS_ASSERT (false);
 							}
-							session_gsa_r->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+							gsa_r_in_sad->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
 						}
 					}
 					else
