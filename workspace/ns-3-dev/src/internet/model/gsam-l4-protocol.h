@@ -53,7 +53,6 @@ private:
 
 	virtual void DoDispose (void);
 public:	//added by Lin Chen
-	void Initialization (void);
 	void HandleRead (Ptr<Socket> socket);
 public:	//exchanges, added by Lin Chen
 	//create session somewhere first
@@ -188,6 +187,7 @@ private:	//private staitc
 	static void NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
 												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation
+	void Initialization (void);
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);
 	/*
 	 * \brief CreateIpSecPolicy

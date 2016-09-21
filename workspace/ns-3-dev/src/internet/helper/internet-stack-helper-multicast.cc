@@ -431,8 +431,7 @@ InternetStackHelperMulticast::Install (Ptr<Node> node) const
       CreateAndAggregateObjectFromTypeId (node, "ns3::ArpL3ProtocolMulticast");
       CreateAndAggregateObjectFromTypeId (node, "ns3::Ipv4L3ProtocolMulticast");
       CreateAndAggregateObjectFromTypeId (node, "ns3::Icmpv4L4ProtocolMulticast");
-      //added by Lin Chen
-      CreateAndAggregateObjectFromTypeId (node, "ns3::Igmpv3L4Protocol");
+
       if (m_ipv4ArpJitterEnabled == false)
         {
           Ptr<ArpL3ProtocolMulticast> arp = node->GetObject<ArpL3ProtocolMulticast> ();
@@ -476,6 +475,10 @@ InternetStackHelperMulticast::Install (Ptr<Node> node) const
   if (m_ipv4Enabled || m_ipv6Enabled)
     {
       CreateAndAggregateObjectFromTypeId (node, "ns3::UdpL4Protocol");
+      //added by Lin Chen
+      CreateAndAggregateObjectFromTypeId (node, "ns3::Igmpv3L4Protocol");
+      CreateAndAggregateObjectFromTypeId (node, "ns3::GsamL4Protocol");
+      //
       node->AggregateObject (m_tcpFactory.Create<Object> ());
       Ptr<PacketSocketFactory> factory = CreateObject<PacketSocketFactory> ();
       node->AggregateObject (factory);

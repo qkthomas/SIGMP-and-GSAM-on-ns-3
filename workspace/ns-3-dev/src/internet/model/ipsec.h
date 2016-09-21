@@ -44,10 +44,6 @@ public://static
 	static void LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32);
 	static void LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32);
 	static uint8_t ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id);
-	static uint8_t GetSpiRejectPropability (void);
-	static void SetSpiRejectPropability (uint8_t between_0_and_100);
-private:
-	static uint8_t m_spi_rejection_propability;
 };
 
 class GsamConfig {
@@ -60,6 +56,10 @@ public:
 	static IPsec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
 	static Time GetDefaultRetransmitTimeout (void);
 	static Ipv4Address GetIgmpv3DestGrpReportAddress (void);
+	static uint8_t GetSpiRejectPropability (void);
+	static void SetSpiRejectPropability (uint8_t between_0_and_100);
+private:
+	static uint8_t m_spi_rejection_propability;
 };
 
 class GsamInfo : public Object {
@@ -220,7 +220,7 @@ public:	//non-const
 	void AggregateGsaQSpiNotification (const std::set<uint32_t>& set_spi_notification);
 	void AggregateGsaRSpiNotification (const std::set<uint32_t>& set_spi_notification);
 	void GenerateNewSpisAndModitySa (void);	//this method may also invoke GsaPushSession::InstallGsaPair();
-	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
+	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_for_nqs,
 											 std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >& retval_lst_gm_session_packet_bundles);
 	void PushBackNqRejectionGroupNotifySub (Ptr<IkeGroupNotifySubstructure> sub);
 	void SetFlagGmsSpiRequested (void);

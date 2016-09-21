@@ -34,8 +34,6 @@ NS_LOG_COMPONENT_DEFINE ("GsamSa");
  *        GsamUtility
  ********************************************************/
 
-uint8_t GsamUtility::m_spi_rejection_propability = 0;
-
 uint32_t
 GsamUtility::BytesToUint32 (const std::list<uint8_t>& lst_bytes)
 {
@@ -261,22 +259,11 @@ GsamUtility::ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID 
 	return retval;
 }
 
-uint8_t
-GsamUtility::GetSpiRejectPropability (void)
-{
-	return GsamUtility::m_spi_rejection_propability;
-}
-
-void
-GsamUtility::SetSpiRejectPropability (uint8_t between_0_and_100)
-{
-	GsamUtility::m_spi_rejection_propability = between_0_and_100;
-}
-
 /********************************************************
  *        GsamConfig
  ********************************************************/
 
+uint8_t GsamConfig::m_spi_rejection_propability = 0;
 
 Ipv4Address
 GsamConfig::GetSecGrpAddressStart (void)
@@ -324,6 +311,18 @@ Ipv4Address
 GsamConfig::GetIgmpv3DestGrpReportAddress (void)
 {
 	return Ipv4Address ("224.0.0.22");
+}
+
+uint8_t
+GsamConfig::GetSpiRejectPropability (void)
+{
+	return GsamConfig::m_spi_rejection_propability;
+}
+
+void
+GsamConfig::SetSpiRejectPropability (uint8_t between_0_and_100)
+{
+	GsamConfig::m_spi_rejection_propability = between_0_and_100;
 }
 
 /********************************************************
@@ -1312,7 +1311,7 @@ GsaPushSession::GenerateNewSpisAndModitySa (void)
 }
 
 void
-GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
+GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_for_nqs,
 													std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >& retval_lst_gm_session_packet_bundles)
 {
 	NS_LOG_FUNCTION (this);
@@ -1454,7 +1453,7 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> packet,
 			new_gsa_payload.SetSubstructure(new_gsa_payload_sub);
 			new_gsa_payload.SetNextPayloadType(next_payload_type);
 			next_payload_type = new_gsa_payload.GetPayloadType();
-			packet->AddHeader(new_gsa_payload);
+			retval_packet_for_nqs->AddHeader(new_gsa_payload);
 		}
 	}
 	else

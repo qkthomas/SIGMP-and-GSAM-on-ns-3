@@ -21,6 +21,7 @@ def build(bld):
         'helper/udp-echo-helper.cc',
         ## added by Lin Chen
         'model/igmpv3-application.cc',
+        'model/gsam-application.cc',
         ]
 
     applications_test = bld.create_ns3_module_test_library('applications')
@@ -49,6 +50,7 @@ def build(bld):
         'helper/udp-echo-helper.h',
         ## added by Lin Chen
         'model/igmpv3-application.h',
+        'model/gsam-application.h',
         ]
 
     bld.ns3_python_bindings()

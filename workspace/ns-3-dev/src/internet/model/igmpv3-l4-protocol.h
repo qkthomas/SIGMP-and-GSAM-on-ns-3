@@ -16,6 +16,7 @@ namespace ns3 {
 class Node;
 class Ipv4InterfaceMulticast;
 class Ipv4Route;
+class GsamL4Protocol;
 
 class Igmpv3L4Protocol: public IpL4ProtocolMulticast {
 public:
@@ -280,6 +281,9 @@ public:
 	void SendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet);
 	void DoSendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet);
 
+public:	//gsam related
+	void SetGsam (Ptr<GsamL4Protocol> gsam);
+	Ptr<GsamL4Protocol> GetGsam (void);
 protected:
 	/*
 	 * This function will notify other components connected to the node that a new stack member is now connected
@@ -334,6 +338,9 @@ private:
 
 	//robustness retransmission
 	EventId m_event_robustness_retransmission;
+
+	//gsam
+	Ptr<GsamL4Protocol> m_gsam;
 };
 
 } /* namespace ns3 */

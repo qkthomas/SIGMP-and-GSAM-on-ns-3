@@ -19,6 +19,7 @@
 #include "ns3/core-module.h"
 #include "ns3/nstime.h"
 #include "ipv4-raw-socket-impl-multicast.h"
+#include "gsam-l4-protocol.h"
 
 namespace ns3 {
 
@@ -48,7 +49,8 @@ Igmpv3L4Protocol::Igmpv3L4Protocol()
   m_default_max_resp_code (100),	//10sec, cisco default
   m_GenQueAddress ("224.0.0.1"),
   m_RptAddress ("224.0.0.22"),
-  m_role (Igmpv3L4Protocol::HOST)
+  m_role (Igmpv3L4Protocol::HOST),
+  m_gsam (0)
 {
 	// TODO Auto-generated constructor stub
 	NS_LOG_FUNCTION (this);
@@ -920,6 +922,24 @@ Igmpv3L4Protocol::DoSendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulti
 	{
 		NS_LOG_WARN ("drop icmp query");
 	}
+}
+
+void
+Igmpv3L4Protocol::SetGsam (Ptr<GsamL4Protocol> gsam)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == gsam)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_gsam = gsam;
+}
+
+Ptr<GsamL4Protocol>
+Igmpv3L4Protocol::GetGsam (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_gsam;
 }
 
 } /* namespace ns3 */

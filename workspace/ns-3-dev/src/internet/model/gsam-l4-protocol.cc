@@ -93,11 +93,16 @@ GsamL4Protocol::NotifyNewAggregate ()
 		if (node != 0)
 		{
 			Ptr<Ipv4Multicast> ipv4 = this->GetObject<Ipv4Multicast> ();
-			if (ipv4 != 0)
+			Ptr<Igmpv3L4Protocol> igmp = this->GetObject<Igmpv3L4Protocol> ();
+			if ((ipv4 != 0) && (igmp != 0))
 			{
 				this->SetNode (node);
-
+				igmp->SetGsam(this);
 				Initialization();
+			}
+			else
+			{
+				NS_ASSERT (false);
 			}
 		}
 
@@ -124,6 +129,12 @@ void
 GsamL4Protocol::Initialization (void)
 {
 	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_database == 0)
+	{
+		this->m_ptr_database = Create<IpSecDatabase>();
+		this->m_ptr_database->SetGsam(this);
+	}
+
 	if (this->m_socket == 0)
 	{
 		TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
@@ -3110,10 +3121,10 @@ GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_se
 	{
 		//send all info update to NQs sessions
 		//send GM related parts of info to GM sessions
-		Ptr<Packet> packet_without_ikeheader_for_nqs = Create<Packet>();
+		Ptr<Packet> retval_packet_without_ikeheader_for_nqs = Create<Packet>();
 		std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > > retval_lst_gm_session_packet_without_ikeheader_bundles;
 
-		gsa_push_session->AlterRejectedGsaAndAggregatePacket(	packet_without_ikeheader_for_nqs,
+		gsa_push_session->AlterRejectedGsaAndAggregatePacket(	retval_packet_without_ikeheader_for_nqs,
 																retval_lst_gm_session_packet_without_ikeheader_bundles);
 
 		for(std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >::const_iterator const_it = retval_lst_gm_session_packet_without_ikeheader_bundles.begin();
@@ -3157,8 +3168,8 @@ GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_se
 										IkeHeader::CREATE_CHILD_SA,
 										false,
 										IkePayloadHeader::GSA_REPUSH,
-										packet_without_ikeheader_for_nqs->GetSize(),
-										packet_without_ikeheader_for_nqs,
+										retval_packet_without_ikeheader_for_nqs->GetSize(),
+										retval_packet_without_ikeheader_for_nqs,
 										true);
 		}
 	}
