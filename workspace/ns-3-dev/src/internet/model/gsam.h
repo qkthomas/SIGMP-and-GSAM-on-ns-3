@@ -940,7 +940,6 @@ public:	//const
 	Ipv4Address GetStartingAddress (void) const;
 	Ipv4Address GetEndingAddress (void) const;
 public:	//static
-	static IkeTrafficSelector GenerateDefaultSigmpTs(void);
 	static IkeTrafficSelector GenerateSrcSecureGroupTs (void);
 	static IkeTrafficSelector GenerateDestSecureGroupTs(Ipv4Address grpup_adress);
 public:	//operator
@@ -985,7 +984,6 @@ public:
 public:	//static
 	static Ptr<IkeTrafficSelectorSubstructure> GenerateEmptySubstructure (bool is_responder);
 	static Ptr<IkeTrafficSelectorSubstructure> GetSecureGroupSubstructure (Ipv4Address group_address, bool is_responder);
-	static Ptr<IkeTrafficSelectorSubstructure> GenerateDefaultSubstructure (bool is_responder);
 public:	//non-const
 	void SetResponder (void);
 public:	//const

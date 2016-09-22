@@ -3324,24 +3324,6 @@ IkeTrafficSelector::GetEndingAddress (void) const
 }
 
 IkeTrafficSelector
-IkeTrafficSelector::GenerateDefaultSigmpTs(void)
-{
-	IkeTrafficSelector retval;
-	retval.m_ts_type = IkeTrafficSelector::TS_IPV4_ADDR_RANGE;
-	retval.m_ip_protocol_id = IPsec::IP_ID_IGMP;
-	retval.m_start_port = 0;
-	retval.m_end_port = 0;
-	retval.m_starting_address = GsamConfig::GetSecGrpAddressStart();
-	retval.m_ending_address = GsamConfig::GetSecGrpAddressEnd();
-
-	//header = 4; 2 ports = 4; 2 ipv4 address = 8
-	retval.m_selector_length = 16;	//16 bytes
-
-	return retval;
-
-}
-
-IkeTrafficSelector
 IkeTrafficSelector::GenerateSrcSecureGroupTs (void)
 {
 	IkeTrafficSelector retval;
@@ -3570,30 +3552,6 @@ IkeTrafficSelectorSubstructure::GetSecureGroupSubstructure (Ipv4Address group_ad
 	IkeTrafficSelector ts = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
 	retval->m_lst_traffic_selectors.push_back(ts);
 	retval->m_length += ts.GetSerializedSize();
-
-	if (true == is_responder)
-	{
-		retval->SetResponder();
-	}
-
-	return retval;
-}
-
-Ptr<IkeTrafficSelectorSubstructure>
-IkeTrafficSelectorSubstructure::GenerateDefaultSubstructure (bool is_responder)
-{
-	Ptr<IkeTrafficSelectorSubstructure> retval = Create<IkeTrafficSelectorSubstructure>();
-
-	retval->m_num_of_tss = 1;
-	retval->m_lst_traffic_selectors.push_back(IkeTrafficSelector::GenerateDefaultSigmpTs());
-	retval->m_length = 4;
-
-	for (	std::list<IkeTrafficSelector>::const_iterator const_it = retval->m_lst_traffic_selectors.begin();
-			const_it != retval->m_lst_traffic_selectors.end();
-			const_it++)
-	{
-		retval->m_length += const_it->GetSerializedSize();
-	}
 
 	if (true == is_responder)
 	{

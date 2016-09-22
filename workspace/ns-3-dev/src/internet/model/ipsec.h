@@ -46,20 +46,38 @@ public://static
 	static uint8_t ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id);
 };
 
-class GsamConfig {
-public:
-	static Ipv4Address GetSecGrpAddressStart (void);
-	static Ipv4Address GetSecGrpAddressEnd (void);
-	static Time GetDefaultSessionTimeout (void);
+class GsamConfig : public Object {
+public:	//Object override
+	static TypeId GetTypeId (void);
+	GsamConfig ();
+	virtual ~GsamConfig();
+	virtual TypeId GetInstanceTypeId (void) const;
+public:	//static
 	static IPsec::MODE GetDefaultIpsecMode (void);
 	static uint8_t GetDefaultIpsecProtocolId (void);
 	static IPsec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
-	static Time GetDefaultRetransmitTimeout (void);
 	static Ipv4Address GetIgmpv3DestGrpReportAddress (void);
+	static Ptr<GsamConfig> GetSingleton (void);
+public:	//
 	static uint8_t GetSpiRejectPropability (void);
 	static void SetSpiRejectPropability (uint8_t between_0_and_100);
+	void SetQAddress (Ipv4Address address);
+	Ipv4Address GetQAddress (void);
+	Time GetDefaultSessionTimeout (void);
+	void SetDefaultSessionTimeout (Time time);
+	Time GetDefaultRetransmitTimeout (void);
+	void SetDefaultRetransmitTimeout (Time time);
+	Ipv4Address GetAnUnusedSecGrpAddress (void);
+	Ipv4Address GetAUsedSecGrpAddress (void);
+private:	//static member
+	static Ptr<GsamConfig> m_ptr_config_instance;
 private:
-	static uint8_t m_spi_rejection_propability;
+	uint8_t m_spi_rejection_propability;
+	Ipv4Address m_q_unicast_address;
+	Time m_default_session_timeout;
+	Time m_default_retransmit_timeout;
+	std::pair<uint32_t, uint32_t> m_sec_grp_addr_range;
+	std::set<uint32_t> m_set_used_sec_grp_addresses;
 };
 
 class GsamInfo : public Object {

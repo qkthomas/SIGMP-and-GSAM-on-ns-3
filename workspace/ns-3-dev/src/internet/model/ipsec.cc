@@ -25,6 +25,7 @@
 #include "igmpv3-l4-protocol.h"
 #include "gsam-l4-protocol.h"
 #include "ns3/ptr.h"
+#include <random>
 
 namespace ns3 {
 
@@ -263,24 +264,45 @@ GsamUtility::ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID 
  *        GsamConfig
  ********************************************************/
 
-uint8_t GsamConfig::m_spi_rejection_propability = 0;
+NS_OBJECT_ENSURE_REGISTERED (GsamConfig);
 
-Ipv4Address
-GsamConfig::GetSecGrpAddressStart (void)
+static Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
+
+TypeId
+GsamConfig::GetTypeId (void)
 {
-	return Ipv4Address ("224.0.0.100");
+	static TypeId tid = TypeId ("ns3::GsamConfig")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<GsamConfig> ()
+			;
+	return tid;
 }
 
-Ipv4Address
-GsamConfig::GetSecGrpAddressEnd (void)
+GsamConfig::GsamConfig ()
+  :  m_spi_rejection_propability (0),
+	 m_q_unicast_address (Ipv4Address("0.0.0.0")),
+	 m_default_session_timeout (Seconds(2.0)),
+	 m_default_retransmit_timeout (Seconds(2.0))
 {
-	return Ipv4Address ("224.0.0.255");
+	NS_LOG_FUNCTION (this);
+	this->m_sec_grp_addr_range.first = Ipv4Address ("230.0.0.0").Get();
+	this->m_sec_grp_addr_range.second = Ipv4Address ("235.0.0.0").Get();
+	srand(time(NULL));
 }
 
-Time
-GsamConfig::GetDefaultSessionTimeout (void)
+GsamConfig::~GsamConfig()
 {
-	return Seconds(2.0);
+	NS_LOG_FUNCTION (this);
+	this->m_set_used_sec_grp_addresses.clear();
+
+}
+
+TypeId
+GsamConfig::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return GsamConfig::GetTypeId();
 }
 
 IPsec::MODE
@@ -301,12 +323,6 @@ GsamConfig::GetDefaultGSAProposalId (void)
 	return IPsec::SA_PROPOSAL_AH;
 }
 
-Time
-GsamConfig::GetDefaultRetransmitTimeout (void)
-{
-	return Seconds(2.0);
-}
-
 Ipv4Address
 GsamConfig::GetIgmpv3DestGrpReportAddress (void)
 {
@@ -316,14 +332,101 @@ GsamConfig::GetIgmpv3DestGrpReportAddress (void)
 uint8_t
 GsamConfig::GetSpiRejectPropability (void)
 {
-	return GsamConfig::m_spi_rejection_propability;
+	NS_LOG_FUNCTION (this);
+	return this->m_spi_rejection_propability;
 }
 
 void
 GsamConfig::SetSpiRejectPropability (uint8_t between_0_and_100)
 {
-	GsamConfig::m_spi_rejection_propability = between_0_and_100;
+	NS_LOG_FUNCTION (this);
+	this->m_spi_rejection_propability = between_0_and_100;
 }
+
+Ptr<GsamConfig>
+GsamConfig::GetSingleton (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == GsamConfig::m_ptr_config_instance)
+	{
+		GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
+	}
+	return GsamConfig::m_ptr_config_instance;
+}
+
+void
+GsamConfig::SetQAddress (Ipv4Address address)
+{
+	NS_LOG_FUNCTION (this);
+	if (address.Get() == 0)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_q_unicast_address = address;
+}
+
+Ipv4Address
+GsamConfig::GetQAddress (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_q_unicast_address.Get() == 0)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_q_unicast_address;
+}
+
+
+Time
+GsamConfig::GetDefaultSessionTimeout (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_default_session_timeout;
+}
+
+void
+GsamConfig::SetDefaultSessionTimeout (Time time)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_default_session_timeout = time;
+}
+
+Time
+GsamConfig::GetDefaultRetransmitTimeout (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_default_retransmit_timeout;
+}
+
+void
+GsamConfig::SetDefaultRetransmitTimeout (Time time)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_default_retransmit_timeout = time;
+}
+
+Ipv4Address
+GsamConfig::GetAnUnusedSecGrpAddress (void)
+{
+	NS_LOG_FUNCTION (this);
+	uint32_t u32_addr = this->m_sec_grp_addr_range.first + (rand() % (this->m_sec_grp_addr_range.second - this->m_sec_grp_addr_range.first));
+	while (this->m_set_used_sec_grp_addresses.end() != this->m_set_used_sec_grp_addresses.find(u32_addr))
+	{
+		u32_addr = this->m_sec_grp_addr_range.first + (rand() % (this->m_sec_grp_addr_range.second - this->m_sec_grp_addr_range.first));
+	}
+	this->m_set_used_sec_grp_addresses.insert(u32_addr);
+	return Ipv4Address (u32_addr);
+}
+
+Ipv4Address
+GsamConfig::GetAUsedSecGrpAddress (void)
+{
+	NS_LOG_FUNCTION (this);
+	uint32_t set_size = this->m_set_used_sec_grp_addresses.size();
+	uint32_t index = rand() % set_size;
+	return this->m_set_used_sec_grp_addresses[index];
+}
+
 
 /********************************************************
  *        GsamInfo

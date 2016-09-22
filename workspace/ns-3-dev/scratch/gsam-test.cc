@@ -85,18 +85,21 @@ main (int argc, char *argv[])
 			it != interfaces.End();
 			it++)
 	{
-		static bool first = true;
-		Ptr<Ipv4Multicast> ipv4 = it->first;
+		Ptr<Ipv4L3ProtocolMulticast> ipv4 = DynamicCast<Ipv4L3ProtocolMulticast>(it->first);
 		uint32_t ifindex = it->second;
-		Ipv4Address if_ipv4_addr = ipv4->GetAddress(ifindex, 0).GetLocal();
-		if (true == first)
+
+		uint32_t n_addr = ipv4->GetNAddresses(ifindex);
+		std::cout << "Printing address of interface: " << ifindex << " of Node" << ipv4->GetNetDevice(ifindex)->GetNode()->GetId() << std::endl;
+		for (	uint32_t n_addr_it = 0;
+				n_addr_it < n_addr;
+				n_addr_it++)
 		{
-			//set it as Q address
+			Ipv4Address if_ipv4_addr = ipv4->GetAddress(ifindex, n_addr_it).GetLocal();
+			if_ipv4_addr.Print(std::cout);
+			std::cout << std::endl;
 		}
-		else
-		{
-			//set them as nq or gm address
-		}
+		std::cout << std::endl;
+
 	}
 
 	if (nodes.GetN() > 0)

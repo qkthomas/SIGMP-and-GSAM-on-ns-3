@@ -1008,11 +1008,11 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 		}
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, session_retransmit);
-		session->GetRetransmitTimer().Schedule(GsamConfig::GetDefaultRetransmitTimeout());
+		session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
 	}
 	else
 	{
-		session->SceduleTimeout(GsamConfig::GetDefaultSessionTimeout());
+		session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeout());
 	}
 }
 
