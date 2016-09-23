@@ -25,7 +25,7 @@
 #include "igmpv3-l4-protocol.h"
 #include "gsam-l4-protocol.h"
 #include "ns3/ptr.h"
-#include <random>
+#include <cstdlib>
 
 namespace ns3 {
 
@@ -266,7 +266,7 @@ GsamUtility::ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID 
 
 NS_OBJECT_ENSURE_REGISTERED (GsamConfig);
 
-static Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
+Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
 
 TypeId
 GsamConfig::GetTypeId (void)
@@ -330,7 +330,7 @@ GsamConfig::GetIgmpv3DestGrpReportAddress (void)
 }
 
 uint8_t
-GsamConfig::GetSpiRejectPropability (void)
+GsamConfig::GetSpiRejectPropability (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_spi_rejection_propability;
@@ -346,7 +346,6 @@ GsamConfig::SetSpiRejectPropability (uint8_t between_0_and_100)
 Ptr<GsamConfig>
 GsamConfig::GetSingleton (void)
 {
-	NS_LOG_FUNCTION (this);
 	if (0 == GsamConfig::m_ptr_config_instance)
 	{
 		GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
@@ -366,7 +365,7 @@ GsamConfig::SetQAddress (Ipv4Address address)
 }
 
 Ipv4Address
-GsamConfig::GetQAddress (void)
+GsamConfig::GetQAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
 	if (this->m_q_unicast_address.Get() == 0)
@@ -378,7 +377,7 @@ GsamConfig::GetQAddress (void)
 
 
 Time
-GsamConfig::GetDefaultSessionTimeout (void)
+GsamConfig::GetDefaultSessionTimeout (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_default_session_timeout;
@@ -392,7 +391,7 @@ GsamConfig::SetDefaultSessionTimeout (Time time)
 }
 
 Time
-GsamConfig::GetDefaultRetransmitTimeout (void)
+GsamConfig::GetDefaultRetransmitTimeout (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_default_retransmit_timeout;
@@ -419,12 +418,59 @@ GsamConfig::GetAnUnusedSecGrpAddress (void)
 }
 
 Ipv4Address
-GsamConfig::GetAUsedSecGrpAddress (void)
+GsamConfig::GetAUsedSecGrpAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
-	uint32_t set_size = this->m_set_used_sec_grp_addresses.size();
-	uint32_t index = rand() % set_size;
-	return this->m_set_used_sec_grp_addresses[index];
+	uint8_t set_size = this->m_set_used_sec_grp_addresses.size();
+	uint8_t index = rand() % set_size;
+	std::set<uint32_t>::const_iterator const_it = this->m_set_used_sec_grp_addresses.begin();
+	std::advance(const_it, index);
+	return Ipv4Address(*const_it);
+}
+
+void
+GsamConfig::Initialize (const Ipv4InterfaceContainerMulticast& interfaces)
+{
+	NS_LOG_FUNCTION (this);
+	for (Ipv4InterfaceContainerMulticast::Iterator it = interfaces.Begin();
+			it != interfaces.End();
+			it++)
+	{
+		Ptr<Ipv4L3ProtocolMulticast> ipv4 = DynamicCast<Ipv4L3ProtocolMulticast>(it->first);
+		uint32_t ifindex = it->second;
+
+		uint32_t n_addr = ipv4->GetNAddresses(ifindex);
+		std::cout << "Printing address of interface: " << ifindex << " of Node" << ipv4->GetNetDevice(ifindex)->GetNode()->GetId() << std::endl;
+		for (	uint32_t n_addr_it = 0;
+				n_addr_it < n_addr;
+				n_addr_it++)
+		{
+			Ipv4Address if_ipv4_addr = ipv4->GetAddress(ifindex, n_addr_it).GetLocal();
+			if_ipv4_addr.Print(std::cout);
+			std::cout << std::endl;
+
+			static uint8_t count = 0;
+			if (0 == count)
+			{
+				//set q
+				GsamConfig::GetSingleton()->SetQAddress(if_ipv4_addr);
+				ipv4->GetIgmp()->SetRole(Igmpv3L4Protocol::QUERIER);
+			}
+			else if ((0 < count) && (count < 3))
+			{
+				//set nqs
+				ipv4->GetIgmp()->SetRole(Igmpv3L4Protocol::NONQUERIER);
+			}
+			else
+			{
+				//set gms
+				ipv4->GetIgmp()->SetRole(Igmpv3L4Protocol::GROUP_MEMBER);
+			}
+			count++;
+		}
+		std::cout << std::endl;
+
+	}
 }
 
 
@@ -4174,7 +4220,7 @@ IpSecDatabase::IsHostGroupMember (void) const
 	bool retval = false;
 	Ptr<Igmpv3L4Protocol> igmp = this->GetIgmp();
 
-	if (igmp->GetRole() == Igmpv3L4Protocol::HOST)
+	if (igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
 	{
 		retval = true;
 	}

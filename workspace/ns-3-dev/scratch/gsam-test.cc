@@ -80,27 +80,7 @@ main (int argc, char *argv[])
 
 	Ipv4InterfaceContainerMulticast interfaces = address.Assign (devices);
 
-	//Get Addresses
-	for (Ipv4InterfaceContainerMulticast::Iterator it = interfaces.Begin();
-			it != interfaces.End();
-			it++)
-	{
-		Ptr<Ipv4L3ProtocolMulticast> ipv4 = DynamicCast<Ipv4L3ProtocolMulticast>(it->first);
-		uint32_t ifindex = it->second;
-
-		uint32_t n_addr = ipv4->GetNAddresses(ifindex);
-		std::cout << "Printing address of interface: " << ifindex << " of Node" << ipv4->GetNetDevice(ifindex)->GetNode()->GetId() << std::endl;
-		for (	uint32_t n_addr_it = 0;
-				n_addr_it < n_addr;
-				n_addr_it++)
-		{
-			Ipv4Address if_ipv4_addr = ipv4->GetAddress(ifindex, n_addr_it).GetLocal();
-			if_ipv4_addr.Print(std::cout);
-			std::cout << std::endl;
-		}
-		std::cout << std::endl;
-
-	}
+	GsamConfig::GetSingleton()->Initialize(interfaces);
 
 	if (nodes.GetN() > 0)
 	{

@@ -49,7 +49,7 @@ Igmpv3L4Protocol::Igmpv3L4Protocol()
   m_default_max_resp_code (100),	//10sec, cisco default
   m_GenQueAddress ("224.0.0.1"),
   m_RptAddress ("224.0.0.22"),
-  m_role (Igmpv3L4Protocol::HOST),
+  m_role (Igmpv3L4Protocol::UNITIALIZED),
   m_gsam (0)
 {
 	// TODO Auto-generated constructor stub
@@ -121,10 +121,10 @@ Igmpv3L4Protocol::Initialization (void)
 
 	//place holder, just set the first node as the querier.
 	//But in fact, That who plays the querier decided by negotiation between routers
-	if (0 == m_node->GetId())
-	{
-		this->m_role = Igmpv3L4Protocol::QUERIER;
-	}
+//	if (0 == m_node->GetId())
+//	{
+//		this->m_role = Igmpv3L4Protocol::QUERIER;
+//	}
 }
 
 uint16_t
@@ -664,7 +664,7 @@ Igmpv3L4Protocol::Receive (Ptr<Packet> p,
 	case Igmpv3Header::MEMBERSHIP_QUERY:
 		//HandleEcho (p, igmp, header.GetSource (), header.GetDestination ());
 		std::cout << "Node: " << m_node->GetId() << " received a query" << std::endl;
-		if (Igmpv3L4Protocol::HOST == this->m_role) {
+		if (Igmpv3L4Protocol::GROUP_MEMBER == this->m_role) {
 			this->HandleQuery(p, igmp.GetMaxRespCode(), incomingInterface);
 		}
 		else if (Igmpv3L4Protocol::NONQUERIER == this->m_role)

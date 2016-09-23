@@ -21,7 +21,8 @@ class GsamL4Protocol;
 class Igmpv3L4Protocol: public IpL4ProtocolMulticast {
 public:
 	enum ROLE {
-		QUERIER = 0, NONQUERIER = 1, HOST = 2
+		UNITIALIZED = 0,
+		QUERIER = 1, NONQUERIER = 2, GROUP_MEMBER = 3
 	};
 
 public:

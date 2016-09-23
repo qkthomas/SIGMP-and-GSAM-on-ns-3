@@ -16,6 +16,7 @@
 #include <set>
 #include "ns3/timer.h"
 #include "ns3/nstime.h"
+#include "ns3/ipv4-interface-container-multicast.h"
 #include "igmpv3-l4-protocol.h"
 
 namespace ns3 {
@@ -59,16 +60,18 @@ public:	//static
 	static Ipv4Address GetIgmpv3DestGrpReportAddress (void);
 	static Ptr<GsamConfig> GetSingleton (void);
 public:	//
-	static uint8_t GetSpiRejectPropability (void);
-	static void SetSpiRejectPropability (uint8_t between_0_and_100);
+	void SetSpiRejectPropability (uint8_t between_0_and_100);
 	void SetQAddress (Ipv4Address address);
-	Ipv4Address GetQAddress (void);
-	Time GetDefaultSessionTimeout (void);
 	void SetDefaultSessionTimeout (Time time);
-	Time GetDefaultRetransmitTimeout (void);
 	void SetDefaultRetransmitTimeout (Time time);
 	Ipv4Address GetAnUnusedSecGrpAddress (void);
-	Ipv4Address GetAUsedSecGrpAddress (void);
+	void Initialize (const Ipv4InterfaceContainerMulticast& interfaces);
+public:	//const
+	uint8_t GetSpiRejectPropability (void) const;
+	Ipv4Address GetQAddress (void) const;
+	Time GetDefaultRetransmitTimeout (void) const;
+	Time GetDefaultSessionTimeout (void) const;
+	Ipv4Address GetAUsedSecGrpAddress (void) const;
 private:	//static member
 	static Ptr<GsamConfig> m_ptr_config_instance;
 private:

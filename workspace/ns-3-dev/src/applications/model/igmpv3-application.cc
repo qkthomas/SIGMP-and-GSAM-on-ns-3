@@ -143,7 +143,7 @@ Igmpv3Application::GenerateNextEvent (void)
 			this->GenerateGeneralQueryEvent();
 		}
 	}
-	else if (Igmpv3L4Protocol::HOST == igmp->GetRole())
+	else if (Igmpv3L4Protocol::GROUP_MEMBER == igmp->GetRole())
 	{
 		if (this->IsSkip() && !this->m_lst_sockets.empty())
 		{
