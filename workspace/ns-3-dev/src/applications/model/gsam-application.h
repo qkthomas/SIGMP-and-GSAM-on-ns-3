@@ -43,10 +43,13 @@ private:
   virtual void StopApplication (void);
 
 private:	//self-defined
+  void Initialization (void);
   Ptr<GsamL4Protocol> GetGsam (void) const;
   void GenerateEvent (void);
 private:
-  EventId m_current_event;
+  Ptr<Igmpv3L4Protocol> m_ptr_igmp;
+  Ptr<GsamL4Protocol> m_ptr_gsam;
+  EventId m_event_current;
 
 };
 

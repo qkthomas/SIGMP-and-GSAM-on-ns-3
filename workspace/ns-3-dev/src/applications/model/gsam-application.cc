@@ -27,6 +27,8 @@ GsamApplication::GetTypeId(void)
 }
 
 GsamApplication::GsamApplication()
+  :  m_ptr_igmp (0),
+	 m_ptr_gsam (0)
 {
 	// TODO Auto-generated constructor stub
 
@@ -40,12 +42,29 @@ GsamApplication::~GsamApplication()
 void
 GsamApplication::StartApplication (void)
 {
+	NS_LOG_FUNCTION (this);
+	this->Initialization();
+	Time delay = Seconds (1.0);
+	this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+}
+
+void
+GsamApplication::StopApplication (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_event_current.Cancel();
+}
+
+void
+GsamApplication::Initialization (void)
+{
 	Ptr<GsamL4Protocol> gsam = this->GetGsam();
 	Ptr<Igmpv3L4Protocol> igmp = this->m_node->GetObject<Igmpv3L4Protocol>();
 	std::cout << "Node id: " << this->m_node->GetId() << ", ";
 	if (0 == igmp)
 	{
 		std::cout << "does not have igmp." << std::endl;
+		NS_ASSERT (false);
 	}
 	else
 	{
@@ -66,15 +85,6 @@ GsamApplication::StartApplication (void)
 			NS_ASSERT (false);
 		}
 	}
-
-	Time delay = Seconds (1.0);
-	this->m_current_event = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
-}
-
-void
-GsamApplication::StopApplication (void)
-{
-
 }
 
 Ptr<GsamL4Protocol>
