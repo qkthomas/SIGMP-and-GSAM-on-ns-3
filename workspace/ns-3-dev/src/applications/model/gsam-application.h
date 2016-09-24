@@ -6,6 +6,8 @@
  */
 
 #include "ns3/gsam-l4-protocol.h"
+#include "ns3/event-id.h"
+#include <list>
 
 #ifndef SRC_APPLICATIONS_MODEL_GSAM_APPLICATION_H_
 #define SRC_APPLICATIONS_MODEL_GSAM_APPLICATION_H_
@@ -42,6 +44,9 @@ private:
 
 private:	//self-defined
   Ptr<GsamL4Protocol> GetGsam (void) const;
+  void GenerateEvent (void);
+private:
+  EventId m_current_event;
 
 };
 

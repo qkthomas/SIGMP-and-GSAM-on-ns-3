@@ -429,9 +429,16 @@ GsamConfig::GetAUsedSecGrpAddress (void) const
 }
 
 void
-GsamConfig::Initialize (const Ipv4InterfaceContainerMulticast& interfaces)
+GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint8_t num_nqs)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (num_nqs > (interfaces.GetN() - 2))
+	{
+		//There have to be one q and at least one gm
+		NS_ASSERT (false);
+	}
+
 	for (Ipv4InterfaceContainerMulticast::Iterator it = interfaces.Begin();
 			it != interfaces.End();
 			it++)

@@ -65,7 +65,7 @@ public:	//
 	void SetDefaultSessionTimeout (Time time);
 	void SetDefaultRetransmitTimeout (Time time);
 	Ipv4Address GetAnUnusedSecGrpAddress (void);
-	void Initialize (const Ipv4InterfaceContainerMulticast& interfaces);
+	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint8_t num_nqs = 2);
 public:	//const
 	uint8_t GetSpiRejectPropability (void) const;
 	Ipv4Address GetQAddress (void) const;
