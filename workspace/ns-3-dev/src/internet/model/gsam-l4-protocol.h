@@ -181,6 +181,7 @@ private:	//phase 2, NQ
 	void SendAcceptAck (Ptr<GsamSession> session, uint32_t gsa_push_id);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+	Ptr<IpSecDatabase> GetIpSecDatabase (void);
 private:	//private staitc
 	static void ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals,
 										Ptr<IkeSaProposal> retval_chosen_proposal);
@@ -188,7 +189,6 @@ private:	//private staitc
 												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation
 	void Initialization (void);
-	Ptr<IpSecDatabase> GetIpSecDatabase (void);
 	/*
 	 * \brief CreateIpSecPolicy
 	 * \Deprecated

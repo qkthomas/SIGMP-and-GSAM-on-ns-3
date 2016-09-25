@@ -2146,7 +2146,14 @@ GsamSession::SetMessageId (uint32_t message_id)
 	}
 	else
 	{
-		NS_ASSERT (false);
+		if ((0 == message_id) || (1 == message_id))
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 }
 
@@ -2277,11 +2284,6 @@ GsamSession::AssociateWithSessionGroup (Ptr<GsamSessionGroup> session_group)
 	NS_LOG_FUNCTION (this);
 
 	if (session_group == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	if (this->m_ptr_session_group != 0)
 	{
 		NS_ASSERT (false);
 	}

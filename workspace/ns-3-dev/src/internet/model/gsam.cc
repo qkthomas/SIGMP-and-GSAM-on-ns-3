@@ -1690,8 +1690,12 @@ IkeSaProposal::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_lst_transforms.size());
 
-	this->m_spi.Serialize(i);
-	i.Next(this->m_spi.GetSerializedSize());
+	uint32_t spi_size = this->m_spi.GetSerializedSize();
+	if (spi_size > 0)
+	{
+		this->m_spi.Serialize(i);
+		i.Next(spi_size);
+	}
 
 	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
 			const_it != this->m_lst_transforms.end();
@@ -4186,8 +4190,12 @@ IkeGsaProposal::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_lst_transforms.size());
 
-	this->m_spi.Serialize(i);
-	i.Next(this->m_spi.GetSerializedSize());
+	uint32_t spi_size = this->m_spi.GetSerializedSize();
+	if (spi_size > 0)
+	{
+		this->m_spi.Serialize(i);
+		i.Next(spi_size);
+	}
 
 	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
 			const_it != this->m_lst_transforms.end();
