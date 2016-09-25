@@ -24,11 +24,11 @@
 #include "ns3/inet6-socket-address.h"
 #include "ns3/ipv4-route.h"
 #include "ns3/ipv6-route.h"
-#include "ns3/ipv4.h"
+#include "ns3/ipv4-multicast.h"
 #include "ns3/ipv6.h"
 #include "ns3/ipv6-l3-protocol.h"
 #include "ns3/ipv4-header.h"
-#include "ns3/ipv4-routing-protocol.h"
+#include "ns3/ipv4-routing-protocol-multicast.h"
 #include "ns3/ipv6-routing-protocol.h"
 #include "ns3/udp-socket-factory.h"
 #include "ns3/trace-source-accessor.h"
@@ -36,7 +36,7 @@
 #include "ns3/ipv6-packet-info-tag.h"
 #include "udp-socket-impl-multicast.h"
 #include "udp-l4-protocol-multicast.h"
-#include "ipv4-end-point.h"
+#include "ipv4-end-point-multicast.h"
 #include "ipv6-end-point.h"
 #include <limits>
 
@@ -107,7 +107,7 @@ UdpSocketImplMulticast::~UdpSocketImplMulticast ()
       /**
        * Note that this piece of code is a bit tricky:
        * when DeAllocate is called, it will call into
-       * Ipv4EndPointDemux::Deallocate which triggers
+       * Ipv4EndPointDemuxMulticast::Deallocate which triggers
        * a delete of the associated endPoint which triggers
        * in turn a call to the method UdpSocketImplMulticast::Destroy below
        * will will zero the m_endPoint field.
@@ -122,7 +122,7 @@ UdpSocketImplMulticast::~UdpSocketImplMulticast ()
       /**
        * Note that this piece of code is a bit tricky:
        * when DeAllocate is called, it will call into
-       * Ipv4EndPointDemux::Deallocate which triggers
+       * Ipv4EndPointDemuxMulticast::Deallocate which triggers
        * a delete of the associated endPoint which triggers
        * in turn a call to the method UdpSocketImplMulticast::Destroy below
        * will will zero the m_endPoint field.
@@ -687,7 +687,7 @@ UdpSocketImplMulticast::DoSendTo (Ptr<Packet> p, Ipv6Address dest, uint16_t port
       p->AddPacketTag (ipTclassTag);
     }
 
-  Ptr<Ipv6> ipv6 = m_node->GetObject<Ipv6> ();
+  //Ptr<Ipv6> ipv6 = m_node->GetObject<Ipv6> ();
 
   // Locally override the IP TTL for this socket
   // We cannot directly modify the TTL at this stage, so we set a Packet tag
@@ -723,33 +723,33 @@ UdpSocketImplMulticast::DoSendTo (Ptr<Packet> p, Ipv6Address dest, uint16_t port
       NotifySend (GetTxAvailable ());
       return p->GetSize ();
     }
-  else if (ipv6->GetRoutingProtocol () != 0)
-    {
-      Ipv6Header header;
-      header.SetDestinationAddress (dest);
-      header.SetNextHeader (UdpL4ProtocolMulticast::PROT_NUMBER);
-      Socket::SocketErrno errno_;
-      Ptr<Ipv6Route> route;
-      Ptr<NetDevice> oif = m_boundnetdevice; //specify non-zero if bound to a specific device
-      // TBD-- we could cache the route and just check its validity
-      route = ipv6->GetRoutingProtocol ()->RouteOutput (p, header, oif, errno_); 
-      if (route != 0)
-        {
-          NS_LOG_LOGIC ("Route exists");
-          header.SetSourceAddress (route->GetSource ());
-          m_udp->Send (p->Copy (), header.GetSourceAddress (), header.GetDestinationAddress (),
-                       m_endPoint6->GetLocalPort (), port, route);
-          NotifyDataSent (p->GetSize ());
-          return p->GetSize ();
-        }
-      else 
-        {
-          NS_LOG_LOGIC ("No route to destination");
-          NS_LOG_ERROR (errno_);
-          m_errno = errno_;
-          return -1;
-        }
-    }
+//  else if (ipv6->GetRoutingProtocol () != 0)
+//    {
+//      Ipv6Header header;
+//      header.SetDestinationAddress (dest);
+//      header.SetNextHeader (UdpL4ProtocolMulticast::PROT_NUMBER);
+//      Socket::SocketErrno errno_;
+//      Ptr<Ipv6Route> route;
+//      Ptr<NetDevice> oif = m_boundnetdevice; //specify non-zero if bound to a specific device
+//      // TBD-- we could cache the route and just check its validity
+//      route = ipv6->GetRoutingProtocol ()->RouteOutput (p, header, oif, errno_);
+//      if (route != 0)
+//        {
+//          NS_LOG_LOGIC ("Route exists");
+//          header.SetSourceAddress (route->GetSource ());
+//          m_udp->Send (p->Copy (), header.GetSourceAddress (), header.GetDestinationAddress (),
+//                       m_endPoint6->GetLocalPort (), port, route);
+//          NotifyDataSent (p->GetSize ());
+//          return p->GetSize ();
+//        }
+//      else
+//        {
+//          NS_LOG_LOGIC ("No route to destination");
+//          NS_LOG_ERROR (errno_);
+//          m_errno = errno_;
+//          return -1;
+//        }
+//    }
   else
     {
       NS_LOG_ERROR ("ERROR_NOROUTETOHOST");

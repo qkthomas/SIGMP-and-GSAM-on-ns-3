@@ -32,8 +32,8 @@
 #include "udp-l4-protocol-multicast.h"
 #include "udp-header.h"
 #include "udp-socket-factory-impl-multicast.h"
-#include "ipv4-end-point-demux.h"
-#include "ipv4-end-point.h"
+#include "ipv4-end-point-demux-multicast.h"
+#include "ipv4-end-point-multicast.h"
 #include "ipv6-end-point-demux.h"
 #include "ipv6-end-point.h"
 #include "ipv4-l3-protocol-multicast.h"
@@ -65,7 +65,7 @@ UdpL4ProtocolMulticast::GetTypeId (void)
 }
 
 UdpL4ProtocolMulticast::UdpL4ProtocolMulticast ()
-  : m_endPoints (new Ipv4EndPointDemux ()), m_endPoints6 (new Ipv6EndPointDemux ())
+  : m_endPoints (new Ipv4EndPointDemuxMulticast ()), m_endPoints6 (new Ipv6EndPointDemux ())
 {
   NS_LOG_FUNCTION_NOARGS ();
 }
@@ -92,11 +92,11 @@ UdpL4ProtocolMulticast::NotifyNewAggregate ()
   NS_LOG_FUNCTION (this);
   Ptr<Node> node = this->GetObject<Node> ();
   Ptr<Ipv4Multicast> ipv4 = this->GetObject<Ipv4Multicast> ();
-  Ptr<Ipv6> ipv6 = node->GetObject<Ipv6> ();
+  //Ptr<Ipv6> ipv6 = node->GetObject<Ipv6> ();
 
   if (m_node == 0)
     {
-      if ((node != 0) && (ipv4 != 0 || ipv6 != 0))
+      if ((node != 0) && (ipv4 != 0))
         {
           this->SetNode (node);
           Ptr<UdpSocketFactoryImplMulticast> udpFactory = CreateObject<UdpSocketFactoryImplMulticast> ();
@@ -115,11 +115,11 @@ UdpL4ProtocolMulticast::NotifyNewAggregate ()
       ipv4->Insert (this);
       this->SetDownTarget (MakeCallback (&Ipv4Multicast::Send, ipv4));
     }
-  if (ipv6 != 0 && m_downTarget6.IsNull())
-    {
-      ipv6->Insert (this);
-      this->SetDownTarget6 (MakeCallback (&Ipv6::Send, ipv6));
-    }
+//  if (ipv6 != 0 && m_downTarget6.IsNull())
+//    {
+//      ipv6->Insert (this);
+//      this->SetDownTarget6 (MakeCallback (&Ipv6::Send, ipv6));
+//    }
   IpL4ProtocolMulticast::NotifyNewAggregate ();
 }
 
@@ -170,34 +170,34 @@ UdpL4ProtocolMulticast::CreateSocket (void)
   return socket;
 }
 
-Ipv4EndPoint *
+Ipv4EndPointMulticast *
 UdpL4ProtocolMulticast::Allocate (void)
 {
   NS_LOG_FUNCTION_NOARGS ();
   return m_endPoints->Allocate ();
 }
 
-Ipv4EndPoint *
+Ipv4EndPointMulticast *
 UdpL4ProtocolMulticast::Allocate (Ipv4Address address)
 {
   NS_LOG_FUNCTION (this << address);
   return m_endPoints->Allocate (address);
 }
 
-Ipv4EndPoint *
+Ipv4EndPointMulticast *
 UdpL4ProtocolMulticast::Allocate (uint16_t port)
 {
   NS_LOG_FUNCTION (this << port);
   return m_endPoints->Allocate (port);
 }
 
-Ipv4EndPoint *
+Ipv4EndPointMulticast *
 UdpL4ProtocolMulticast::Allocate (Ipv4Address address, uint16_t port)
 {
   NS_LOG_FUNCTION (this << address << port);
   return m_endPoints->Allocate (address, port);
 }
-Ipv4EndPoint *
+Ipv4EndPointMulticast *
 UdpL4ProtocolMulticast::Allocate (Ipv4Address localAddress, uint16_t localPort,
                          Ipv4Address peerAddress, uint16_t peerPort)
 {
@@ -207,7 +207,7 @@ UdpL4ProtocolMulticast::Allocate (Ipv4Address localAddress, uint16_t localPort,
 }
 
 void 
-UdpL4ProtocolMulticast::DeAllocate (Ipv4EndPoint *endPoint)
+UdpL4ProtocolMulticast::DeAllocate (Ipv4EndPointMulticast *endPoint)
 {
   NS_LOG_FUNCTION (this << endPoint);
   m_endPoints->DeAllocate (endPoint);
@@ -270,7 +270,7 @@ UdpL4ProtocolMulticast::ReceiveIcmp (Ipv4Address icmpSource, uint8_t icmpTtl,
   dst = payload[2] << 8;
   dst |= payload[3];
 
-  Ipv4EndPoint *endPoint = m_endPoints->SimpleLookup (payloadSource, src, payloadDestination, dst);
+  Ipv4EndPointMulticast *endPoint = m_endPoints->SimpleLookup (payloadSource, src, payloadDestination, dst);
   if (endPoint != 0)
     {
       endPoint->ForwardIcmp (icmpSource, icmpTtl, icmpType, icmpCode, icmpInfo);
@@ -338,7 +338,7 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
     }
 
   NS_LOG_DEBUG ("Looking up dst " << header.GetDestination () << " port " << udpHeader.GetDestinationPort ()); 
-  Ipv4EndPointDemux::EndPoints endPoints =
+  Ipv4EndPointDemuxMulticast::EndPoints endPoints =
     m_endPoints->Lookup (header.GetDestination (), udpHeader.GetDestinationPort (),
                          header.GetSource (), udpHeader.GetSourcePort (), interface);
   if (endPoints.empty ())
@@ -360,7 +360,7 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
     }
 
   packet->RemoveHeader(udpHeader);
-  for (Ipv4EndPointDemux::EndPointsI endPoint = endPoints.begin ();
+  for (Ipv4EndPointDemuxMulticast::EndPointsI endPoint = endPoints.begin ();
        endPoint != endPoints.end (); endPoint++)
     {
       (*endPoint)->ForwardUp (packet->Copy (), header, udpHeader.GetSourcePort (), 

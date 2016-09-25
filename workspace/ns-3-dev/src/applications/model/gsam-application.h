@@ -45,6 +45,7 @@ private:
 private:	//self-defined
   void Initialization (void);
   Ptr<GsamL4Protocol> GetGsam (void) const;
+  Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
   void GenerateEvent (void);
 private:
   Ptr<Igmpv3L4Protocol> m_ptr_igmp;

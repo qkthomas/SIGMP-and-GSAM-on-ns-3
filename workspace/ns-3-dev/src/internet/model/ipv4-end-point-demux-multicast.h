@@ -40,7 +40,7 @@ class Ipv4EndPointMulticast;
  * sits between ns3's layer four and the socket layer
  */
 
-class Ipv4EndPointDemux {
+class Ipv4EndPointDemuxMulticast {
 public:
   /**
    * \brief Container of the IPv4 endpoints.
@@ -52,8 +52,8 @@ public:
    */
   typedef std::list<Ipv4EndPointMulticast *>::iterator EndPointsI;
 
-  Ipv4EndPointDemux ();
-  ~Ipv4EndPointDemux ();
+  Ipv4EndPointDemuxMulticast ();
+  ~Ipv4EndPointDemuxMulticast ();
 
   /**
    * \brief Get the entire list of end points registered.

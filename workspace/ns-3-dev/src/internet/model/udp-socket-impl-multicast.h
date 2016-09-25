@@ -33,7 +33,7 @@
 
 namespace ns3 {
 
-class Ipv4EndPoint;
+class Ipv4EndPointMulticast;
 class Ipv6EndPoint;
 class Node;
 class Packet;
@@ -211,7 +211,7 @@ private:
   void ForwardIcmp6 (Ipv6Address icmpSource, uint8_t icmpTtl, uint8_t icmpType, uint8_t icmpCode, uint32_t icmpInfo);
 
   // Connections to other layers of TCP/IP
-  Ipv4EndPoint*       m_endPoint;   //!< the IPv4 endpoint
+  Ipv4EndPointMulticast*       m_endPoint;   //!< the IPv4 endpoint
   Ipv6EndPoint*       m_endPoint6;  //!< the IPv6 endpoint
   Ptr<Node>           m_node;       //!< the associated node
   Ptr<UdpL4ProtocolMulticast> m_udp;         //!< the associated UDP L4 protocol

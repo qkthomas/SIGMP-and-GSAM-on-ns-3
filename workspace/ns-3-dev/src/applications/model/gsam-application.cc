@@ -58,32 +58,25 @@ GsamApplication::StopApplication (void)
 void
 GsamApplication::Initialization (void)
 {
-	Ptr<GsamL4Protocol> gsam = this->GetGsam();
-	Ptr<Igmpv3L4Protocol> igmp = this->m_node->GetObject<Igmpv3L4Protocol>();
+	this->m_ptr_gsam = this->GetGsam();
+	this->m_ptr_igmp = this->GetIgmp();
 	std::cout << "Node id: " << this->m_node->GetId() << ", ";
-	if (0 == igmp)
+
+	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
 	{
-		std::cout << "does not have igmp." << std::endl;
-		NS_ASSERT (false);
+		std::cout << "is a querier." << std::endl;
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	{
+		std::cout << "is a non-querier." << std::endl;
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
+	{
+		std::cout << "is a group member." << std::endl;
 	}
 	else
 	{
-		if (igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
-		{
-			std::cout << "is a querier." << std::endl;
-		}
-		else if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
-		{
-			std::cout << "is a non-querier." << std::endl;
-		}
-		else if (igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
-		{
-			std::cout << "is a group member." << std::endl;
-		}
-		else
-		{
-			NS_ASSERT (false);
-		}
+		NS_ASSERT (false);
 	}
 }
 
@@ -92,11 +85,44 @@ GsamApplication::GetGsam (void) const
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<GsamL4Protocol> retval = 0;
-	retval = this->GetNode()->GetObject<GsamL4Protocol> ();
-
-	if (0 == retval)
+	if (0 == this->m_ptr_gsam)
 	{
-		NS_ASSERT (false);
+		retval = this->GetNode()->GetObject<GsamL4Protocol> ();
+
+		if (0 == retval)
+		{
+			std::cout << "Node id: " << this->m_node->GetId() << ", ";
+			std::cout << "does not have gsam." << std::endl;
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		retval = this->m_ptr_gsam;
+	}
+
+	return retval;
+}
+
+Ptr<Igmpv3L4Protocol>
+GsamApplication::GetIgmp (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<Igmpv3L4Protocol> retval = 0;
+	if (0 == this->m_ptr_igmp)
+	{
+		retval = this->GetNode()->GetObject<Igmpv3L4Protocol> ();
+
+		if (0 == retval)
+		{
+			std::cout << "Node id: " << this->m_node->GetId() << ", ";
+			std::cout << "does not have igmp." << std::endl;
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		retval = this->m_ptr_igmp;
 	}
 
 	return retval;
@@ -106,6 +132,27 @@ void
 GsamApplication::GenerateEvent (void)
 {
 	NS_LOG_FUNCTION (this);
+	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+	{
+
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	{
+
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
+	{
+		//join
+		Ptr<GsamL4Protocol> gsam = this->GetGsam();
+		Ipv4Address group_address = GsamConfig::GetSingleton()->GetAnUnusedSecGrpAddress();
+		Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
+		Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
+		gsam->Send_IKE_SA_INIT(session);
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
 }
 
 } /* namespace ns3 */

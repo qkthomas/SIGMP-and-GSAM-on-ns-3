@@ -24,15 +24,15 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("Ipv4EndPointDemux");
+NS_LOG_COMPONENT_DEFINE ("Ipv4EndPointDemuxMulticast");
 
-Ipv4EndPointDemux::Ipv4EndPointDemux ()
+Ipv4EndPointDemuxMulticast::Ipv4EndPointDemuxMulticast ()
   : m_ephemeral (49152), m_portLast (65535), m_portFirst (49152)
 {
   NS_LOG_FUNCTION (this);
 }
 
-Ipv4EndPointDemux::~Ipv4EndPointDemux ()
+Ipv4EndPointDemuxMulticast::~Ipv4EndPointDemuxMulticast ()
 {
   NS_LOG_FUNCTION (this);
   for (EndPointsI i = m_endPoints.begin (); i != m_endPoints.end (); i++) 
@@ -44,7 +44,7 @@ Ipv4EndPointDemux::~Ipv4EndPointDemux ()
 }
 
 bool
-Ipv4EndPointDemux::LookupPortLocal (uint16_t port)
+Ipv4EndPointDemuxMulticast::LookupPortLocal (uint16_t port)
 {
   NS_LOG_FUNCTION (this << port);
   for (EndPointsI i = m_endPoints.begin (); i != m_endPoints.end (); i++) 
@@ -58,7 +58,7 @@ Ipv4EndPointDemux::LookupPortLocal (uint16_t port)
 }
 
 bool
-Ipv4EndPointDemux::LookupLocal (Ipv4Address addr, uint16_t port)
+Ipv4EndPointDemuxMulticast::LookupLocal (Ipv4Address addr, uint16_t port)
 {
   NS_LOG_FUNCTION (this << addr << port);
   for (EndPointsI i = m_endPoints.begin (); i != m_endPoints.end (); i++) 
@@ -73,7 +73,7 @@ Ipv4EndPointDemux::LookupLocal (Ipv4Address addr, uint16_t port)
 }
 
 Ipv4EndPointMulticast *
-Ipv4EndPointDemux::Allocate (void)
+Ipv4EndPointDemuxMulticast::Allocate (void)
 {
   NS_LOG_FUNCTION (this);
   uint16_t port = AllocateEphemeralPort ();
@@ -89,7 +89,7 @@ Ipv4EndPointDemux::Allocate (void)
 }
 
 Ipv4EndPointMulticast *
-Ipv4EndPointDemux::Allocate (Ipv4Address address)
+Ipv4EndPointDemuxMulticast::Allocate (Ipv4Address address)
 {
   NS_LOG_FUNCTION (this << address);
   uint16_t port = AllocateEphemeralPort ();
@@ -105,7 +105,7 @@ Ipv4EndPointDemux::Allocate (Ipv4Address address)
 }
 
 Ipv4EndPointMulticast *
-Ipv4EndPointDemux::Allocate (uint16_t port)
+Ipv4EndPointDemuxMulticast::Allocate (uint16_t port)
 {
   NS_LOG_FUNCTION (this <<  port);
 
@@ -113,7 +113,7 @@ Ipv4EndPointDemux::Allocate (uint16_t port)
 }
 
 Ipv4EndPointMulticast *
-Ipv4EndPointDemux::Allocate (Ipv4Address address, uint16_t port)
+Ipv4EndPointDemuxMulticast::Allocate (Ipv4Address address, uint16_t port)
 {
   NS_LOG_FUNCTION (this << address << port);
   if (LookupLocal (address, port)) 
@@ -128,7 +128,7 @@ Ipv4EndPointDemux::Allocate (Ipv4Address address, uint16_t port)
 }
 
 Ipv4EndPointMulticast *
-Ipv4EndPointDemux::Allocate (Ipv4Address localAddress, uint16_t localPort,
+Ipv4EndPointDemuxMulticast::Allocate (Ipv4Address localAddress, uint16_t localPort,
                              Ipv4Address peerAddress, uint16_t peerPort)
 {
   NS_LOG_FUNCTION (this << localAddress << localPort << peerAddress << peerPort);
@@ -154,7 +154,7 @@ Ipv4EndPointDemux::Allocate (Ipv4Address localAddress, uint16_t localPort,
 }
 
 void 
-Ipv4EndPointDemux::DeAllocate (Ipv4EndPointMulticast *endPoint)
+Ipv4EndPointDemuxMulticast::DeAllocate (Ipv4EndPointMulticast *endPoint)
 {
   NS_LOG_FUNCTION (this << endPoint);
   for (EndPointsI i = m_endPoints.begin (); i != m_endPoints.end (); i++) 
@@ -171,8 +171,8 @@ Ipv4EndPointDemux::DeAllocate (Ipv4EndPointMulticast *endPoint)
 /*
  * return list of all available Endpoints
  */
-Ipv4EndPointDemux::EndPoints
-Ipv4EndPointDemux::GetAllEndPoints (void)
+Ipv4EndPointDemuxMulticast::EndPoints
+Ipv4EndPointDemuxMulticast::GetAllEndPoints (void)
 {
   NS_LOG_FUNCTION (this);
   EndPoints ret;
@@ -191,8 +191,8 @@ Ipv4EndPointDemux::GetAllEndPoints (void)
  * Otherwise, if we find a generic match, we return it.
  * Otherwise, we return 0.
  */
-Ipv4EndPointDemux::EndPoints
-Ipv4EndPointDemux::Lookup (Ipv4Address daddr, uint16_t dport, 
+Ipv4EndPointDemuxMulticast::EndPoints
+Ipv4EndPointDemuxMulticast::Lookup (Ipv4Address daddr, uint16_t dport, 
                            Ipv4Address saddr, uint16_t sport,
                            Ptr<Ipv4InterfaceMulticast> incomingInterface)
 {
@@ -317,7 +317,7 @@ Ipv4EndPointDemux::Lookup (Ipv4Address daddr, uint16_t dport,
 }
 
 Ipv4EndPointMulticast *
-Ipv4EndPointDemux::SimpleLookup (Ipv4Address daddr, 
+Ipv4EndPointDemuxMulticast::SimpleLookup (Ipv4Address daddr, 
                                  uint16_t dport, 
                                  Ipv4Address saddr, 
                                  uint16_t sport)
@@ -359,7 +359,7 @@ Ipv4EndPointDemux::SimpleLookup (Ipv4Address daddr,
   return generic;
 }
 uint16_t
-Ipv4EndPointDemux::AllocateEphemeralPort (void)
+Ipv4EndPointDemuxMulticast::AllocateEphemeralPort (void)
 {
   // Similar to counting up logic in netinet/in_pcb.c
   NS_LOG_FUNCTION (this);

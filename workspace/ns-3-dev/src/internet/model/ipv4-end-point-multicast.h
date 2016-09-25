@@ -37,7 +37,7 @@ class Packet;
  * \brief A representation of an internet endpoint/connection
  *
  * This class provides an internet four-tuple (source and destination ports 
- * and addresses).  These are used in the ns3::Ipv4EndPointDemux as targets
+ * and addresses).  These are used in the ns3::Ipv4EndPointDemuxMulticast as targets
  * of lookups.  The class also has a callback for notification to higher
  * layers that a packet from a lower layer was received.  In the ns3
  * internet-stack, these notifications are automatically registered to be

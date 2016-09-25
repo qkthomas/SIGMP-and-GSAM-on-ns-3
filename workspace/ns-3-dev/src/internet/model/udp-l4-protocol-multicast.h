@@ -35,8 +35,8 @@ namespace ns3 {
 
 class Node;
 class Socket;
-class Ipv4EndPointDemux;
-class Ipv4EndPoint;
+class Ipv4EndPointDemuxMulticast;
+class Ipv4EndPointMulticast;
 class Ipv6EndPointDemux;
 class Ipv6EndPoint;
 class UdpSocketImplMulticast;
@@ -75,26 +75,26 @@ public:
    * \brief Allocate an IPv4 Endpoint
    * \return the Endpoint
    */
-  Ipv4EndPoint *Allocate (void);
+  Ipv4EndPointMulticast *Allocate (void);
   /**
    * \brief Allocate an IPv4 Endpoint
    * \param address address to use
    * \return the Endpoint
    */
-  Ipv4EndPoint *Allocate (Ipv4Address address);
+  Ipv4EndPointMulticast *Allocate (Ipv4Address address);
   /**
    * \brief Allocate an IPv4 Endpoint
    * \param port port to use
    * \return the Endpoint
    */
-  Ipv4EndPoint *Allocate (uint16_t port);
+  Ipv4EndPointMulticast *Allocate (uint16_t port);
   /**
    * \brief Allocate an IPv4 Endpoint
    * \param address address to use
    * \param port port to use
    * \return the Endpoint
    */
-  Ipv4EndPoint *Allocate (Ipv4Address address, uint16_t port);
+  Ipv4EndPointMulticast *Allocate (Ipv4Address address, uint16_t port);
   /**
    * \brief Allocate an IPv4 Endpoint
    * \param localAddress local address to use
@@ -103,7 +103,7 @@ public:
    * \param peerPort remote port to use
    * \return the Endpoint
    */
-  Ipv4EndPoint *Allocate (Ipv4Address localAddress, uint16_t localPort,
+  Ipv4EndPointMulticast *Allocate (Ipv4Address localAddress, uint16_t localPort,
                           Ipv4Address peerAddress, uint16_t peerPort);
 
   /**
@@ -145,7 +145,7 @@ public:
    * \brief Remove an IPv4 Endpoint.
    * \param endPoint the end point to remove
    */
-  void DeAllocate (Ipv4EndPoint *endPoint);
+  void DeAllocate (Ipv4EndPointMulticast *endPoint);
   /**
    * \brief Remove an IPv6 Endpoint.
    * \param endPoint the end point to remove
@@ -233,7 +233,7 @@ protected:
   virtual void NotifyNewAggregate ();
 private:
   Ptr<Node> m_node; //!< the node this stack is associated with
-  Ipv4EndPointDemux *m_endPoints; //!< A list of IPv4 end points.
+  Ipv4EndPointDemuxMulticast *m_endPoints; //!< A list of IPv4 end points.
   Ipv6EndPointDemux *m_endPoints6; //!< A list of IPv6 end points.
 
   /**
