@@ -474,7 +474,7 @@ InternetStackHelperMulticast::Install (Ptr<Node> node) const
 
   if (m_ipv4Enabled || m_ipv6Enabled)
     {
-      CreateAndAggregateObjectFromTypeId (node, "ns3::UdpL4Protocol");
+      CreateAndAggregateObjectFromTypeId (node, "ns3::UdpL4ProtocolMulticast");
       //added by Lin Chen
       CreateAndAggregateObjectFromTypeId (node, "ns3::Igmpv3L4Protocol");
       CreateAndAggregateObjectFromTypeId (node, "ns3::GsamL4Protocol");

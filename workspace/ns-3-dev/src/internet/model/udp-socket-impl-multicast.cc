@@ -492,7 +492,7 @@ UdpSocketImplMulticast::DoSendTo (Ptr<Packet> p, Ipv4Address dest, uint16_t port
       p->AddPacketTag (ipTosTag);
     }
 
-  Ptr<Ipv4> ipv4 = m_node->GetObject<Ipv4> ();
+  Ptr<Ipv4Multicast> ipv4 = m_node->GetObject<Ipv4Multicast> ();
 
   // Locally override the IP TTL for this socket
   // We cannot directly modify the TTL at this stage, so we set a Packet tag
@@ -964,7 +964,7 @@ UdpSocketImplMulticast::BindToNetDevice (Ptr<NetDevice> netdevice)
 
 void 
 UdpSocketImplMulticast::ForwardUp (Ptr<Packet> packet, Ipv4Header header, uint16_t port,
-                          Ptr<Ipv4Interface> incomingInterface)
+                          Ptr<Ipv4InterfaceMulticast> incomingInterface)
 {
   NS_LOG_FUNCTION (this << packet << header << port);
 

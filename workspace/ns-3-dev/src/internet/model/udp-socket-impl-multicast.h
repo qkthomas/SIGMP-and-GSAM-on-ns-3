@@ -17,8 +17,8 @@
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
-#ifndef UDP_SOCKET_IMPL_H
-#define UDP_SOCKET_IMPL_H
+#ifndef UDP_SOCKET_IMPL_H_MULTICAST
+#define UDP_SOCKET_IMPL_H_MULTICAST
 
 #include <stdint.h>
 #include <queue>
@@ -132,7 +132,7 @@ private:
    * \param port the remote port
    * \param incomingInterface the incoming interface
    */
-  void ForwardUp (Ptr<Packet> packet, Ipv4Header header, uint16_t port, Ptr<Ipv4Interface> incomingInterface);
+  void ForwardUp (Ptr<Packet> packet, Ipv4Header header, uint16_t port, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 
   /**
    * \brief Called by the L3 protocol when it received a packet to pass on to TCP.
@@ -241,4 +241,4 @@ private:
 
 } // namespace ns3
 
-#endif /* UDP_SOCKET_IMPL_H */
+#endif /* UDP_SOCKET_IMPL_H_MULTICAST */

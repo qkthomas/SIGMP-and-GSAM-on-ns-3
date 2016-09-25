@@ -18,8 +18,8 @@
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
 
-#ifndef UDP_L4_PROTOCOL_H
-#define UDP_L4_PROTOCOL_H
+#ifndef UDP_L4_PROTOCOL_H_MULTICAST
+#define UDP_L4_PROTOCOL_H_MULTICAST
 
 #include <stdint.h>
 
@@ -45,7 +45,7 @@ class UdpSocketImplMulticast;
  * \ingroup udp
  * \brief Implementation of the UDP protocol
  */
-class UdpL4ProtocolMulticast : public IpL4Protocol {
+class UdpL4ProtocolMulticast : public IpL4ProtocolMulticast {
 public:
   /**
    * \brief Get the type ID.
@@ -201,10 +201,10 @@ public:
              uint16_t sport, uint16_t dport, Ptr<Ipv6Route> route);
 
   // inherited from Ipv4L4Protocol
-  virtual enum IpL4Protocol::RxStatus Receive (Ptr<Packet> p,
+  virtual enum IpL4ProtocolMulticast::RxStatus Receive (Ptr<Packet> p,
                                                Ipv4Header const &header,
-                                               Ptr<Ipv4Interface> interface);
-  virtual enum IpL4Protocol::RxStatus Receive (Ptr<Packet> p,
+                                               Ptr<Ipv4InterfaceMulticast> interface);
+  virtual enum IpL4ProtocolMulticast::RxStatus Receive (Ptr<Packet> p,
                                                Ipv6Header const &header,
                                                Ptr<Ipv6Interface> interface);
 
@@ -217,12 +217,12 @@ public:
                             Ipv6Address payloadSource,Ipv6Address payloadDestination,
                             const uint8_t payload[8]);
 
-  // From IpL4Protocol
-  virtual void SetDownTarget (IpL4Protocol::DownTargetCallback cb);
-  virtual void SetDownTarget6 (IpL4Protocol::DownTargetCallback6 cb);
-  // From IpL4Protocol
-  virtual IpL4Protocol::DownTargetCallback GetDownTarget (void) const;
-  virtual IpL4Protocol::DownTargetCallback6 GetDownTarget6 (void) const;
+  // From IpL4ProtocolMulticast
+  virtual void SetDownTarget (IpL4ProtocolMulticast::DownTargetCallback cb);
+  virtual void SetDownTarget6 (IpL4ProtocolMulticast::DownTargetCallback6 cb);
+  // From IpL4ProtocolMulticast
+  virtual IpL4ProtocolMulticast::DownTargetCallback GetDownTarget (void) const;
+  virtual IpL4ProtocolMulticast::DownTargetCallback6 GetDownTarget6 (void) const;
 
 protected:
   virtual void DoDispose (void);
@@ -251,11 +251,11 @@ private:
   UdpL4ProtocolMulticast &operator = (const UdpL4ProtocolMulticast &);
 
   std::vector<Ptr<UdpSocketImplMulticast> > m_sockets;      //!< list of sockets
-  IpL4Protocol::DownTargetCallback m_downTarget;   //!< Callback to send packets over IPv4
-  IpL4Protocol::DownTargetCallback6 m_downTarget6; //!< Callback to send packets over IPv6
+  IpL4ProtocolMulticast::DownTargetCallback m_downTarget;   //!< Callback to send packets over IPv4
+  IpL4ProtocolMulticast::DownTargetCallback6 m_downTarget6; //!< Callback to send packets over IPv6
 
 };
 
 } // namespace ns3
 
-#endif /* UDP_L4_PROTOCOL_H */
+#endif /* UDP_L4_PROTOCOL_H_MULTICAST */

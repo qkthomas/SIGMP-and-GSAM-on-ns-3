@@ -237,6 +237,11 @@ def build(bld):
         'model/gsam.cc',
         'model/gsam-l4-protocol.cc',
         'model/ipsec.cc',
+		'model/udp-l4-protocol-multicast.cc',
+		'model/udp-socket-factory-impl-multicast.cc',
+		'model/udp-socket-impl-multicast.cc',
+		'model/ipv4-end-point-multicast.cc',
+		'model/ipv4-end-point-demux-multicast.cc',
         ]
 
     internet_test = bld.create_ns3_module_test_library('internet')
@@ -409,6 +414,11 @@ def build(bld):
         'model/gsam.h',
         'model/gsam-l4-protocol.h',
         'model/ipsec.h'
+		'model/udp-l4-protocol-multicast.h',
+		'model/udp-socket-factory-impl-multicast.h',
+		'model/udp-socket-impl-multicast.h',
+		'model/ipv4-end-point-multicast.h',
+		'model/ipv4-end-point-demux-multicast.h',
        ]
 
     if bld.env['NSC_ENABLED']:

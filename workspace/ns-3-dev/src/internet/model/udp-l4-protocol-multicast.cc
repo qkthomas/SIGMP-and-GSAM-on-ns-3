@@ -36,7 +36,7 @@
 #include "ipv4-end-point.h"
 #include "ipv6-end-point-demux.h"
 #include "ipv6-end-point.h"
-#include "ipv4-l3-protocol.h"
+#include "ipv4-l3-protocol-multicast.h"
 #include "ipv6-l3-protocol.h"
 #include "udp-socket-impl-multicast.h"
 
@@ -53,7 +53,7 @@ TypeId
 UdpL4ProtocolMulticast::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::UdpL4ProtocolMulticast")
-    .SetParent<IpL4Protocol> ()
+    .SetParent<IpL4ProtocolMulticast> ()
     .SetGroupName ("Internet")
     .AddConstructor<UdpL4ProtocolMulticast> ()
     .AddAttribute ("SocketList", "The list of sockets associated to this protocol.",
@@ -91,7 +91,7 @@ UdpL4ProtocolMulticast::NotifyNewAggregate ()
 {
   NS_LOG_FUNCTION (this);
   Ptr<Node> node = this->GetObject<Node> ();
-  Ptr<Ipv4> ipv4 = this->GetObject<Ipv4> ();
+  Ptr<Ipv4Multicast> ipv4 = this->GetObject<Ipv4Multicast> ();
   Ptr<Ipv6> ipv6 = node->GetObject<Ipv6> ();
 
   if (m_node == 0)
@@ -113,14 +113,14 @@ UdpL4ProtocolMulticast::NotifyNewAggregate ()
   if (ipv4 != 0 && m_downTarget.IsNull())
     {
       ipv4->Insert (this);
-      this->SetDownTarget (MakeCallback (&Ipv4::Send, ipv4));
+      this->SetDownTarget (MakeCallback (&Ipv4Multicast::Send, ipv4));
     }
   if (ipv6 != 0 && m_downTarget6.IsNull())
     {
       ipv6->Insert (this);
       this->SetDownTarget6 (MakeCallback (&Ipv6::Send, ipv6));
     }
-  IpL4Protocol::NotifyNewAggregate ();
+  IpL4ProtocolMulticast::NotifyNewAggregate ();
 }
 
 int 
@@ -156,7 +156,7 @@ UdpL4ProtocolMulticast::DoDispose (void)
 /*
  = MakeNullCallback<void,Ptr<Packet>, Ipv4Address, Ipv4Address, uint8_t, Ptr<Ipv4Route> > ();
 */
-  IpL4Protocol::DoDispose ();
+  IpL4ProtocolMulticast::DoDispose ();
 }
 
 Ptr<Socket>
@@ -310,10 +310,10 @@ UdpL4ProtocolMulticast::ReceiveIcmp (Ipv6Address icmpSource, uint8_t icmpTtl,
     }
 }
 
-enum IpL4Protocol::RxStatus
+enum IpL4ProtocolMulticast::RxStatus
 UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
                         Ipv4Header const &header,
-                        Ptr<Ipv4Interface> interface)
+                        Ptr<Ipv4InterfaceMulticast> interface)
 {
   NS_LOG_FUNCTION (this << packet << header);
   UdpHeader udpHeader;
@@ -334,7 +334,7 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
   if(!udpHeader.IsChecksumOk ())
     {
       NS_LOG_INFO ("Bad checksum : dropping packet!");
-      return IpL4Protocol::RX_CSUM_FAILED;
+      return IpL4ProtocolMulticast::RX_CSUM_FAILED;
     }
 
   NS_LOG_DEBUG ("Looking up dst " << header.GetDestination () << " port " << udpHeader.GetDestinationPort ()); 
@@ -345,7 +345,7 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
     {
       if (this->GetObject<Ipv6L3Protocol> () != 0)
         {
-          NS_LOG_LOGIC ("  No Ipv4 endpoints matched on UdpL4ProtocolMulticast, trying Ipv6 "<<this);
+          NS_LOG_LOGIC ("  No Ipv4Multicast endpoints matched on UdpL4ProtocolMulticast, trying Ipv6 "<<this);
           Ptr<Ipv6Interface> fakeInterface;
           Ipv6Header ipv6Header;
           Ipv6Address src = Ipv6Address::MakeIpv4MappedAddress (header.GetSource ());
@@ -356,7 +356,7 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
         }
 
       NS_LOG_LOGIC ("RX_ENDPOINT_UNREACH");
-      return IpL4Protocol::RX_ENDPOINT_UNREACH;
+      return IpL4ProtocolMulticast::RX_ENDPOINT_UNREACH;
     }
 
   packet->RemoveHeader(udpHeader);
@@ -366,10 +366,10 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
       (*endPoint)->ForwardUp (packet->Copy (), header, udpHeader.GetSourcePort (), 
                               interface);
     }
-  return IpL4Protocol::RX_OK;
+  return IpL4ProtocolMulticast::RX_OK;
 }
 
-enum IpL4Protocol::RxStatus
+enum IpL4ProtocolMulticast::RxStatus
 UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
                         Ipv6Header const &header,
                         Ptr<Ipv6Interface> interface)
@@ -388,7 +388,7 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
   if(!udpHeader.IsChecksumOk () && !header.GetSourceAddress ().IsIpv4MappedAddress ())
     {
       NS_LOG_INFO ("Bad checksum : dropping packet!");
-      return IpL4Protocol::RX_CSUM_FAILED;
+      return IpL4ProtocolMulticast::RX_CSUM_FAILED;
     }
 
   NS_LOG_DEBUG ("Looking up dst " << header.GetDestinationAddress () << " port " << udpHeader.GetDestinationPort ()); 
@@ -398,14 +398,14 @@ UdpL4ProtocolMulticast::Receive (Ptr<Packet> packet,
   if (endPoints.empty ())
     {
       NS_LOG_LOGIC ("RX_ENDPOINT_UNREACH");
-      return IpL4Protocol::RX_ENDPOINT_UNREACH;
+      return IpL4ProtocolMulticast::RX_ENDPOINT_UNREACH;
     }
   for (Ipv6EndPointDemux::EndPointsI endPoint = endPoints.begin ();
        endPoint != endPoints.end (); endPoint++)
     {
       (*endPoint)->ForwardUp (packet->Copy (), header, udpHeader.GetSourcePort (), interface);
     }
-  return IpL4Protocol::RX_OK;
+  return IpL4ProtocolMulticast::RX_OK;
 }
 
 void
@@ -501,26 +501,26 @@ UdpL4ProtocolMulticast::Send (Ptr<Packet> packet,
 }
 
 void
-UdpL4ProtocolMulticast::SetDownTarget (IpL4Protocol::DownTargetCallback callback)
+UdpL4ProtocolMulticast::SetDownTarget (IpL4ProtocolMulticast::DownTargetCallback callback)
 {
   NS_LOG_FUNCTION (this);
   m_downTarget = callback;
 }
 
-IpL4Protocol::DownTargetCallback
+IpL4ProtocolMulticast::DownTargetCallback
 UdpL4ProtocolMulticast::GetDownTarget (void) const
 {
   return m_downTarget;
 }
 
 void
-UdpL4ProtocolMulticast::SetDownTarget6 (IpL4Protocol::DownTargetCallback6 callback)
+UdpL4ProtocolMulticast::SetDownTarget6 (IpL4ProtocolMulticast::DownTargetCallback6 callback)
 {
   NS_LOG_FUNCTION (this);
   m_downTarget6 = callback;
 }
 
-IpL4Protocol::DownTargetCallback6
+IpL4ProtocolMulticast::DownTargetCallback6
 UdpL4ProtocolMulticast::GetDownTarget6 (void) const
 {
   return m_downTarget6;

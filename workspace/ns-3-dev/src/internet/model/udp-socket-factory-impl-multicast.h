@@ -17,8 +17,8 @@
  *
  * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
  */
-#ifndef UDP_SOCKET_FACTORY_IMPL_H
-#define UDP_SOCKET_FACTORY_IMPL_H
+#ifndef UDP_SOCKET_FACTORY_IMPL_H_MULTICAST
+#define UDP_SOCKET_FACTORY_IMPL_H_MULTICAST
 
 #include "ns3/udp-socket-factory.h"
 #include "ns3/ptr.h"
@@ -78,4 +78,4 @@ private:
 
 } // namespace ns3
 
-#endif /* UDP_SOCKET_FACTORY_IMPL_H */
+#endif /* UDP_SOCKET_FACTORY_IMPL_H_MULTICAST */
