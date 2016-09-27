@@ -122,8 +122,8 @@ IkeHeader::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteHtolsbU64(this->m_initiator_spi);
-	i.WriteHtolsbU64(this->m_responder_spi);
+	i.WriteHtonU64(this->m_initiator_spi);
+	i.WriteHtonU64(this->m_responder_spi);
 	i.WriteU8(IkePayloadHeader::PayloadTypeToUnit8(this->m_next_payload));
 	i.WriteU8(this->m_version.toUint8_t());
 	i.WriteU8(ExchangeTypeToUint8(this->m_exchange_type));
@@ -149,7 +149,7 @@ IkeHeader::Deserialize (Buffer::Iterator start)
 	byte_read ++;
 
 	this->m_version = i.ReadU8();
-	byte_read += sizeof (this->m_version);
+	byte_read ++;
 
 	this->m_exchange_type = Uint8ToExchangeType(i.ReadU8());
 	byte_read ++;
@@ -241,7 +241,7 @@ IkeHeader::U8ToFlags (uint8_t input)
 
 	if (0 != (input & 0x10))
 	{
-		this->m_initiator_spi = true;
+		this->m_flag_initiator = true;
 	}
 }
 
@@ -1402,7 +1402,6 @@ IkeTransformSubStructure::GetTypeId (void)
 
 IkeTransformSubStructure::IkeTransformSubStructure ()
   : m_flag_last (false),
-	m_transform_length (0),
 	m_transform_type (0),
 	m_transform_id (0)
 {
@@ -1446,12 +1445,19 @@ IkeTransformSubStructure::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
-	i.WriteU8(this->m_flag_last);
+	if (true == this->m_flag_last)
+	{
+		i.WriteU8(0);
+	}
+	else
+	{
+		i.WriteU8(3);
+	}
 
 	//to write first RESERVED
 	i.WriteU8(0);
 
-	i.WriteHtonU16(this->m_transform_length);
+	i.WriteHtonU16(this->m_length);
 	i.WriteU8(this->m_transform_type);
 
 	//to write second RESERVED
@@ -1497,33 +1503,33 @@ IkeTransformSubStructure::Deserialize (Buffer::Iterator start)
 	NS_ASSERT (RESERVED1 == 0);
 	size ++;
 
-	this->m_transform_length = i.ReadNtohU16();
-	size += sizeof (this->m_transform_length);
+	this->m_length = i.ReadNtohU16();
+	size += sizeof (this->m_length);
 
 	this->m_transform_type = i.ReadU8();
 	size += sizeof (this->m_transform_type);
 
 	//to check whehter field RESERVED is 0
-	uint16_t RESERVED2 = i.ReadU8();
+	uint8_t RESERVED2 = i.ReadU8();
 	NS_ASSERT (RESERVED2 == 0);
 	size++;
 
 	this->m_transform_id = i.ReadNtohU16();
 	size += sizeof (this->m_transform_id);
 
-	while (size < this->m_transform_length)
+	while (size < this->m_length)
 	{
 		IkeTransformAttribute attribute;
 		uint32_t size_attribute = attribute.Deserialize(i);
 
-		i.Next(attribute.GetSerializedSize());
+		i.Next(size_attribute);
 
 		size += size_attribute;
 
 		this->m_lst_transform_attributes.push_back(attribute);
 	}
 
-	NS_ASSERT (size == this->m_transform_length);
+	NS_ASSERT (size == this->m_length);
 
 	return size;
 
@@ -1607,7 +1613,7 @@ IkeSaProposal::IkeSaProposal ()
 	 m_proposal_length (12),	//12 bytes until filed SPI. increase by adding more transform
 	 m_proposal_num (0),
 	 m_protocol_id (0),
-	 m_spi_size (4),	//ah or esp
+	 m_spi_size (0),	//ah or esp
 	 m_num_transforms (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -1680,7 +1686,7 @@ IkeSaProposal::Serialize (Buffer::Iterator start) const
 	//to write the RESERVED field as zero
 	i.WriteU8(0);
 
-	i.WriteHtolsbU16(proposal_length);
+	i.WriteHtonU16(proposal_length);
 
 	i.WriteU8(this->m_proposal_num);
 
@@ -1754,8 +1760,11 @@ IkeSaProposal::Deserialize (Buffer::Iterator start)
 	this->m_num_transforms = i.ReadU8();
 	size += sizeof (this->m_num_transforms);
 
-	this->m_spi.Deserialize(i, this->m_spi_size);
-	size += this->m_spi.GetSerializedSize();
+	if (0 != this->m_spi_size)
+	{
+		this->m_spi.Deserialize(i, this->m_spi_size);
+		size += this->m_spi.GetSerializedSize();
+	}
 
 	for (	uint8_t it = 1;
 			it <= this->m_num_transforms;
@@ -1927,7 +1936,6 @@ IkeSaProposal::GenerateInitIkeProposal ()
 	//no need to set spi, set transform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
 	retval->PushBackTransform(transform);
-	retval->SetLastTransform();
 	return retval;
 }
 
@@ -1942,7 +1950,6 @@ IkeSaProposal::GenerateAuthIkeProposal (Spi spi)
 	//set trasform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
 	retval->PushBackTransform(transform);
-	retval->SetLastTransform();
 	return retval;
 }
 
@@ -2776,7 +2783,7 @@ IkeNonceSubstructure::Print (std::ostream &os) const
 }
 
 IkePayloadHeader::PAYLOAD_TYPE
-IkeNonceSubstructure::GetPayloadType (void)
+IkeNonceSubstructure::GetPayloadType (void) const
 {
 	NS_LOG_FUNCTION (this);
 

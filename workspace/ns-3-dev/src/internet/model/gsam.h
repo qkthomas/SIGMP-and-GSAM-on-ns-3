@@ -484,9 +484,8 @@ public:	//static
 	static IkeTransformSubStructure GetEmptyTransform (void);
 private:
 	bool m_flag_last;
-	uint16_t m_transform_length;
 	uint8_t m_transform_type;
-	uint8_t m_transform_id;
+	uint16_t m_transform_id;
 	std::list<IkeTransformAttribute> m_lst_transform_attributes;
 };
 
@@ -768,7 +767,7 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//override IkePayloadSubstructure
-	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void);
+	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//static
 	static Ptr<IkeNonceSubstructure> GenerateNonceSubstructure (void);
 public:
