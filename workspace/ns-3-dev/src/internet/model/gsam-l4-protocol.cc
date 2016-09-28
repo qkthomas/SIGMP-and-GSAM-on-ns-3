@@ -1221,7 +1221,7 @@ GsamL4Protocol::RespondIkeSaInit (Ptr<GsamSession> session)
 
 	//ready to send
 	this->SendPhaseOneMessage(	session,
-						IkeHeader::INFORMATIONAL,
+						IkeHeader::IKE_SA_INIT,
 						true,
 						sa_r_1.GetPayloadType(),
 						length_beside_ikeheader,

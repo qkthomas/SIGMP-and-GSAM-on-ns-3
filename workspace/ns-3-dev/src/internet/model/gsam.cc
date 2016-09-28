@@ -728,7 +728,7 @@ TypeId
 Spi::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::Spi")
-	    .SetParent<Object> ()
+	    .SetParent<IkePayloadSubstructure> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<Spi> ();
 	  return tid;
@@ -1977,6 +1977,7 @@ IkeSaPayloadSubstructure::IkeSaPayloadSubstructure ()
 IkeSaPayloadSubstructure::~IkeSaPayloadSubstructure ()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_lst_proposal.clear();
 }
 
 uint32_t

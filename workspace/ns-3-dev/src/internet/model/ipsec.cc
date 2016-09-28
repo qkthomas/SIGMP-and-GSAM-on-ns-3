@@ -2141,7 +2141,15 @@ GsamSession::SetMessageId (uint32_t message_id)
 		}
 		else
 		{
-			NS_ASSERT (false);
+			if (0 == message_id)
+			{
+				//ok
+			}
+			else
+
+			{
+				NS_ASSERT (false);
+			}
 		}
 	}
 	else
