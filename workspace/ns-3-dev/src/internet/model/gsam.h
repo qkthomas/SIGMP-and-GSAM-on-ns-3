@@ -522,11 +522,11 @@ public:	//non-const
 	void ClearLast (void);
 	void SetProposalNumber (uint8_t proposal_num);
 	void SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
-	void SetSPI (Spi spi);
+	void SetSPI (const Ptr<Spi> spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
 public:	//const
 	bool IsLast (void) const;
-	Spi GetSpi (void) const;
+	Ptr<Spi> GetSpi (void) const;
 	IPsec::SA_Proposal_PROTOCOL_ID GetProtocolId (void) const;
 protected:
 	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
@@ -537,13 +537,13 @@ protected:
 	void ClearLastTranform (void);
 public:
 	static Ptr<IkeSaProposal> GenerateInitIkeProposal ();
-	static Ptr<IkeSaProposal> GenerateAuthIkeProposal (Spi spi);
+	static Ptr<IkeSaProposal> GenerateAuthIkeProposal (const Ptr<Spi> spi);
 protected:
 	bool m_flag_last;
 	uint16_t m_proposal_length;	//for deserialization
 	uint8_t m_proposal_num;
 	uint8_t m_protocol_id;
-	Spi m_spi;	//ah or esp or ike
+	Ptr<Spi> m_ptr_spi;	//ah or esp or ike
 	uint8_t m_spi_size;			//for reading
 	uint8_t m_num_transforms;	//for reading
 	std::list<IkeTransformSubStructure> m_lst_transforms;
@@ -573,7 +573,7 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//static
 	static Ptr<IkeSaPayloadSubstructure> GenerateInitIkePayload (void);
-	static Ptr<IkeSaPayloadSubstructure> GenerateAuthIkePayload (Spi spi);
+	static Ptr<IkeSaPayloadSubstructure> GenerateAuthIkePayload (Ptr<Spi> spi);
 public:	//self-defined
 	void PushBackProposal (Ptr<IkeSaProposal> proposal);
 	void PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals);
@@ -838,10 +838,10 @@ public:	//Header Override
 	virtual void Print (std::ostream &os) const;
 public:	//non_const
 	void SetSpi (uint32_t spi);
-	void SetSpi (Spi spi);
+	void SetSpi (Ptr<Spi> spi);
 public:	//const
 	uint8_t GetNotifyMessageType (void) const;
-	Spi GetSpi (void) const;
+	Ptr<Spi> GetSpi (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:
 	using IkePayloadSubstructure::Deserialize;
@@ -849,7 +849,7 @@ private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;
 	uint16_t m_notify_message_type;
-	Spi m_spi;	//ah or esp
+	Ptr<Spi> m_ptr_spi;	//ah or esp
 	std::list<uint8_t> m_lst_notification_data;
 };
 
@@ -885,7 +885,7 @@ private:
 	uint8_t m_protocol_id;
 	uint8_t m_spi_size;
 	uint16_t m_num_of_spis;
-	std::list<Spi> m_lst_spis;
+	std::list<Ptr<Spi> > m_lst_ptr_spis;
 };
 
 class IkeTrafficSelector : public Object {
@@ -1170,7 +1170,7 @@ public:	//const
 	bool IsNewGsaR (void) const;
 	IkeGsaProposal::GSA_TYPE GetGsaType (void) const;
 public:
-	static Ptr<IkeGsaProposal> GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type);
+	static Ptr<IkeGsaProposal> GenerateGsaProposal (const Ptr<Spi> spi, IkeGsaProposal::GSA_TYPE gsa_type);
 private:
 	IkeGsaProposal::GSA_TYPE m_gsa_type;
 };
@@ -1268,7 +1268,7 @@ public:	//Header Override
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual void Print (std::ostream &os) const;
 public:	//non_const
-	void InsertSpi (Ptr<Spi> ptr_spi);
+	void InsertSpi (const Ptr<Spi> ptr_spi);
 	void InsertSpi (uint32_t spi);
 	void InertSpis (const std::list<Ptr<Spi> >& lst_ptr_spis);
 	void InsertSpis (const std::list<uint32_t>& lst_u32_spis);

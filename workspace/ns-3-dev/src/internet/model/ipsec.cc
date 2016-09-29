@@ -1572,9 +1572,9 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_fo
 				uint32_t gsa_r_old_spi = gsa_r_to_modify->GetSpi();
 				uint32_t gsa_r_new_spi = info->GetLocalAvailableIpsecSpi(this->m_set_aggregated_gsa_r_spi_notification);
 				//aggregate new_gsa_payload_sub
-				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_old_spi),
+				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(gsa_r_old_spi),
 																							IkeGsaProposal::GSA_R_TO_BE_MODIFIED));
-				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_new_spi),
+				new_gsa_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(gsa_r_new_spi),
 																							IkeGsaProposal::GSA_R_REPLACEMENT));
 
 				//aggregate packet to send to gm session because of change of gsa_r;
@@ -1588,9 +1588,9 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_fo
 																														ts_src,
 																														ts_dest,
 																														true);
-				gsa_payload_sub_to_gm->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_old_spi),
+				gsa_payload_sub_to_gm->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(gsa_r_old_spi),
 																							IkeGsaProposal::GSA_R_TO_BE_MODIFIED));
-				gsa_payload_sub_to_gm->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(gsa_r_new_spi),
+				gsa_payload_sub_to_gm->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(gsa_r_new_spi),
 																							IkeGsaProposal::GSA_R_REPLACEMENT));
 				IkePayload gsa_payload_to_gm;
 				gsa_payload_to_gm.SetSubstructure(gsa_payload_sub_to_gm);

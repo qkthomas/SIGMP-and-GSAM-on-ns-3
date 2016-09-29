@@ -1617,6 +1617,7 @@ IkeSaProposal::IkeSaProposal ()
 	 m_num_transforms (0)
 {
 	NS_LOG_FUNCTION (this);
+	this->m_ptr_spi = Create<Spi>();
 }
 
 IkeSaProposal::~IkeSaProposal ()
@@ -1633,7 +1634,7 @@ IkeSaProposal::GetSerializedSize (void) const
 	uint32_t size = 0;
 
 	size += 8;
-	size += this->m_spi.GetSerializedSize();
+	size += this->m_ptr_spi->GetSerializedSize();
 
 	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
 			const_it != this->m_lst_transforms.end();
@@ -1675,7 +1676,7 @@ IkeSaProposal::Serialize (Buffer::Iterator start) const
 
 	uint16_t proposal_length = 0;
 	proposal_length += 8;	//fields before SPI and Transforms
-	proposal_length += this->m_spi.GetSerializedSize();
+	proposal_length += this->m_ptr_spi->GetSerializedSize();
 	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
 			const_it != this->m_lst_transforms.end();
 			const_it++)
@@ -1692,14 +1693,14 @@ IkeSaProposal::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_protocol_id);
 
-	i.WriteU8(this->m_spi.GetSerializedSize());
+	i.WriteU8(this->m_ptr_spi->GetSerializedSize());
 
 	i.WriteU8(this->m_lst_transforms.size());
 
-	uint32_t spi_size = this->m_spi.GetSerializedSize();
+	uint32_t spi_size = this->m_ptr_spi->GetSerializedSize();
 	if (spi_size > 0)
 	{
-		this->m_spi.Serialize(i);
+		this->m_ptr_spi->Serialize(i);
 		i.Next(spi_size);
 	}
 
@@ -1762,8 +1763,13 @@ IkeSaProposal::Deserialize (Buffer::Iterator start)
 
 	if (0 != this->m_spi_size)
 	{
-		this->m_spi.Deserialize(i, this->m_spi_size);
-		size += this->m_spi.GetSerializedSize();
+		uint32_t size_spi_deserialized = this->m_ptr_spi->Deserialize(i, this->m_spi_size);
+		if (size_spi_deserialized != this->m_ptr_spi->GetSerializedSize())
+		{
+			NS_ASSERT (false);
+		}
+		i.Next(size_spi_deserialized);
+		size += size_spi_deserialized;
 	}
 
 	for (	uint8_t it = 1;
@@ -1819,11 +1825,11 @@ IkeSaProposal::SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
 }
 
 void
-IkeSaProposal::SetSPI (Spi spi)
+IkeSaProposal::SetSPI (const Ptr<Spi> spi)
 {
 	NS_LOG_FUNCTION (this);
-	this->m_spi = spi;
-	this->m_spi_size = this->m_spi.GetSerializedSize();
+	this->m_ptr_spi = spi;
+	this->m_spi_size = this->m_ptr_spi->GetSerializedSize();
 }
 
 void
@@ -1847,11 +1853,11 @@ IkeSaProposal::IsLast (void) const
 	return this->m_flag_last;
 }
 
-Spi
+Ptr<Spi>
 IkeSaProposal::GetSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_spi;
+	return this->m_ptr_spi;
 }
 
 IPsec::SA_Proposal_PROTOCOL_ID
@@ -1940,7 +1946,7 @@ IkeSaProposal::GenerateInitIkeProposal ()
 }
 
 Ptr<IkeSaProposal>
-IkeSaProposal::GenerateAuthIkeProposal (Spi spi)
+IkeSaProposal::GenerateAuthIkeProposal (const Ptr<Spi> spi)
 {
 	Ptr<IkeSaProposal> retval = Create<IkeSaProposal>();
 	//set ike
@@ -2074,7 +2080,7 @@ IkeSaPayloadSubstructure::GenerateInitIkePayload (void)
 }
 
 Ptr<IkeSaPayloadSubstructure>
-IkeSaPayloadSubstructure::GenerateAuthIkePayload (Spi spi)
+IkeSaPayloadSubstructure::GenerateAuthIkePayload (Ptr<Spi> spi)
 {
 	Ptr<IkeSaPayloadSubstructure> retval = Create<IkeSaPayloadSubstructure>();
 	retval->PushBackProposal(IkeSaProposal::GenerateAuthIkeProposal(spi));
@@ -2833,6 +2839,7 @@ IkeNotifySubstructure::IkeNotifySubstructure ()
 	 m_notify_message_type (0)
 {
 	NS_LOG_FUNCTION (this);
+	this->m_ptr_spi = Create<Spi>();
 }
 
 IkeNotifySubstructure::~IkeNotifySubstructure ()
@@ -2868,12 +2875,15 @@ IkeNotifySubstructure::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_protocol_id);
 
-	i.WriteU8(this->m_spi.GetSerializedSize());
+	i.WriteU8(this->m_ptr_spi->GetSerializedSize());
 
 	i.WriteHtonU16(this->m_notify_message_type);
 
-	this->m_spi.Serialize(i);
-	i.Next(this->m_spi.GetSerializedSize());
+	if (0 < this->m_ptr_spi)
+	{
+		this->m_ptr_spi->Serialize(i);
+		i.Next(this->m_ptr_spi->GetSerializedSize());
+	}
 
 	for (	std::list<uint8_t>::const_iterator const_it = this->m_lst_notification_data.begin();
 			const_it != this->m_lst_notification_data.end();
@@ -2909,8 +2919,16 @@ IkeNotifySubstructure::Deserialize (Buffer::Iterator start)
 	this->m_notify_message_type = i.ReadNtohU16();
 	size += sizeof (this->m_notify_message_type);
 
-	this->m_spi.Deserialize(i, this->m_spi_size);
-	i.Next(this->m_spi.GetSerializedSize());
+	if (0 < this->m_ptr_spi)
+	{
+		uint32_t size_spi_deserialzie = this->m_ptr_spi->Deserialize(i, this->m_spi_size);
+		if (size_spi_deserialzie != this->m_ptr_spi->GetSerializedSize())
+		{
+			NS_ASSERT (false);
+		}
+		i.Next(size_spi_deserialzie);
+		size += size_spi_deserialzie;
+	}
 
 	uint16_t length_rest = this->m_length - size;
 	for (	uint16_t it = 1;
@@ -2945,19 +2963,19 @@ IkeNotifySubstructure::SetSpi (uint32_t spi)
 }
 
 void
-IkeNotifySubstructure::SetSpi (Spi spi)
+IkeNotifySubstructure::SetSpi (Ptr<Spi> spi)
 {
 	NS_LOG_FUNCTION (this);
-	if (4 == spi.GetSerializedSize())
+	if (4 == spi->GetSerializedSize())
 	{
-		if (0 == spi.ToUint32())
+		if (0 == spi->ToUint32())
 		{
 			NS_ASSERT (false);
 		}
 	}
-	else if (8 == spi.GetSerializedSize())
+	else if (8 == spi->GetSerializedSize())
 	{
-		if (8 == spi.ToUint32())
+		if (8 == spi->ToUint32())
 		{
 			NS_ASSERT (false);
 		}
@@ -2967,8 +2985,8 @@ IkeNotifySubstructure::SetSpi (Spi spi)
 		NS_ASSERT (false);
 	}
 
-	this->m_spi = spi;
-	this->m_spi_size = spi.GetSerializedSize();
+	this->m_ptr_spi = spi;
+	this->m_spi_size = spi->GetSerializedSize();
 }
 
 uint8_t
@@ -2978,11 +2996,11 @@ IkeNotifySubstructure::GetNotifyMessageType (void) const
 	return this->m_notify_message_type;
 }
 
-Spi
+Ptr<Spi>
 IkeNotifySubstructure::GetSpi (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_spi;
+	return this->m_ptr_spi;
 }
 
 IkePayloadHeader::PAYLOAD_TYPE
@@ -3032,11 +3050,11 @@ IkeDeletePayloadSubstructure::GetSerializedSize (void) const
 	size += sizeof (this->m_spi_size);
 	size += sizeof (this->m_num_of_spis);
 
-	for (	std::list<Spi>::const_iterator const_it = this->m_lst_spis.begin();
-			const_it != this->m_lst_spis.end();
+	for (	std::list<Ptr<Spi> >::const_iterator const_it = this->m_lst_ptr_spis.begin();
+			const_it != this->m_lst_ptr_spis.end();
 			const_it++)
 	{
-		size += const_it->GetSerializedSize();
+		size += (*const_it)->GetSerializedSize();
 	}
 
 	return size;
@@ -3061,12 +3079,12 @@ IkeDeletePayloadSubstructure::Serialize (Buffer::Iterator start) const
 
 	i.WriteHtonU16(this->m_num_of_spis);
 
-	for (	std::list<Spi>::const_iterator const_it = this->m_lst_spis.begin();
-			const_it != this->m_lst_spis.end();
+	for (	std::list<Ptr<Spi> >::const_iterator const_it = this->m_lst_ptr_spis.begin();
+			const_it != this->m_lst_ptr_spis.end();
 			const_it++)
 	{
-		const_it->Serialize(i);
-		i.Next(const_it->GetSerializedSize());
+		(*const_it)->Serialize(i);
+		i.Next((*const_it)->GetSerializedSize());
 	}
 }
 
@@ -3100,11 +3118,11 @@ IkeDeletePayloadSubstructure::Deserialize (Buffer::Iterator start)
 			it <= this->m_num_of_spis;
 			it++)
 	{
-		Spi spi;
-		spi.Deserialize(i, m_spi_size);
-		i.Next(spi.GetSerializedSize());
-		this->m_lst_spis.push_back(spi);
-		size += spi.GetSerializedSize();
+		Ptr<Spi> spi = Create<Spi>();
+		spi->Deserialize(i, m_spi_size);
+		i.Next(spi->GetSerializedSize());
+		this->m_lst_ptr_spis.push_back(spi);
+		size += spi->GetSerializedSize();
 	}
 
 	NS_ASSERT (size == this->m_length);
@@ -4106,7 +4124,7 @@ IkeGsaProposal::GetSerializedSize (void) const
 	uint32_t size = 0;
 
 	size += 8;
-	size += this->m_spi.GetSerializedSize();
+	size += this->m_ptr_spi->GetSerializedSize();
 
 	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
 			const_it != this->m_lst_transforms.end();
@@ -4146,7 +4164,7 @@ IkeGsaProposal::Serialize (Buffer::Iterator start) const
 
 	uint16_t proposal_length = 0;
 	proposal_length += 8;	//fields before SPI and Transforms
-	proposal_length += this->m_spi.GetSerializedSize();
+	proposal_length += this->m_ptr_spi->GetSerializedSize();
 	for (	std::list<IkeTransformSubStructure>::const_iterator const_it = this->m_lst_transforms.begin();
 			const_it != this->m_lst_transforms.end();
 			const_it++)
@@ -4194,14 +4212,14 @@ IkeGsaProposal::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_protocol_id);
 
-	i.WriteU8(this->m_spi.GetSerializedSize());
+	i.WriteU8(this->m_ptr_spi->GetSerializedSize());
 
 	i.WriteU8(this->m_lst_transforms.size());
 
-	uint32_t spi_size = this->m_spi.GetSerializedSize();
+	uint32_t spi_size = this->m_ptr_spi->GetSerializedSize();
 	if (spi_size > 0)
 	{
-		this->m_spi.Serialize(i);
+		this->m_ptr_spi->Serialize(i);
 		i.Next(spi_size);
 	}
 
@@ -4289,10 +4307,16 @@ IkeGsaProposal::Deserialize (Buffer::Iterator start)
 	this->m_num_transforms = i.ReadU8();
 	size += sizeof (this->m_num_transforms);
 
-	this->m_spi.Deserialize(i, this->m_spi_size);
-	uint32_t spi_serializedsize = this->m_spi.GetSerializedSize();
-	i.Next(spi_serializedsize);
-	size += spi_serializedsize;
+	if (0 != this->m_spi_size)
+	{
+		uint32_t size_spi_deserialized = this->m_ptr_spi->Deserialize(i, this->m_spi_size);
+		if (size_spi_deserialized != this->m_ptr_spi->GetSerializedSize())
+		{
+			NS_ASSERT (false);
+		}
+		i.Next(size_spi_deserialized);
+		size += size_spi_deserialized;
+	}
 
 	for (	uint8_t it = 1;
 			it <= this->m_num_transforms;
@@ -4388,7 +4412,7 @@ IkeGsaProposal::GetGsaType (void) const
 }
 
 Ptr<IkeGsaProposal>
-IkeGsaProposal::GenerateGsaProposal (Spi spi, IkeGsaProposal::GSA_TYPE gsa_type)
+IkeGsaProposal::GenerateGsaProposal (const Ptr<Spi> spi, IkeGsaProposal::GSA_TYPE gsa_type)
 {
 	Ptr<IkeGsaProposal> retval = Create<IkeGsaProposal>();
 	retval->SetProtocolId(GsamConfig::GetDefaultGSAProposalId());
@@ -4841,7 +4865,7 @@ IkeGroupNotifySubstructure::SetGsaPushId (uint32_t gsa_push_id)
 }
 
 void
-IkeGroupNotifySubstructure::InsertSpi (Ptr<Spi> ptr_spi)
+IkeGroupNotifySubstructure::InsertSpi (const Ptr<Spi> ptr_spi)
 {
 	NS_LOG_FUNCTION (this);
 

@@ -280,8 +280,8 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sai2
 	IkePayload sai2;
-	Spi kek_sa_spi;
-	kek_sa_spi.SetValueFromUint64(session->GetInfo()->RegisterGsamSpi());
+	Ptr<Spi> kek_sa_spi = Create<Spi>();
+	kek_sa_spi->SetValueFromUint64(session->GetInfo()->RegisterGsamSpi());
 	sai2.SetSubstructure(IkeSaPayloadSubstructure::GenerateAuthIkePayload(kek_sa_spi));
 	sai2.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up auth
@@ -295,7 +295,7 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 
 	//pause setting up HDR, start setting up a kek sa
 	session->EtablishGsamKekSa();
-	session->SetKekSaInitiatorSpi(kek_sa_spi.ToUint64());
+	session->SetKekSaInitiatorSpi(kek_sa_spi->ToUint64());
 
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(tsr);
@@ -359,32 +359,32 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	gsa_push_session->SetStatus(GsaPushSession::GSA_PUSH_ACK);
 
 	//setting up gsa_q
-	Spi suggested_gsa_q_spi;
+	Ptr<Spi> suggested_gsa_q_spi = Create<Spi>();
 	Ptr<IpSecSAEntry> gsa_q = session->GetRelatedGsaQ();
 	if (gsa_q == 0)
 	{
-		suggested_gsa_q_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
-		gsa_q = gsa_push_session->CreateGsaQ(suggested_gsa_q_spi.ToUint32());
+		suggested_gsa_q_spi->SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
+		gsa_q = gsa_push_session->CreateGsaQ(suggested_gsa_q_spi->ToUint32());
 	}
 	else
 	{
-		suggested_gsa_q_spi.SetValueFromUint32(gsa_q->GetSpi());
+		suggested_gsa_q_spi->SetValueFromUint32(gsa_q->GetSpi());
 	}
 
 	//setting up gsa_r
-	Spi suggested_gsa_r_spi;	//needed to be unique in Qs and NQs
+	Ptr<Spi> suggested_gsa_r_spi = Create<Spi>();	//needed to be unique in Qs and NQs
 	Ptr<IpSecSAEntry> gsa_r = session->GetRelatedGsaR();
 	if (gsa_r == 0)
 	{
-		suggested_gsa_r_spi.SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
-		gsa_r = gsa_push_session->CreateGsaR(suggested_gsa_r_spi.ToUint32());
+		suggested_gsa_r_spi->SetValueFromUint32(session->GetInfo()->GetLocalAvailableIpsecSpi());
+		gsa_r = gsa_push_session->CreateGsaR(suggested_gsa_r_spi->ToUint32());
 	}
 	else
 	{
 		//it already has a gsa_r, why?
 		//weird, it should not the case of retransmission when code run reach here
 		NS_ASSERT (false);
-		suggested_gsa_r_spi.SetValueFromUint32(gsa_r->GetSpi());
+		suggested_gsa_r_spi->SetValueFromUint32(gsa_r->GetSpi());
 	}
 
 	//setting up remote spi notification proposal payload
@@ -452,13 +452,13 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 																											gm_session->GetGroupAddress(),
 																											true);
 
-	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_gsa_q_spi),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(old_gsa_q_spi),
 																				IkeGsaProposal::GSA_Q_TO_BE_MODIFIED));
-	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_gsa_q->GetSpi()),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(new_gsa_q->GetSpi()),
 																				IkeGsaProposal::GSA_Q_REPLACEMENT));
-	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(old_gsa_r_spi),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(old_gsa_r_spi),
 																				IkeGsaProposal::GSA_R_TO_BE_MODIFIED));
-	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Spi(new_gsa_r->GetSpi()),
+	re_push_gm_nqs_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(	Create<Spi>(new_gsa_r->GetSpi()),
 																				IkeGsaProposal::GSA_R_REPLACEMENT));
 	IkePayload re_push_gm_nqs_payload;
 	re_push_gm_nqs_payload.SetSubstructure(re_push_gm_nqs_payload_sub);
@@ -496,9 +496,9 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 																											gm_session->GetGroupAddress(),
 																											true);
 
-	re_push_other_gms_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(old_gsa_q_spi),
+	re_push_other_gms_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(old_gsa_q_spi),
 																						IkeGsaProposal::GSA_Q_TO_BE_MODIFIED));
-	re_push_other_gms_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(new_gsa_q->GetSpi()),
+	re_push_other_gms_payload_sub->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(new_gsa_q->GetSpi()),
 																						IkeGsaProposal::GSA_Q_REPLACEMENT));
 
 	IkePayload re_push_other_gms_payload;
@@ -571,7 +571,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 			else
 			{
 				Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(0, group_address);
-				session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(gsa_q->GetSpi()), IkeGsaProposal::NEW_GSA_Q));
+				session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_q->GetSpi()), IkeGsaProposal::NEW_GSA_Q));
 
 				const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
 
@@ -588,7 +588,7 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 					}
 					else
 					{
-						session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Spi(gsa_r->GetSpi()), IkeGsaProposal::NEW_GSA_R));
+						session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_r->GetSpi()), IkeGsaProposal::NEW_GSA_R));
 					}
 				}
 
@@ -1380,7 +1380,7 @@ GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamSession> session,
 	session->SetGroupAddress(group_address);
 
 	session->EtablishGsamKekSa();
-	session->SetKekSaInitiatorSpi(proposal->GetSpi().ToUint64());
+	session->SetKekSaInitiatorSpi(proposal->GetSpi()->ToUint64());
 	session->SetKekSaResponderSpi(session->GetInfo()->RegisterGsamSpi());
 
 	if (group_address == GsamConfig::GetIgmpv3DestGrpReportAddress())
@@ -1498,9 +1498,9 @@ GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
 
 	Ptr<IkeSaProposal> proposal = sar2_proposals.front();
 
-	Spi spi_responder = proposal->GetSpi();
+	Ptr<Spi> spi_responder = proposal->GetSpi();
 
-	session->SetKekSaResponderSpi(spi_responder.ToUint64());
+	session->SetKekSaResponderSpi(spi_responder->ToUint64());
 
 	if (true == session->IsHostNonQuerier())
 	{
@@ -1886,17 +1886,17 @@ GsamL4Protocol::HandleGsaRepushGM (Ptr<Packet> packet, const IkeHeader& ikeheade
 						//The reason why (0 == session_gsa_q) is that it was rejected?
 						//install a new gsa q with the incoming spi replacement
 						Ptr<IpSecSADatabase> inbound_sad = session->GetRelatedPolicy()->GetInboundSAD();
-						Ptr<IpSecSAEntry> new_gsa_q = inbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
+						Ptr<IpSecSAEntry> new_gsa_q = inbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi()->ToUint32());
 						session->AssociateGsaQ(new_gsa_q);
 					}
 					else
 					{
 						//change spi
-						if (session_gsa_q->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
+						if (session_gsa_q->GetSpi() != gsa_proposal_to_modify->GetSpi()->ToUint32())
 						{
 							NS_ASSERT (false);
 						}
-						session_gsa_q->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+						session_gsa_q->SetSpi(gsa_proposal_replacement->GetSpi()->ToUint32());
 					}
 				}
 				else
@@ -1924,17 +1924,17 @@ GsamL4Protocol::HandleGsaRepushGM (Ptr<Packet> packet, const IkeHeader& ikeheade
 						//The reason why (0 == session_gsa_r) is that it was rejected?
 						//install a new gsa q with the incoming spi replacement
 						Ptr<IpSecSADatabase> outbound_sad = session->GetRelatedPolicy()->GetOutboundSAD();
-						Ptr<IpSecSAEntry> new_gsa_r = outbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
+						Ptr<IpSecSAEntry> new_gsa_r = outbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi()->ToUint32());
 						session->SetRelatedGsaR(new_gsa_r);
 					}
 					else
 					{
 						//change spi
-						if (session_gsa_r->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
+						if (session_gsa_r->GetSpi() != gsa_proposal_to_modify->GetSpi()->ToUint32())
 						{
 							NS_ASSERT (false);
 						}
-						session_gsa_r->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+						session_gsa_r->SetSpi(gsa_proposal_replacement->GetSpi()->ToUint32());
 					}
 				}
 				else
@@ -2009,7 +2009,7 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 				else if (gsa_proposal_const_it->GetGsaType() == IkeGsaProposal::GSA_Q_REPLACEMENT)
 				{
 					Ptr<IpSecSADatabase> sad_outbound = policy->GetOutboundSAD();
-					Ptr<IpSecSAEntry> gsa_q = sad_outbound->CreateIpSecSAEntry(gsa_proposal_const_it->GetSpi().ToUint32());
+					Ptr<IpSecSAEntry> gsa_q = sad_outbound->CreateIpSecSAEntry(gsa_proposal_const_it->GetSpi()->ToUint32());
 				}
 				else if (gsa_proposal_const_it->GetGsaType() == IkeGsaProposal::GSA_R_TO_BE_MODIFIED)
 				{
@@ -2018,7 +2018,7 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 				else if (gsa_proposal_const_it->GetGsaType() == IkeGsaProposal::GSA_R_REPLACEMENT)
 				{
 					Ptr<IpSecSADatabase> sad_inbound = policy->GetInboundSAD();
-					Ptr<IpSecSAEntry> gsa_r = sad_inbound->CreateIpSecSAEntry(gsa_proposal_const_it->GetSpi().ToUint32());
+					Ptr<IpSecSAEntry> gsa_r = sad_inbound->CreateIpSecSAEntry(gsa_proposal_const_it->GetSpi()->ToUint32());
 				}
 				else
 				{
@@ -2053,21 +2053,21 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 					if (gsa_proposal_replacement->GetGsaType() == IkeGsaProposal::GSA_Q_REPLACEMENT)
 					{
 						Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
-						Ptr<IpSecSAEntry> gsa_q_in_sad = outbound_sad->GetIpsecSAEntry(gsa_proposal_to_modify->GetSpi().ToUint32());
+						Ptr<IpSecSAEntry> gsa_q_in_sad = outbound_sad->GetIpsecSAEntry(gsa_proposal_to_modify->GetSpi()->ToUint32());
 						if (0 == gsa_q_in_sad)
 						{
 							//The reason why (0 == gsa_q_in_sad) is that it was rejected?
 							//install a new gsa q with the incoming spi replacement
-							Ptr<IpSecSAEntry> new_gsa_q = outbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
+							Ptr<IpSecSAEntry> new_gsa_q = outbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi()->ToUint32());
 						}
 						else
 						{
 							//change spi
-							if (gsa_q_in_sad->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
+							if (gsa_q_in_sad->GetSpi() != gsa_proposal_to_modify->GetSpi()->ToUint32())
 							{
 								NS_ASSERT (false);
 							}
-							gsa_q_in_sad->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+							gsa_q_in_sad->SetSpi(gsa_proposal_replacement->GetSpi()->ToUint32());
 						}
 					}
 					else
@@ -2085,21 +2085,21 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 					if (gsa_proposal_replacement->GetGsaType() == IkeGsaProposal::GSA_R_REPLACEMENT)
 					{
 						Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
-						Ptr<IpSecSAEntry> gsa_r_in_sad = inbound_sad->GetIpsecSAEntry(gsa_proposal_to_modify->GetSpi().ToUint32());
+						Ptr<IpSecSAEntry> gsa_r_in_sad = inbound_sad->GetIpsecSAEntry(gsa_proposal_to_modify->GetSpi()->ToUint32());
 						if (0 == gsa_r_in_sad)
 						{
 							//The reason why (0 == gsa_r_in_sad) is that it was rejected?
 							//install a new gsa q with the incoming spi replacement
-							Ptr<IpSecSAEntry> new_gsa_r = inbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi().ToUint32());
+							Ptr<IpSecSAEntry> new_gsa_r = inbound_sad->CreateIpSecSAEntry(gsa_proposal_replacement->GetSpi()->ToUint32());
 						}
 						else
 						{
 							//change spi
-							if (gsa_r_in_sad->GetSpi() != gsa_proposal_to_modify->GetSpi().ToUint32())
+							if (gsa_r_in_sad->GetSpi() != gsa_proposal_to_modify->GetSpi()->ToUint32())
 							{
 								NS_ASSERT (false);
 							}
-							gsa_r_in_sad->SetSpi(gsa_proposal_replacement->GetSpi().ToUint32());
+							gsa_r_in_sad->SetSpi(gsa_proposal_replacement->GetSpi()->ToUint32());
 						}
 					}
 					else
@@ -2399,7 +2399,7 @@ GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
 	Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
 	Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
 
-	uint32_t pushed_gsa_q_spi = gsa_q_proposal->GetSpi().ToUint32();
+	uint32_t pushed_gsa_q_spi = gsa_q_proposal->GetSpi()->ToUint32();
 
 	//checking received gsa_q
 	if (local_gsa_q == 0)
@@ -2435,13 +2435,13 @@ GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
 		}
 		else
 		{
-			if (local_gsa_q->GetSpi() != gsa_q_proposal->GetSpi().ToUint32())
+			if (local_gsa_q->GetSpi() != gsa_q_proposal->GetSpi()->ToUint32())
 			{
 				//weird
 				NS_ASSERT (false);
 			}
 
-			if (local_gsa_r->GetSpi() != gsa_r_proposal->GetSpi().ToUint32())
+			if (local_gsa_r->GetSpi() != gsa_r_proposal->GetSpi()->ToUint32())
 			{
 				//weird
 				NS_ASSERT (false);
@@ -2467,7 +2467,7 @@ GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session,
 																															ts_src,
 																															ts_dest);
 	Ptr<Spi> reject_gsa_q_spi = Create<Spi>();
-	reject_gsa_q_spi->SetValueFromUint32(gsa_q_proposal->GetSpi().ToUint32());
+	reject_gsa_q_spi->SetValueFromUint32(gsa_q_proposal->GetSpi()->ToUint32());
 	reject_gsa_q_spi_notify_substructure->InsertSpi(reject_gsa_q_spi);
 	IkePayload reject_gsa_q_spi_notify_payload;
 	reject_gsa_q_spi_notify_payload.SetSubstructure(reject_gsa_q_spi_notify_substructure);
@@ -2515,8 +2515,8 @@ GsamL4Protocol::InstallGsaPair (Ptr<GsamSession> session,
 	{
 		NS_ASSERT (false);
 	}
-	Spi gsa_q_spi = gsa_q_proposal->GetSpi();
-	Spi gsa_r_spi = gsa_r_proposal->GetSpi();
+	Ptr<Spi> gsa_q_spi = gsa_q_proposal->GetSpi();
+	Ptr<Spi> gsa_r_spi = gsa_r_proposal->GetSpi();
 	Ptr<IpSecPolicyEntry> policy = session->GetRelatedPolicy();
 
 	if (policy == 0)
@@ -2537,10 +2537,10 @@ GsamL4Protocol::InstallGsaPair (Ptr<GsamSession> session,
 			NS_ASSERT (false);
 		}
 
-		Ptr<IpSecSAEntry> gsa_q = policy->GetInboundSAD()->CreateIpSecSAEntry(gsa_q_spi.ToUint32());
+		Ptr<IpSecSAEntry> gsa_q = policy->GetInboundSAD()->CreateIpSecSAEntry(gsa_q_spi->ToUint32());
 		session->AssociateGsaQ(gsa_q);
 
-		Ptr<IpSecSAEntry> gsa_r = policy->GetOutboundSAD()->CreateIpSecSAEntry(gsa_r_spi.ToUint32());
+		Ptr<IpSecSAEntry> gsa_r = policy->GetOutboundSAD()->CreateIpSecSAEntry(gsa_r_spi->ToUint32());
 		session->SetRelatedGsaR(gsa_r);
 	}
 
@@ -2614,23 +2614,23 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 
 		if (true == gsa_proposal->IsNewGsaQ())
 		{
-			Spi gsa_q_proposal_spi = gsa_proposal->GetSpi();
-			lst_u32_gsa_q_spis_to_install.push_back(gsa_q_proposal_spi.ToUint32());
+			Ptr<Spi> gsa_q_proposal_spi = gsa_proposal->GetSpi();
+			lst_u32_gsa_q_spis_to_install.push_back(gsa_q_proposal_spi->ToUint32());
 		}
 		else if (true == gsa_proposal->IsNewGsaR())
 		{
 			//check whether incoming spi is in conflict
-			Spi gsa_r_proposal_spi = gsa_proposal->GetSpi();
+			Ptr<Spi> gsa_r_proposal_spi = gsa_proposal->GetSpi();
 			Ptr<GsamInfo> local_gsam_info = session->GetDatabase()->GetInfo();
-			if (true == local_gsam_info->IsIpsecSpiOccupied(gsa_r_proposal_spi.ToUint32()))
+			if (true == local_gsam_info->IsIpsecSpiOccupied(gsa_r_proposal_spi->ToUint32()))
 			{
 				//spis to reject
-				lst_u32_gsa_r_spis_to_reject.push_back(gsa_r_proposal_spi.ToUint32());
+				lst_u32_gsa_r_spis_to_reject.push_back(gsa_r_proposal_spi->ToUint32());
 			}
 			else
 			{
 				//spis to install
-				lst_u32_gsa_r_spis_to_install.push_back(gsa_r_proposal_spi.ToUint32());
+				lst_u32_gsa_r_spis_to_install.push_back(gsa_r_proposal_spi->ToUint32());
 			}
 		}
 		else
