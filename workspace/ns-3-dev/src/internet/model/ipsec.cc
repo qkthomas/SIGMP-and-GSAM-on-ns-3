@@ -2157,6 +2157,7 @@ GsamSession::SetMessageId (uint32_t message_id)
 		if ((0 == message_id) || (1 == message_id))
 		{
 			//ok
+			this->m_current_message_id = message_id;
 		}
 		else
 		{
@@ -2257,6 +2258,7 @@ GsamSession::SetGroupAddress (Ipv4Address group_address)
 	{
 		this->m_ptr_session_group = this->m_ptr_database->GetSessionGroup(group_address);
 		this->m_ptr_session_group->PushBackSession(this);
+		this->m_group_address = group_address;
 	}
 	else
 	{
@@ -4308,6 +4310,7 @@ IpSecDatabase::CreateSessionGroup (Ipv4Address group_address)
 	NS_LOG_FUNCTION (this);
 
 	Ptr<GsamSessionGroup> session_group = Create<GsamSessionGroup>();
+	session_group->SetGroupAddress(group_address);
 	session_group->SetDatabase(this);
 	this->m_lst_ptr_session_groups.push_back(session_group);
 

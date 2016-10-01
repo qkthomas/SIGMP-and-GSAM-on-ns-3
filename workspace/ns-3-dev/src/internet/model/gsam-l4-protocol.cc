@@ -302,8 +302,10 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 	packet->AddHeader(tsi);
 	packet->AddHeader(sai2);
 	packet->AddHeader(auth);
+	packet->AddHeader(id);
 
-	uint32_t length_beside_hedaer = auth.GetSerializedSize() +
+	uint32_t length_beside_hedaer = id.GetSerializedSize() +
+									auth.GetSerializedSize() +
 									sai2.GetSerializedSize() +
 									tsi.GetSerializedSize() +
 									tsr.GetSerializedSize();
@@ -1288,7 +1290,7 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 		packet->RemoveHeader(id);
 
 		//picking up auth payload
-		IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
+		IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = id.GetNextPayloadType();
 		if (auth_payload_type != IkePayloadHeader::AUTHENTICATION)
 		{
 			NS_ASSERT (false);
@@ -1323,9 +1325,8 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 		IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(tsr_payload_type);
 		packet->RemoveHeader(tsr);
 
-		Ptr<IkeSaProposal> chosen_proposal = Create<IkeSaProposal>();
 		Ptr<IkeSaPayloadSubstructure> sai2_sub = DynamicCast<IkeSaPayloadSubstructure>(sai2.GetSubstructure());
-		GsamL4Protocol::ChooseSAProposalOffer(sai2_sub->GetProposals(), chosen_proposal);
+		Ptr<IkeSaProposal> chosen_proposal = GsamL4Protocol::ChooseSAProposalOffer(sai2_sub->GetProposals());
 
 		std::list<IkeTrafficSelector> narrowed_tssi;
 		Ptr<IkeTrafficSelectorSubstructure> tsi_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsi.GetSubstructure());
@@ -1532,19 +1533,16 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 	NS_LOG_FUNCTION (this);
 
 	//Setting up TSr
-	IkePayload tsr;
-	tsr.GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER);
+	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER);
 	Ptr<IkeTrafficSelectorSubstructure> tsr_payload_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsr.GetSubstructure());
 	tsr_payload_sub->PushBackTrafficSelectors(narrowed_tssr);
 	//settuping up tsi
-	IkePayload tsi;
-	tsi.GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR);
+	IkePayload tsi = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR);
 	Ptr<IkeTrafficSelectorSubstructure> tsi_payload_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsi.GetSubstructure());
 	tsi_payload_sub->PushBackTrafficSelectors(narrowed_tssi);
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sar2
-	IkePayload sar2;
-	sar2.GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
+	IkePayload sar2 = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
 	Ptr<IkeSaPayloadSubstructure> sar2_payload_sub = DynamicCast<IkeSaPayloadSubstructure>(sar2.GetSubstructure());
 	sar2_payload_sub->PushBackProposal(chosen_proposal);
 	sar2.SetNextPayloadType(tsi.GetPayloadType());
@@ -2323,8 +2321,7 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 	uint32_t previous_gsa_push_id = 0;	//temp save valuable
 
 	do {
-		IkePayload pushed_gsa_payload;
-		pushed_gsa_payload.GetEmptyPayloadFromPayloadType(next_payload_type);
+		IkePayload pushed_gsa_payload = IkePayload::GetEmptyPayloadFromPayloadType(next_payload_type);
 
 		packet->RemoveHeader(pushed_gsa_payload);
 
@@ -3293,16 +3290,15 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 	}
 }
 
-void
-GsamL4Protocol::ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals,
-										Ptr<IkeSaProposal> retval_chosen_proposal)
+Ptr<IkeSaProposal>
+GsamL4Protocol::ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals)
 {
 	if (proposals.size() == 0)
 	{
 		NS_ASSERT(false);
 	}
 
-	retval_chosen_proposal = proposals.front();
+	return proposals.front();
 }
 
 void

@@ -183,8 +183,7 @@ public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);
 private:	//private staitc
-	static void ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals,
-										Ptr<IkeSaProposal> retval_chosen_proposal);
+	static Ptr<IkeSaProposal> ChooseSAProposalOffer (	const std::list<Ptr<IkeSaProposal> >& proposals);
 	static void NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi_selectors,
 												std::list<IkeTrafficSelector>& retval_narrowed_tsi_selectors);
 private:	//database operation

@@ -847,6 +847,7 @@ Spi::SetValueFromUint32 (const uint32_t value)
 	NS_LOG_FUNCTION (this);
 
 	GsamUtility::Uint32ToBytes(this->m_lst_var, value);
+	this->m_length = this->m_lst_var.size();
 }
 void
 Spi::SetValueFromUint64 (const uint64_t value)
@@ -854,6 +855,7 @@ Spi::SetValueFromUint64 (const uint64_t value)
 	NS_LOG_FUNCTION (this);
 
 	GsamUtility::Uint64ToBytes(this->m_lst_var, value);
+	this->m_length = this->m_lst_var.size();
 }
 
 bool
@@ -1610,7 +1612,7 @@ IkeSaProposal::GetTypeId (void)
 
 IkeSaProposal::IkeSaProposal ()
   :  m_flag_last (false),
-	 m_proposal_length (12),	//12 bytes until filed SPI. increase by adding more transform
+	 m_proposal_length (8),	//12 bytes until filed SPI. increase by adding more transform
 	 m_proposal_num (0),
 	 m_protocol_id (0),
 	 m_spi_size (0),	//ah or esp
@@ -1828,8 +1830,10 @@ void
 IkeSaProposal::SetSPI (const Ptr<Spi> spi)
 {
 	NS_LOG_FUNCTION (this);
+	this->m_proposal_length -= this->m_ptr_spi->GetSerializedSize();
 	this->m_ptr_spi = spi;
 	this->m_spi_size = this->m_ptr_spi->GetSerializedSize();
+	this->m_proposal_length += this->m_ptr_spi->GetSerializedSize();
 }
 
 void
