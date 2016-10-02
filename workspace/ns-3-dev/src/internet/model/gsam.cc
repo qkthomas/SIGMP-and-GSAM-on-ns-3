@@ -516,6 +516,25 @@ IkePayloadHeader::Uint8ToPayloadType (uint8_t value)
 }
 
 void
+IkePayloadHeader::Serialize (Buffer::Iterator start, uint16_t payload_length) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(PayloadTypeToUnit8(this->m_next_payload));
+	if (false == this->m_flag_critical)
+	{
+		i.WriteU8(0x00);
+	}
+	else
+	{
+		i.WriteU8(0x01);
+	}
+	i.WriteHtonU16(payload_length);
+}
+
+
+void
 IkePayloadHeader::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
@@ -975,18 +994,23 @@ void
 IkePayload::Serialize (Buffer::Iterator start) const
 {
 	NS_LOG_FUNCTION (this << &start);
-	Buffer::Iterator i = start;
-
-	this->m_header.Serialize(i);
-	i.Next(this->m_header.GetSerializedSize());
 
 	if (0 == this->m_ptr_substructure)
 	{
 		NS_ASSERT (false);
 	}
 
+	Buffer::Iterator i = start;
+
+	uint16_t header_length = this->m_header.GetSerializedSize();
+	uint16_t sub_length = this->m_ptr_substructure->GetSerializedSize();
+	uint16_t payload_length = header_length + sub_length;
+
+	this->m_header.Serialize(i, payload_length);
+	i.Next(header_length);
+
 	this->m_ptr_substructure->Serialize(i);
-	i.Next(this->m_ptr_substructure->GetSerializedSize());
+	i.Next(sub_length);
 }
 
 uint32_t
@@ -3503,7 +3527,9 @@ IkeTrafficSelectorSubstructure::Serialize (Buffer::Iterator start) const
 	i.WriteU8(this->m_lst_traffic_selectors.size());
 
 	//24 bits field RESERVED
-	i.WriteU8(0, 3);
+	i.WriteU8(0);
+	i.WriteU8(0);
+	i.WriteU8(0);
 
 	for (	std::list<IkeTrafficSelector>::const_iterator const_it = this->m_lst_traffic_selectors.begin();
 			const_it != this->m_lst_traffic_selectors.end();

@@ -110,6 +110,7 @@ public:	//translate enum
 	static uint8_t PayloadTypeToUnit8 (IkePayloadHeader::PAYLOAD_TYPE payload_type);
 	static IkePayloadHeader::PAYLOAD_TYPE Uint8ToPayloadType (uint8_t value);
 public:	//Header override
+	virtual void Serialize (Buffer::Iterator start, uint16_t payload_length) const;
 	virtual void Serialize (Buffer::Iterator start) const;
 	virtual uint32_t Deserialize (Buffer::Iterator start);
 	virtual uint32_t GetSerializedSize (void) const;
@@ -124,7 +125,7 @@ public:	//non-const
 private:
 	IkePayloadHeader::PAYLOAD_TYPE m_next_payload;
 	bool m_flag_critical;
-	uint16_t m_payload_length;
+	uint16_t m_payload_length;	//for deserialization only
 };
 
 class IkeHeader : public Header {
