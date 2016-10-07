@@ -280,9 +280,9 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sai2
 	IkePayload sai2;
-	Ptr<Spi> kek_sa_spi = Create<Spi>();
-	kek_sa_spi->SetValueFromUint64(session->GetInfo()->RegisterGsamSpi());
-	sai2.SetSubstructure(IkeSaPayloadSubstructure::GenerateAuthIkePayload(kek_sa_spi));
+	Ptr<Spi> initiator_kek_sa_spi = Create<Spi>();
+	initiator_kek_sa_spi->SetValueFromUint64(session->GetInfo()->RegisterGsamSpi());
+	sai2.SetSubstructure(IkeSaPayloadSubstructure::GenerateAuthIkePayload(initiator_kek_sa_spi));
 	sai2.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up auth
 	IkePayload auth;
@@ -295,7 +295,7 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 
 	//pause setting up HDR, start setting up a kek sa
 	session->EtablishGsamKekSa();
-	session->SetKekSaInitiatorSpi(kek_sa_spi->ToUint64());
+	session->SetKekSaInitiatorSpi(initiator_kek_sa_spi->ToUint64());
 
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(tsr);
@@ -1008,9 +1008,12 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 		{
 			session->GetRetransmitTimer().Cancel();
 		}
+		//schedule transmission
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, session_retransmit);
 		session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
+		//scheudle timeout
+		session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeout());
 	}
 	else
 	{
@@ -1526,7 +1529,7 @@ GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
 
 void
 GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
-									Ptr<IkeSaProposal> chosen_proposal,
+									const Ptr<IkeSaProposal> chosen_proposal,
 									const std::list<IkeTrafficSelector>& narrowed_tssi,
 									const std::list<IkeTrafficSelector>& narrowed_tssr)
 {
@@ -1542,9 +1545,10 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 	tsi_payload_sub->PushBackTrafficSelectors(narrowed_tssi);
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
 	//setting up sar2
-	IkePayload sar2 = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::SECURITY_ASSOCIATION);
-	Ptr<IkeSaPayloadSubstructure> sar2_payload_sub = DynamicCast<IkeSaPayloadSubstructure>(sar2.GetSubstructure());
-	sar2_payload_sub->PushBackProposal(chosen_proposal);
+	IkePayload sar2;
+	Ptr<Spi> responder_kek_sa_spi = Create<Spi>();
+	responder_kek_sa_spi->SetValueFromUint64(session->GetKekSaResponderSpi());
+	sar2.SetSubstructure(IkeSaPayloadSubstructure::GenerateAuthIkePayload(responder_kek_sa_spi));
 	sar2.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up auth
 	IkePayload auth;
@@ -1569,6 +1573,7 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 						length_beside_ikeheader,
 						packet,
 						false);
+	this->Send_GSA_PUSH(session);
 }
 
 void
@@ -1631,7 +1636,6 @@ GsamL4Protocol::HandleGsaPushSpiRequest (Ptr<Packet> packet, const IkeHeader& ik
 
 	if (session->GetCurrentMessageId() < message_id)
 	{
-		session->SetMessageId(message_id);
 		if (true == session->IsHostNonQuerier())
 		{
 			this->HandleGsaPushSpiRequestNQ(packet, ikeheader, session);
@@ -2214,6 +2218,7 @@ GsamL4Protocol::HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& 
 	{
 		if (session->GetCurrentMessageId() == (message_id - 1))
 		{
+			session->SetMessageId(message_id);
 			this->HandleGsaPushGM (packet, ikeheader, session);
 		}
 		else
@@ -2223,6 +2228,7 @@ GsamL4Protocol::HandleGsaPushSpiRequestGM (Ptr<Packet> packet, const IkeHeader& 
 	}
 	else if (first_payload_type == IkePayloadHeader::GROUP_NOTIFY)
 	{
+		session->SetMessageId(message_id);
 		this->HandleSpiRequestGMNQ (packet, ikeheader, session);
 	}
 	else
@@ -2277,6 +2283,7 @@ GsamL4Protocol::HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& 
 	{
 		if (session->GetCurrentMessageId() == (message_id - 1))
 		{
+			session->SetMessageId(message_id);
 			this->HandleGsaPushNQ (packet, ikeheader, session);
 		}
 		else
@@ -2286,6 +2293,7 @@ GsamL4Protocol::HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& 
 	}
 	else if (first_payload_type == IkePayloadHeader::GROUP_NOTIFY)
 	{
+		session->SetMessageId(message_id);
 		this->HandleSpiRequestGMNQ (packet, ikeheader, session);
 	}
 	else

@@ -93,7 +93,7 @@ private:	//phase 1, responder
 										const std::list<IkeTrafficSelector>& tsi_selectors,
 										const std::list<IkeTrafficSelector>& tsr_selectors);
 	void RespondIkeSaAuth (	Ptr<GsamSession> session,
-							Ptr<IkeSaProposal> chosen_proposal,
+							const Ptr<IkeSaProposal> chosen_proposal,
 							const std::list<IkeTrafficSelector>& narrowed_tssi,
 							const std::list<IkeTrafficSelector>& narrowed_tssr);
 private:	//phase 2, Q

@@ -59,6 +59,7 @@ public:	//static
 	static IPsec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
 	static Ipv4Address GetIgmpv3DestGrpReportAddress (void);
 	static Ptr<GsamConfig> GetSingleton (void);
+	static bool IsFalseByPercentage (uint8_t percentage_0_to_100);
 public:	//
 	void SetSpiRejectPropability (uint8_t between_0_and_100);
 	void SetQAddress (Ipv4Address address);

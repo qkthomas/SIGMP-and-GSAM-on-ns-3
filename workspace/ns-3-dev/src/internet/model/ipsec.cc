@@ -97,8 +97,8 @@ GsamUtility::Uint32ToBytes (std::list<uint8_t>& lst_retval, const uint32_t input
 			it++)
 	{
 		uint8_t temp = 0;
-		mask = mask << bits_to_shift;
-		temp = ((input_value & mask) >> bits_to_shift);
+		uint32_t shifted_mask = mask << bits_to_shift;
+		temp = ((input_value & shifted_mask) >> bits_to_shift);
 		lst_retval.push_back(temp);
 
 		bits_to_shift += 8;
@@ -119,8 +119,8 @@ GsamUtility::Uint64ToBytes (std::list<uint8_t>& lst_retval, const uint64_t input
 			it++)
 	{
 		uint8_t temp = 0;
-		mask = mask << bits_to_shift;
-		temp = ((input_value & mask) >> bits_to_shift);
+		uint64_t shifted_mask = mask << bits_to_shift;
+		temp = ((input_value & shifted_mask) >> bits_to_shift);
 		lst_retval.push_back(temp);
 
 		bits_to_shift += 8;
@@ -351,6 +351,22 @@ GsamConfig::GetSingleton (void)
 		GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
 	}
 	return GsamConfig::m_ptr_config_instance;
+}
+
+bool
+GsamConfig::IsFalseByPercentage (uint8_t percentage_0_to_100)
+{
+	bool retval = true;
+	uint8_t random_num = rand() % 100;
+	if (random_num < percentage_0_to_100)
+	{
+		retval = false;
+	}
+	else
+	{
+		retval = true;
+	}
+	return retval;
 }
 
 void
@@ -2156,12 +2172,29 @@ GsamSession::SetMessageId (uint32_t message_id)
 	{
 		if ((0 == message_id) || (1 == message_id))
 		{
-			//ok
-			this->m_current_message_id = message_id;
+			if (this->m_p1_role == GsamSession::INITIATOR)
+			{
+				//phase 1
+				//ok
+				this->m_current_message_id = message_id;
+			}
+		}
+		else if (message_id < 0)
+		{
+			NS_ASSERT (false);
 		}
 		else
 		{
-			NS_ASSERT (false);
+			if (this->m_p1_role == GsamSession::INITIATOR)
+			{
+				//phase 2
+				//ok
+				this->m_current_message_id = message_id;
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
 		}
 	}
 }
@@ -2438,7 +2471,24 @@ GsamSession::TimeoutAction (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	std::cout << "GsamSession: " << this << " time out.";
+	if (true == this->IsHostGroupMember())
+	{
+		std::cout << "Q, ";
+	}
+	else if (true == this->IsHostNonQuerier())
+	{
+		std::cout << "NQ, ";
+	}
+	else if (true == this->IsHostQuerier())
+	{
+		std::cout << "GM, ";
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	std::cout << "GsamSession: " << this << " time out." << std::endl;
 }
 
 Ptr<IpSecSAEntry>

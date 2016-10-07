@@ -444,6 +444,15 @@ IkePayloadHeader::PayloadTypeToUnit8 (IkePayloadHeader::PAYLOAD_TYPE payload_typ
 	case IkePayloadHeader::EXTENSIBLE_AUTHENTICATION:
 			retval = 48;
 			break;
+	case IkePayloadHeader::GSA_PUSH:
+			retval = 49;
+			break;
+	case IkePayloadHeader::GROUP_NOTIFY:
+			retval = 50;
+			break;
+	case IkePayloadHeader::GSA_REPUSH:
+			retval = 51;
+			break;
 	default:
 		retval = 0;
 		NS_ASSERT (false);
@@ -508,6 +517,15 @@ IkePayloadHeader::Uint8ToPayloadType (uint8_t value)
 		break;
 	case 48:
 			retval = IkePayloadHeader::EXTENSIBLE_AUTHENTICATION;
+			break;
+	case 49:
+			retval = IkePayloadHeader::GSA_PUSH;
+			break;
+	case 50:
+			retval = IkePayloadHeader::GROUP_NOTIFY;
+			break;
+	case 51:
+			retval = IkePayloadHeader::GSA_REPUSH;
 			break;
 	default:
 		NS_ASSERT (false);
@@ -2121,13 +2139,16 @@ void
 IkeSaPayloadSubstructure::PushBackProposal (Ptr<IkeSaProposal> proposal)
 {
 	NS_LOG_FUNCTION (this);
+	this->ClearLastProposal();
 	this->m_lst_proposal.push_back(proposal);
 	this->m_length += proposal->GetSerializedSize();
+	this->SetLastProposal();
 }
 
 void
 IkeSaPayloadSubstructure::PushBackProposals (const std::list<Ptr<IkeSaProposal> >& proposals)
 {
+	this->ClearLastProposal();
 	NS_LOG_FUNCTION (this);
 	for (	std::list<Ptr<IkeSaProposal> >::const_iterator const_it = proposals.begin();
 			const_it != proposals.end();
@@ -2135,6 +2156,7 @@ IkeSaPayloadSubstructure::PushBackProposals (const std::list<Ptr<IkeSaProposal> 
 	{
 		this->m_lst_proposal.push_back(*const_it);
 	}
+	this->SetLastProposal();
 }
 
 const std::list<Ptr<IkeSaProposal> >&
@@ -3183,7 +3205,7 @@ TypeId
 IkeTrafficSelector::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeTrafficSelector")
-	    .SetParent<Object> ()
+	    .SetParent<Header> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeTrafficSelector> ();
 	  return tid;
@@ -3896,7 +3918,7 @@ TypeId
 IkeConfigAttribute::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IkeConfigAttribute")
-	    .SetParent<Object> ()
+	    .SetParent<Header> ()
 	    //.SetGroupName("Internet")
 		.AddConstructor<IkeConfigAttribute> ();
 	  return tid;
@@ -4236,7 +4258,7 @@ IkeGsaProposal::Serialize (Buffer::Iterator start) const
 		NS_ASSERT (false);
 	}
 
-	i.WriteHtolsbU16(proposal_length);
+	i.WriteHtonU16(proposal_length);
 
 	i.WriteU8(this->m_proposal_num);
 
@@ -4558,7 +4580,7 @@ IkeGsaPayloadSubstructure::Deserialize (Buffer::Iterator start)
 
 	while (length_rest > 0)
 	{
-		Ptr<IkeSaProposal> proposal = Create<IkeSaProposal>();
+		Ptr<IkeGsaProposal> proposal = Create<IkeGsaProposal>();
 		proposal->Deserialize(i);
 		uint32_t proposal_size = proposal->GetSerializedSize();
 		i.Next(proposal_size);
