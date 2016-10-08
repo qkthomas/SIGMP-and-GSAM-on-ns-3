@@ -196,6 +196,8 @@ private:	//database operation
 	void CreateIpSecPolicy (Ptr<GsamSession> session,
 							const std::list<IkeTrafficSelector>& tsi_selectors,
 							const std::list<IkeTrafficSelector>& tsr_selectors);
+public:	//utilities
+	const Ptr<Node> GetNode (void) const;
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;

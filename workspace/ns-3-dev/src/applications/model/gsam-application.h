@@ -42,6 +42,9 @@ private:
    */
   virtual void StopApplication (void);
 
+public:	//features
+	void SetEventsNumber (uint8_t events_number);
+	uint8_t GetEventsNumber (void);
 private:	//self-defined
   void Initialization (void);
   Ptr<GsamL4Protocol> GetGsam (void) const;
@@ -51,7 +54,7 @@ private:
   Ptr<Igmpv3L4Protocol> m_ptr_igmp;
   Ptr<GsamL4Protocol> m_ptr_gsam;
   EventId m_event_current;
-
+  uint8_t m_num_events;
 };
 
 } /* namespace ns3 */

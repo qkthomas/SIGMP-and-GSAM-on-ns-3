@@ -28,7 +28,8 @@ GsamApplication::GetTypeId(void)
 
 GsamApplication::GsamApplication()
   :  m_ptr_igmp (0),
-	 m_ptr_gsam (0)
+	 m_ptr_gsam (0),
+	 m_num_events (0)
 {
 	// TODO Auto-generated constructor stub
 
@@ -53,6 +54,20 @@ GsamApplication::StopApplication (void)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_event_current.Cancel();
+}
+
+void
+GsamApplication::SetEventsNumber (uint8_t events_number)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_num_events = events_number;
+}
+
+uint8_t
+GsamApplication::GetEventsNumber (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_num_events;
 }
 
 void
@@ -132,26 +147,35 @@ void
 GsamApplication::GenerateEvent (void)
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+	if (0 < this->m_num_events)
 	{
+		if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+		{
 
-	}
-	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
-	{
+		}
+		else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+		{
 
-	}
-	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
-	{
-		//join
-		Ptr<GsamL4Protocol> gsam = this->GetGsam();
-		Ipv4Address group_address = GsamConfig::GetSingleton()->GetAnUnusedSecGrpAddress();
-		Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
-		Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
-		gsam->Send_IKE_SA_INIT(session);
-	}
-	else
-	{
-		NS_ASSERT (false);
+		}
+		else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
+		{
+			//join
+			Ptr<GsamL4Protocol> gsam = this->GetGsam();
+			Ipv4Address group_address = GsamConfig::GetSingleton()->GetAnUnusedSecGrpAddress();
+			Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
+			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
+			gsam->Send_IKE_SA_INIT(session);
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+		this->m_num_events--;
+		if (0 < this->m_num_events)
+		{
+			Time delay = Seconds (1.0);
+			this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+		}
 	}
 }
 

@@ -669,7 +669,8 @@ public:	//const
 	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
 	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
 	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
-	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+	const Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+	const Ptr<GsamL4Protocol> GetGsam (void) const;
 	bool IsHostQuerier (void) const;
 	bool IsHostGroupMember (void) const;
 	bool IsHostNonQuerier (void) const;

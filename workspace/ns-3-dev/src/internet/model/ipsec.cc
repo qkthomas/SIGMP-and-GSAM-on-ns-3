@@ -758,7 +758,15 @@ GsamInfo::GenerateIpsecSpi (void) const
 bool
 GsamInfo::IsIpsecSpiOccupied (uint32_t spi) const
 {
-	bool retval = (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end());
+	bool retval = false;
+
+	if (false == GsamConfig::GetSingleton()->IsFalseByPercentage(GsamConfig::GetSingleton()->GetSpiRejectPropability()))
+	{
+		retval = true;
+		return retval;
+	}
+
+	retval = (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end());
 
 	return retval;
 }
@@ -1730,12 +1738,14 @@ GsaPushSession::IsAllReplied (void) const
 		}
 	}
 
-	if (this->m_lst_ptr_nq_sessions_sent_unreplied.size() != 0)
+	std::size_t size_nq_sessions_sent_unreplied = this->m_lst_ptr_nq_sessions_sent_unreplied.size();
+	if (size_nq_sessions_sent_unreplied != 0)
 	{
 		retval = false;
 	}
 
-	if (this->m_lst_ptr_other_gm_sessions_sent_unreplied.size() != 0)
+	std::size_t size_other_gm_sessions_sent_unreplied = this->m_lst_ptr_other_gm_sessions_sent_unreplied.size();
+	if (size_other_gm_sessions_sent_unreplied != 0)
 	{
 		retval = false;
 	}
@@ -2471,6 +2481,7 @@ GsamSession::TimeoutAction (void)
 {
 	NS_LOG_FUNCTION (this);
 
+	std::cout << "Node: " << this->GetDatabase()->GetGsam()->GetNode()->GetId() << ", ";
 	if (true == this->IsHostGroupMember())
 	{
 		std::cout << "Q, ";
@@ -3751,9 +3762,9 @@ IpSecPolicyEntry::GetInboundSAD (void)
 	if (this->m_ptr_inbound_sad == 0)
 	{
 		this->m_ptr_inbound_sad = Create<IpSecSADatabase>();
-		this->m_ptr_outbound_sad->SetDirection(IpSecSADatabase::INBOUND);
+		this->m_ptr_inbound_sad->SetDirection(IpSecSADatabase::INBOUND);
 		this->m_ptr_inbound_sad->AssociatePolicyEntry(this);
-		this->m_ptr_outbound_sad->SetRootDatabase(this->GetSPD()->GetRootDatabase());
+		this->m_ptr_inbound_sad->SetRootDatabase(this->GetSPD()->GetRootDatabase());
 	}
 
 	return this->m_ptr_inbound_sad;
@@ -4130,12 +4141,16 @@ IpSecDatabase::GetPhaseTwoSession (uint64_t initiator_spi, uint64_t responder_sp
 			const_it++)
 	{
 		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetKekSaInitiatorSpi() == initiator_spi &&
-				(session_it->GetKekSaResponderSpi() == responder_spi) &&
-				 session_it->GetPeerAddress() == peer_address)
-			)
+		if (true == session_it->HaveKekSa())
 		{
-			session = session_it;
+			if (	(session_it->GetKekSaInitiatorSpi() == initiator_spi &&
+					(session_it->GetKekSaResponderSpi() == responder_spi) &&
+					 session_it->GetPeerAddress() == peer_address)
+				)
+			{
+				session = session_it;
+				break;
+			}
 		}
 	}
 
@@ -4252,7 +4267,7 @@ IpSecDatabase::GetIpSecSaDatabase (void) const
 	return this->m_ptr_sad;
 }
 
-Ptr<Igmpv3L4Protocol>
+const Ptr<Igmpv3L4Protocol>
 IpSecDatabase::GetIgmp (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -4263,6 +4278,13 @@ IpSecDatabase::GetIgmp (void) const
 	}
 
 	return this->m_ptr_gsam->GetIgmp();
+}
+
+const Ptr<GsamL4Protocol>
+IpSecDatabase::GetGsam (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_gsam;
 }
 
 bool

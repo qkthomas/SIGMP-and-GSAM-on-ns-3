@@ -2728,7 +2728,7 @@ GsamL4Protocol::HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const I
 
 	if (first_payload_type == IkePayloadHeader::GROUP_NOTIFY)
 	{
-		IkePayload fisrt_group_notify_payload;
+		IkePayload fisrt_group_notify_payload = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::GROUP_NOTIFY);
 		packet->RemoveHeader(fisrt_group_notify_payload);
 		Ptr<IkeGroupNotifySubstructure> fisrt_group_notify_sub = DynamicCast<IkeGroupNotifySubstructure>(fisrt_group_notify_payload.GetSubstructure());
 		Ipv4Address group_address = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(fisrt_group_notify_sub->GetTrafficSelectorSrc(),
@@ -3315,6 +3315,13 @@ GsamL4Protocol::NarrowTrafficSelectors (const std::list<IkeTrafficSelector>& tsi
 {
 	std::copy(tsi_selectors.begin(), tsi_selectors.end(),
 	          std::back_insert_iterator<std::list<IkeTrafficSelector> >(retval_narrowed_tsi_selectors));
+}
+
+const Ptr<Node>
+GsamL4Protocol::GetNode (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_node;
 }
 
 } /* namespace ns3 */
