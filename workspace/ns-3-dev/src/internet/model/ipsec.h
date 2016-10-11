@@ -116,7 +116,7 @@ public: //const
 	uint32_t GetLocalAvailableIpsecSpi (void) const;
 	uint32_t GetLocalAvailableIpsecSpi (const std::set<uint32_t>& external_occupied_u32_set) const;
 	uint32_t GenerateIpsecSpi (void) const;
-	bool IsIpsecSpiOccupied (uint32_t spi) const;
+	bool IsIpsecSpiOccupied (uint32_t spi);
 private:
 	uint64_t GetLocalAvailableGsamSpi (void) const;
 	uint32_t GetLocalAvailableGsaPushId (void) const;

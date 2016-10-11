@@ -539,6 +539,11 @@ IkePayloadHeader::Serialize (Buffer::Iterator start, uint16_t payload_length) co
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
+	if (0 == payload_length)
+	{
+		NS_ASSERT (false);
+	}
+
 	i.WriteU8(PayloadTypeToUnit8(this->m_next_payload));
 	if (false == this->m_flag_critical)
 	{
@@ -597,6 +602,10 @@ IkePayloadHeader::Deserialize (Buffer::Iterator start)
 	}
 
 	this->m_payload_length = i.ReadNtohU16();
+	if (0 == this->m_payload_length)
+	{
+		NS_ASSERT (false);
+	}
 	byte_read += sizeof (this->m_payload_length);
 
 	return byte_read;
@@ -3216,7 +3225,9 @@ IkeTrafficSelector::IkeTrafficSelector ()
 	m_ip_protocol_id (0),
 	m_selector_length (16),	//16 bytes
 	m_start_port (0),
-	m_end_port (0)
+	m_end_port (0),
+	m_starting_address (Ipv4Address ("0.0.0.0")),
+	m_ending_address (Ipv4Address ("0.0.0.0"))
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -3262,6 +3273,20 @@ IkeTrafficSelector::Serialize (Buffer::Iterator start) const
 	NS_LOG_FUNCTION (this << &start);
 	Buffer::Iterator i = start;
 
+	uint8_t type_write_u8 = this->m_ts_type;
+	switch (type_write_u8)
+		{
+		case 7:
+			//ok
+			break;
+		case 8:
+			//ok
+			break;
+		default:
+			//not ok
+			NS_ASSERT (false);
+		}
+
 	i.WriteU8(this->m_ts_type);
 
 	i.WriteU8(this->m_ip_protocol_id);
@@ -3285,7 +3310,20 @@ IkeTrafficSelector::Deserialize (Buffer::Iterator start)
 
 	uint32_t size = 0;
 
-	this->m_ts_type = i.ReadU8();
+	uint8_t type_read_u8 = i.ReadU8();
+	switch (type_read_u8)
+	{
+	case 7:
+		//ok
+		break;
+	case 8:
+		//ok
+		break;
+	default:
+		//not ok
+		NS_ASSERT (false);
+	}
+	this->m_ts_type = type_read_u8;
 	size += sizeof (this->m_ts_type);
 
 	this->m_ip_protocol_id = i.ReadU8();
@@ -3401,6 +3439,17 @@ IkeTrafficSelector::GetEndingAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_ending_address;
+}
+
+IkeTrafficSelector
+IkeTrafficSelector::GetIpv4DummyTs (void)
+{
+	IkeTrafficSelector retval;
+	retval.m_ts_type = IkeTrafficSelector::TS_IPV4_ADDR_RANGE;
+
+	//header = 4; 2 ports = 4; 2 ipv4 address = 8
+	retval.m_selector_length = 16;	//16 bytes
+	return retval;
 }
 
 IkeTrafficSelector
@@ -4759,6 +4808,14 @@ IkeGroupNotifySubstructure::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_protocol_id);
 	i.WriteU8(this->m_spi_size);
+	if (this->m_notify_message_type < 0)
+	{
+		NS_ASSERT (false);
+	}
+	if (this->m_notify_message_type > 6)
+	{
+		NS_ASSERT (false);
+	}
 	i.WriteU8(this->m_notify_message_type);
 	i.WriteU8(this->m_set_u32_spis.size());
 	i.WriteHtonU32(this->m_gsa_push_id);
@@ -4789,8 +4846,18 @@ IkeGroupNotifySubstructure::Deserialize (Buffer::Iterator start)
 	size++;
 	this->m_spi_size = i.ReadU8();
 	size++;
+
 	this->m_notify_message_type = i.ReadU8();
+	if (this->m_notify_message_type < 0)
+	{
+		NS_ASSERT (false);
+	}
+	if (this->m_notify_message_type > 6)
+	{
+		NS_ASSERT (false);
+	}
 	size++;
+
 	this->m_num_spis = i.ReadU8();
 	size++;
 	this->m_gsa_push_id = i.ReadNtohU32();
@@ -4810,15 +4877,7 @@ IkeGroupNotifySubstructure::Deserialize (Buffer::Iterator start)
 			count <= this->m_num_spis;
 			count++)
 	{
-		Ptr<Spi> ptr_spi = Create<Spi>();
-		ptr_spi->Deserialize(i);
-		uint32_t spi_size = ptr_spi->GetSerializedSize();
-		if (spi_size != this->m_spi_size)
-		{
-			NS_ASSERT (false);
-		}
-		size += spi_size;
-		this->InsertSpi(ptr_spi);
+		this->m_set_u32_spis.insert(i.ReadNtohU32());
 	}
 	return size;
 }
@@ -4881,6 +4940,10 @@ IkeGroupNotifySubstructure::SetNotifyMessageType (uint8_t notify_message_type)
 	{
 		//ok
 	}
+	else if (notify_message_type == IkeGroupNotifySubstructure::SPI_REQUEST)
+	{
+		//ok
+	}
 	else
 	{
 		//not ok
@@ -4932,7 +4995,7 @@ IkeGroupNotifySubstructure::InsertSpi (const Ptr<Spi> ptr_spi)
 	}
 
 	this->m_set_u32_spis.insert(ptr_spi->ToUint32());
-	this->m_num_spis++;
+	this->m_num_spis = this->m_set_u32_spis.size();
 }
 
 void

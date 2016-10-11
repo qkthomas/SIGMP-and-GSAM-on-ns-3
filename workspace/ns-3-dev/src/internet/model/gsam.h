@@ -940,6 +940,7 @@ public:	//const
 	Ipv4Address GetStartingAddress (void) const;
 	Ipv4Address GetEndingAddress (void) const;
 public:	//static
+	static IkeTrafficSelector GetIpv4DummyTs (void);
 	static IkeTrafficSelector GenerateSrcSecureGroupTs (void);
 	static IkeTrafficSelector GenerateDestSecureGroupTs(Ipv4Address grpup_adress);
 public:	//operator

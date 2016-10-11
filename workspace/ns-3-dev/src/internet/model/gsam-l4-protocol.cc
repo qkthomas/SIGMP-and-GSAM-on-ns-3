@@ -637,7 +637,7 @@ GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsaPushSession> gsa_push_session, GsaPushS
 	if (0 != gsa_push_session)
 	{
 		IkePayload spi_request_payload;
-		IkeTrafficSelector dummy_ts;
+		IkeTrafficSelector dummy_ts = IkeTrafficSelector::GetIpv4DummyTs();
 		Ptr<IkeGroupNotifySubstructure> spi_request_sub = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
 				IPsec::AH_ESP_SPI_SIZE,
 				IkeGroupNotifySubstructure::SPI_REQUEST,
@@ -999,16 +999,22 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 	if (true == retransmit)
 	{
 		bool session_retransmit = session->IsRetransmit();
-		if (true == session->GetRetransmitTimer().IsRunning())
-		{
-			//something may went wrong.
-			NS_ASSERT (false);
-		}
-		else
-		{
-			session->GetRetransmitTimer().Cancel();
-		}
-		//schedule transmission
+
+//*******************legacy codes, not understand why, saved for archived**********************
+//		if (true == session->GetRetransmitTimer().IsRunning())
+//		{
+//			//something may went wrong.
+//			NS_ASSERT (false);
+//		}
+//		else
+//		{
+//			session->GetRetransmitTimer().Cancel();
+//		}
+//*******************legacy codes, not understand why, saved for archived**********************
+
+		//Cancel retransmission
+		session->GetRetransmitTimer().Cancel();
+		//schedule retransmission
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, session_retransmit);
 		session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
@@ -1708,15 +1714,21 @@ GsamL4Protocol::HandleSpiRequestGMNQ (Ptr<Packet> packet, const IkeHeader& ikehe
 	packet->RemoveHeader(spi_request_payload);
 	Ptr<IkeGroupNotifySubstructure> spi_request_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(spi_request_payload.GetSubstructure());
 
-	Ipv4Address group_address_from_payload = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(spi_request_payload_sub->GetTrafficSelectorSrc(),
-																										spi_request_payload_sub->GetTrafficSelectorDest());
-
-	if (group_address_from_payload.Get() != session->GetGroupAddress().Get())
+	if (spi_request_payload_sub->GetTrafficSelectorSrc().GetStartingAddress().Get() != 0)
 	{
-		if (false == session->IsHostNonQuerier())
-		{
-			NS_ASSERT (false);
-		}
+		NS_ASSERT (false);
+	}
+	if (spi_request_payload_sub->GetTrafficSelectorSrc().GetEndingAddress().Get() != 0)
+	{
+		NS_ASSERT (false);
+	}
+	if (spi_request_payload_sub->GetTrafficSelectorDest().GetStartingAddress().Get() != 0)
+	{
+		NS_ASSERT (false);
+	}
+	if (spi_request_payload_sub->GetTrafficSelectorDest().GetEndingAddress().Get() != 0)
+	{
+		NS_ASSERT (false);
 	}
 
 	this->SendSpiReportGMNQ(session, spi_request_payload_sub->GetGsaPushId());
@@ -1751,8 +1763,8 @@ GsamL4Protocol::SendSpiReportGMNQ (Ptr<GsamSession> session, uint32_t gsa_push_i
 																																IPsec::AH_ESP_SPI_SIZE,
 																																type,
 																																gsa_push_id,
-																																IkeTrafficSelector(),
-																																IkeTrafficSelector());
+																																IkeTrafficSelector::GetIpv4DummyTs(),
+																																IkeTrafficSelector::GetIpv4DummyTs());
 	spi_report_payload_sub->InertSpis(session_spd_spis);
 	spi_report_payload.SetSubstructure(spi_report_payload_sub);
 
@@ -2180,7 +2192,7 @@ GsamL4Protocol::SendAcceptAck (Ptr<GsamSession> session,  uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
 
-	IkeTrafficSelector empty_ts;
+	IkeTrafficSelector empty_ts = IkeTrafficSelector::GetIpv4DummyTs();
 
 	Ptr<IkeGroupNotifySubstructure> ack_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(	GsamConfig::GetDefaultGSAProposalId(),
 																																	IPsec::AH_ESP_SPI_SIZE,
@@ -2731,19 +2743,26 @@ GsamL4Protocol::HandleGsaAckRejectSpiResponseFromGM (Ptr<Packet> packet, const I
 		IkePayload fisrt_group_notify_payload = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::GROUP_NOTIFY);
 		packet->RemoveHeader(fisrt_group_notify_payload);
 		Ptr<IkeGroupNotifySubstructure> fisrt_group_notify_sub = DynamicCast<IkeGroupNotifySubstructure>(fisrt_group_notify_payload.GetSubstructure());
-		Ipv4Address group_address = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(fisrt_group_notify_sub->GetTrafficSelectorSrc(),
-																								fisrt_group_notify_sub->GetTrafficSelectorDest());
-		if (group_address.Get() != session->GetGroupAddress().Get())
-		{
-			NS_ASSERT(false);
-		}
+
 		uint8_t first_group_notify_type = fisrt_group_notify_sub->GetNotifyMessageType();
 		if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT)
 		{
+			Ipv4Address group_address = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(fisrt_group_notify_sub->GetTrafficSelectorSrc(),
+																									fisrt_group_notify_sub->GetTrafficSelectorDest());
+			if (group_address.Get() != session->GetGroupAddress().Get())
+			{
+				NS_ASSERT(false);
+			}
 			this->HandleGsaAckFromGM(packet, fisrt_group_notify_payload, session);
 		}
 		else if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_Q_SPI_REJECTION)
 		{
+			Ipv4Address group_address = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(fisrt_group_notify_sub->GetTrafficSelectorSrc(),
+																									fisrt_group_notify_sub->GetTrafficSelectorDest());
+			if (group_address.Get() != session->GetGroupAddress().Get())
+			{
+				NS_ASSERT(false);
+			}
 			this->HandleGsaRejectionFromGM(packet, fisrt_group_notify_payload, session);
 		}
 		else if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_Q_SPI_NOTIFICATION)
@@ -2835,10 +2854,23 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IkeGroupNotifySubstructure> first_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(first_payload.GetSubstructure());
-	Ipv4Address group_address_first_payload = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(first_payload_sub->GetTrafficSelectorSrc(),
-																										first_payload_sub->GetTrafficSelectorDest());
 
-	if (group_address_first_payload.Get() != 0)
+	if (first_payload_sub->GetTrafficSelectorSrc().GetStartingAddress().Get() != 0)
+	{
+		//has to be 0
+		NS_ASSERT (false);
+	}
+	if (first_payload_sub->GetTrafficSelectorSrc().GetEndingAddress().Get() != 0)
+	{
+		//has to be 0
+		NS_ASSERT (false);
+	}
+	if (first_payload_sub->GetTrafficSelectorDest().GetStartingAddress().Get() != 0)
+	{
+		//has to be 0
+		NS_ASSERT (false);
+	}
+	if (first_payload_sub->GetTrafficSelectorDest().GetEndingAddress().Get() != 0)
 	{
 		//has to be 0
 		NS_ASSERT (false);

@@ -756,13 +756,14 @@ GsamInfo::GenerateIpsecSpi (void) const
 }
 
 bool
-GsamInfo::IsIpsecSpiOccupied (uint32_t spi) const
+GsamInfo::IsIpsecSpiOccupied (uint32_t spi)
 {
 	bool retval = false;
 
 	if (false == GsamConfig::GetSingleton()->IsFalseByPercentage(GsamConfig::GetSingleton()->GetSpiRejectPropability()))
 	{
 		retval = true;
+		this->OccupyIpsecSpi(spi);
 		return retval;
 	}
 
@@ -2484,7 +2485,7 @@ GsamSession::TimeoutAction (void)
 	std::cout << "Node: " << this->GetDatabase()->GetGsam()->GetNode()->GetId() << ", ";
 	if (true == this->IsHostGroupMember())
 	{
-		std::cout << "Q, ";
+		std::cout << "GM, ";
 	}
 	else if (true == this->IsHostNonQuerier())
 	{
@@ -2492,7 +2493,7 @@ GsamSession::TimeoutAction (void)
 	}
 	else if (true == this->IsHostQuerier())
 	{
-		std::cout << "GM, ";
+		std::cout << "Q, ";
 	}
 	else
 	{

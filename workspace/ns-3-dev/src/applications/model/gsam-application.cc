@@ -75,8 +75,9 @@ GsamApplication::Initialization (void)
 {
 	this->m_ptr_gsam = this->GetGsam();
 	this->m_ptr_igmp = this->GetIgmp();
-	std::cout << "Node id: " << this->m_node->GetId() << ", ";
+	GsamConfig::GetSingleton()->SetSpiRejectPropability(50);
 
+	std::cout << "Node id: " << this->m_node->GetId() << ", ";
 	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
 	{
 		std::cout << "is a querier." << std::endl;
