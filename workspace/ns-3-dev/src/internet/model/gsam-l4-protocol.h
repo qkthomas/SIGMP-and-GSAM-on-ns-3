@@ -179,6 +179,8 @@ private:	//phase 2, NQ
 						std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs);
 	void ProcessNQRejectResult (Ptr<GsamSession> session, std::list<Ptr<IkePayloadSubstructure> >& retval_payload_subs);
 	void SendAcceptAck (Ptr<GsamSession> session, uint32_t gsa_push_id);
+private://experiencement
+	void FakeRejection (Ptr<GsamSession> session, uint32_t u32_spi);
 public:	//const
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 	Ptr<IpSecDatabase> GetIpSecDatabase (void);

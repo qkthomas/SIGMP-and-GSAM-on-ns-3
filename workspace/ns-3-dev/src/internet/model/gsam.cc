@@ -788,6 +788,10 @@ Spi::Spi ()
 Spi::Spi (uint32_t spi)
 {
 	NS_LOG_FUNCTION (this);
+	if (0 == spi)
+	{
+		NS_ASSERT (false);
+	}
 	this->SetValueFromUint32(spi);
 }
 
@@ -4671,6 +4675,10 @@ IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
 	retval->SetPushId(gsa_push_id);
 	retval->m_src_ts = ts_src;
 	retval->m_dest_ts = ts_dest;
+	if (true == is_repush)
+	{
+		retval->SetRepush();
+	}
 	return retval;
 }
 

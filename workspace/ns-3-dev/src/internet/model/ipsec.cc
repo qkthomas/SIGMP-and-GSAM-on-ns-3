@@ -756,16 +756,9 @@ GsamInfo::GenerateIpsecSpi (void) const
 }
 
 bool
-GsamInfo::IsIpsecSpiOccupied (uint32_t spi)
+GsamInfo::IsIpsecSpiOccupied (uint32_t spi) const
 {
 	bool retval = false;
-
-	if (false == GsamConfig::GetSingleton()->IsFalseByPercentage(GsamConfig::GetSingleton()->GetSpiRejectPropability()))
-	{
-		retval = true;
-		this->OccupyIpsecSpi(spi);
-		return retval;
-	}
 
 	retval = (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end());
 
@@ -1417,6 +1410,11 @@ void
 GsaPushSession::AggregateGsaQSpiNotification (const std::set<uint32_t>& set_spi_notification)
 {
 	NS_LOG_FUNCTION (this);
+
+	if (0 == set_spi_notification.size())
+	{
+		NS_ASSERT (false);
+	}
 
 	this->m_set_aggregated_gsa_q_spi_notification.insert (set_spi_notification.begin(), set_spi_notification.end());
 }
@@ -3870,8 +3868,11 @@ IpSecPolicyEntry::GetInboundSpis (std::list<Ptr<Spi> >& retval) const
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<IpSecSADatabase> inbound_sad = this->m_ptr_inbound_sad;
-	inbound_sad->GetSpis(retval);
+	if (0 != this->m_ptr_inbound_sad)
+	{
+		Ptr<IpSecSADatabase> inbound_sad = this->m_ptr_inbound_sad;
+		inbound_sad->GetSpis(retval);
+	}
 }
 
 /********************************************************
@@ -3942,7 +3943,7 @@ IpSecPolicyDatabase::CreatePolicyEntry (void)
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IpSecPolicyEntry> retval = Create<IpSecPolicyEntry>();
-
+	this->PushBackEntry(retval);
 	retval->SetSPD(this);
 
 	return retval;
@@ -3996,20 +3997,20 @@ IpSecPolicyDatabase::GetInboundSpis (std::list<Ptr<Spi> >& retval) const
 }
 
 Ptr<IpSecPolicyEntry>
-IpSecPolicyDatabase::GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest)
+IpSecPolicyDatabase::GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const
 {
 	NS_LOG_FUNCTION (this);
 
 	Ptr<IpSecPolicyEntry> retval = 0;
 
-	for (std::list<Ptr<IpSecPolicyEntry> >::iterator it = this->m_lst_entries.begin();
-			it != this->m_lst_entries.end();
-			it++)
+	for (std::list<Ptr<IpSecPolicyEntry> >::const_iterator const_it = this->m_lst_entries.begin();
+			const_it != this->m_lst_entries.end();
+			const_it++)
 	{
-		if (((*it)->GetTrafficSelectorSrc() == ts_src) &&
-				((*it)->GetTrafficSelectorDest() == ts_dest))
+		if (((*const_it)->GetTrafficSelectorSrc() == ts_src) &&
+				((*const_it)->GetTrafficSelectorDest() == ts_dest))
 		{
-			retval = (*it);
+			retval = (*const_it);
 		}
 	}
 

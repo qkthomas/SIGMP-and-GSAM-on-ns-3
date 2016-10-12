@@ -116,7 +116,7 @@ public: //const
 	uint32_t GetLocalAvailableIpsecSpi (void) const;
 	uint32_t GetLocalAvailableIpsecSpi (const std::set<uint32_t>& external_occupied_u32_set) const;
 	uint32_t GenerateIpsecSpi (void) const;
-	bool IsIpsecSpiOccupied (uint32_t spi);
+	bool IsIpsecSpiOccupied (uint32_t spi) const;
 private:
 	uint64_t GetLocalAvailableGsamSpi (void) const;
 	uint32_t GetLocalAvailableGsaPushId (void) const;
@@ -617,7 +617,6 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:
-	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
 	void RemoveEntry (Ptr<IpSecPolicyEntry> entry);
 	Ptr<IpSecPolicyEntry> CreatePolicyEntry (void);
 	void SetRootDatabase (Ptr<IpSecDatabase> database);
@@ -625,7 +624,9 @@ public:	//const
 	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 	Ptr<GsamInfo> GetInfo (void) const;
 	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
-	Ptr<IpSecPolicyEntry> GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest);
+	Ptr<IpSecPolicyEntry> GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const;
+private:
+	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
 private:	//fields
 	Ptr<IpSecDatabase> m_ptr_root_database;
 	std::list<Ptr<IpSecPolicyEntry> > m_lst_entries;
