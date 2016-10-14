@@ -45,8 +45,25 @@ GsamApplication::StartApplication (void)
 {
 	NS_LOG_FUNCTION (this);
 	this->Initialization();
-	Time delay = Seconds (1.0);
-	this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+	{
+		Time delay = Seconds (1.0);
+		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	{
+		Time delay = Seconds (2.0);
+		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
+	{
+		Time delay = Seconds (8.0);
+		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
 }
 
 void
@@ -156,7 +173,11 @@ GsamApplication::GenerateEvent (void)
 		}
 		else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
 		{
-
+			Ptr<GsamL4Protocol> gsam = this->GetGsam();
+			Ipv4Address group_address = GsamConfig::GetSingleton()->GetIgmpv3DestGrpReportAddress();
+			Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
+			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
+			gsam->Send_IKE_SA_INIT(session);
 		}
 		else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
 		{

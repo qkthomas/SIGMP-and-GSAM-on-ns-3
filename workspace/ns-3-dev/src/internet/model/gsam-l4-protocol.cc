@@ -559,76 +559,92 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IpSecDatabase> ipsec_root_db = session->GetDatabase();
-	std::list<Ptr<GsamSessionGroup> > lst_session_groups = ipsec_root_db->GetSessionGroups();
+	const std::list<Ptr<GsamSessionGroup> >& lst_session_groups = ipsec_root_db->GetSessionGroups();
 
 	uint32_t length_beside_ikheader = 0;
 	Ptr<Packet> packet = Create<Packet>();
 
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
 
-	for (	std::list<Ptr<GsamSessionGroup> >::iterator it = lst_session_groups.begin();
-			it != lst_session_groups.end();
-			it++)
+	if (true == lst_session_groups.empty())
 	{
-		Ptr<GsamSessionGroup> session_group = (*it);
-		if (session_group->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
+		//still put an empty group notify pyaload?
+		Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(0, Ipv4Address("0.0.0.0"));
+		IkePayload session_group_sa_payload;
+		session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
+		session_group_sa_payload.SetNextPayloadType(next_payload_type);
+
+		packet->AddHeader(session_group_sa_payload);
+		length_beside_ikheader += session_group_sa_payload.GetSerializedSize();
+
+		next_payload_type = session_group_sa_payload.GetPayloadType();
+	}
+	else
+	{
+		for (	std::list<Ptr<GsamSessionGroup> >::const_iterator const_it = lst_session_groups.begin();
+				const_it != lst_session_groups.end();
+				const_it++)
 		{
-			Ipv4Address group_address = session_group->GetGroupAddress();
-			if (group_address.Get() == 0)
+			Ptr<GsamSessionGroup> session_group = (*const_it);
+			if (session_group->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
 			{
-				NS_ASSERT (false);
-			}
-
-			//non nq session group
-			Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
-			Ptr<IpSecSAEntry> gsa_q = session_group->GetRelatedGsaQ();
-
-			if (gsa_q == 0)
-			{
-				//no gsa_q but there is an established session group
-				if (0 != session_group->GetSessionsConst().size())
+				Ipv4Address group_address = session_group->GetGroupAddress();
+				if (group_address.Get() == 0)
 				{
-					//has no established gsa_q but has established gsa_r?
 					NS_ASSERT (false);
 				}
-				else
-				{
-					//ok
-					//maybe there the q is waiting for reply of GSA_PUSH from the first member joining that group
-				}
-			}
-			else
-			{
-				Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(0, group_address);
-				session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_q->GetSpi()), IkeGsaProposal::NEW_GSA_Q));
 
-				const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
+				//non nq session group
+				Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
+				Ptr<IpSecSAEntry> gsa_q = session_group->GetRelatedGsaQ();
 
-				for (	std::list<Ptr<GsamSession> >::const_iterator const_it = lst_sessions.begin();
-						const_it != lst_sessions.end();
-						const_it++)
+				if (gsa_q == 0)
 				{
-					const Ptr<GsamSession> gm_session = (*const_it);
-					Ptr<IpSecSAEntry> gsa_r = gm_session->GetRelatedGsaR();
-					if (gsa_r == 0)
+					//no gsa_q but there is an established session group
+					if (0 != session_group->GetSessionsConst().size())
 					{
-						//no gsa_r but there is an established session group
-						//maybe there the q is waiting for reply of GSA_PUSH from the gm joining that group
+						//has no established gsa_q but has established gsa_r?
+						NS_ASSERT (false);
 					}
 					else
 					{
-						session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_r->GetSpi()), IkeGsaProposal::NEW_GSA_R));
+						//ok
+						//maybe there the q is waiting for reply of GSA_PUSH from the first member joining that group
 					}
 				}
+				else
+				{
+					Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(0, group_address);
+					session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_q->GetSpi()), IkeGsaProposal::NEW_GSA_Q));
 
-				IkePayload session_group_sa_payload;
-				session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
-				session_group_sa_payload.SetNextPayloadType(next_payload_type);
+					const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
 
-				packet->AddHeader(session_group_sa_payload);
-				length_beside_ikheader += session_group_sa_payload.GetSerializedSize();
+					for (	std::list<Ptr<GsamSession> >::const_iterator const_it = lst_sessions.begin();
+							const_it != lst_sessions.end();
+							const_it++)
+					{
+						const Ptr<GsamSession> gm_session = (*const_it);
+						Ptr<IpSecSAEntry> gsa_r = gm_session->GetRelatedGsaR();
+						if (gsa_r == 0)
+						{
+							//no gsa_r but there is an established session group
+							//maybe there the q is waiting for reply of GSA_PUSH from the gm joining that group
+						}
+						else
+						{
+							session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_r->GetSpi()), IkeGsaProposal::NEW_GSA_R));
+						}
+					}
 
-				next_payload_type = session_group_sa_payload.GetPayloadType();
+					IkePayload session_group_sa_payload;
+					session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
+					session_group_sa_payload.SetNextPayloadType(next_payload_type);
+
+					packet->AddHeader(session_group_sa_payload);
+					length_beside_ikheader += session_group_sa_payload.GetSerializedSize();
+
+					next_payload_type = session_group_sa_payload.GetPayloadType();
+				}
 			}
 		}
 	}
