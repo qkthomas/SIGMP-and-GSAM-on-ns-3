@@ -3225,7 +3225,7 @@ IkeTrafficSelector::GetTypeId (void)
 }
 
 IkeTrafficSelector::IkeTrafficSelector ()
-  : m_ts_type (0),
+  : m_ts_type (IkeTrafficSelector::TS_IPV4_ADDR_RANGE),
 	m_ip_protocol_id (0),
 	m_selector_length (16),	//16 bytes
 	m_start_port (0),
@@ -3280,10 +3280,10 @@ IkeTrafficSelector::Serialize (Buffer::Iterator start) const
 	uint8_t type_write_u8 = this->m_ts_type;
 	switch (type_write_u8)
 		{
-		case 7:
+		case IkeTrafficSelector::TS_IPV4_ADDR_RANGE:
 			//ok
 			break;
-		case 8:
+		case IkeTrafficSelector::TS_IPV6_ADDR_RANGE:
 			//ok
 			break;
 		default:
@@ -4696,11 +4696,7 @@ IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
 void
 IkeGsaPayloadSubstructure::SetPushId (uint32_t gsa_push_id)
 {
-	if (0 == gsa_push_id)
-	{
-		NS_ASSERT (false);
-	}
-
+	//gsa_push_id can be 0, for gsa push nq
 	this->m_gsa_push_id = gsa_push_id;
 }
 
@@ -4979,10 +4975,7 @@ IkeGroupNotifySubstructure::SetGsaPushId (uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (0 == gsa_push_id)
-	{
-		NS_ASSERT (false);
-	}
+	//gsa_push_id can be 0, for gsa push nq
 
 	this->m_gsa_push_id = gsa_push_id;
 }

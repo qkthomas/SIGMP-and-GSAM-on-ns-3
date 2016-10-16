@@ -566,10 +566,77 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
 
-	if (true == lst_session_groups.empty())
+	for (	std::list<Ptr<GsamSessionGroup> >::const_iterator const_it = lst_session_groups.begin();
+			const_it != lst_session_groups.end();
+			const_it++)
+	{
+		Ptr<GsamSessionGroup> session_group = (*const_it);
+		if (session_group->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
+		{
+			Ipv4Address group_address = session_group->GetGroupAddress();
+			if (group_address.Get() == 0)
+			{
+				NS_ASSERT (false);
+			}
+
+			//non nq session group
+			Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
+			Ptr<IpSecSAEntry> gsa_q = session_group->GetRelatedGsaQ();
+
+			if (gsa_q == 0)
+			{
+				//no gsa_q but there is an established session group
+				if (0 != session_group->GetSessionsConst().size())
+				{
+					//has no established gsa_q but has established gsa_r?
+					NS_ASSERT (false);
+				}
+				else
+				{
+					//ok
+					//maybe there the q is waiting for reply of GSA_PUSH from the first member joining that group
+				}
+			}
+			else
+			{
+				Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(0, group_address);
+				session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_q->GetSpi()), IkeGsaProposal::NEW_GSA_Q));
+
+				const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
+
+				for (	std::list<Ptr<GsamSession> >::const_iterator const_it = lst_sessions.begin();
+						const_it != lst_sessions.end();
+						const_it++)
+				{
+					const Ptr<GsamSession> gm_session = (*const_it);
+					Ptr<IpSecSAEntry> gsa_r = gm_session->GetRelatedGsaR();
+					if (gsa_r == 0)
+					{
+						//no gsa_r but there is an established session group
+						//maybe there the q is waiting for reply of GSA_PUSH from the gm joining that group
+					}
+					else
+					{
+						session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_r->GetSpi()), IkeGsaProposal::NEW_GSA_R));
+					}
+				}
+
+				IkePayload session_group_sa_payload;
+				session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
+				session_group_sa_payload.SetNextPayloadType(next_payload_type);
+
+				packet->AddHeader(session_group_sa_payload);
+				length_beside_ikheader += session_group_sa_payload.GetSerializedSize();
+
+				next_payload_type = session_group_sa_payload.GetPayloadType();
+			}
+		}
+	}
+
+	if (next_payload_type == IkePayloadHeader::NO_NEXT_PAYLOAD)
 	{
 		//still put an empty group notify pyaload?
-		Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(0, Ipv4Address("0.0.0.0"));
+		Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = Create<IkeGsaPayloadSubstructure>();
 		IkePayload session_group_sa_payload;
 		session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
 		session_group_sa_payload.SetNextPayloadType(next_payload_type);
@@ -579,78 +646,8 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 
 		next_payload_type = session_group_sa_payload.GetPayloadType();
 	}
-	else
-	{
-		for (	std::list<Ptr<GsamSessionGroup> >::const_iterator const_it = lst_session_groups.begin();
-				const_it != lst_session_groups.end();
-				const_it++)
-		{
-			Ptr<GsamSessionGroup> session_group = (*const_it);
-			if (session_group->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
-			{
-				Ipv4Address group_address = session_group->GetGroupAddress();
-				if (group_address.Get() == 0)
-				{
-					NS_ASSERT (false);
-				}
-
-				//non nq session group
-				Ptr<IpSecPolicyEntry> policy = session_group->GetRelatedPolicy();
-				Ptr<IpSecSAEntry> gsa_q = session_group->GetRelatedGsaQ();
-
-				if (gsa_q == 0)
-				{
-					//no gsa_q but there is an established session group
-					if (0 != session_group->GetSessionsConst().size())
-					{
-						//has no established gsa_q but has established gsa_r?
-						NS_ASSERT (false);
-					}
-					else
-					{
-						//ok
-						//maybe there the q is waiting for reply of GSA_PUSH from the first member joining that group
-					}
-				}
-				else
-				{
-					Ptr<IkeGsaPayloadSubstructure> session_group_sa_payload_substructure = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload(0, group_address);
-					session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_q->GetSpi()), IkeGsaProposal::NEW_GSA_Q));
-
-					const std::list<Ptr<GsamSession> > lst_sessions = session_group->GetSessionsConst();
-
-					for (	std::list<Ptr<GsamSession> >::const_iterator const_it = lst_sessions.begin();
-							const_it != lst_sessions.end();
-							const_it++)
-					{
-						const Ptr<GsamSession> gm_session = (*const_it);
-						Ptr<IpSecSAEntry> gsa_r = gm_session->GetRelatedGsaR();
-						if (gsa_r == 0)
-						{
-							//no gsa_r but there is an established session group
-							//maybe there the q is waiting for reply of GSA_PUSH from the gm joining that group
-						}
-						else
-						{
-							session_group_sa_payload_substructure->PushBackProposal(IkeGsaProposal::GenerateGsaProposal(Create<Spi>(gsa_r->GetSpi()), IkeGsaProposal::NEW_GSA_R));
-						}
-					}
-
-					IkePayload session_group_sa_payload;
-					session_group_sa_payload.SetSubstructure(session_group_sa_payload_substructure);
-					session_group_sa_payload.SetNextPayloadType(next_payload_type);
-
-					packet->AddHeader(session_group_sa_payload);
-					length_beside_ikheader += session_group_sa_payload.GetSerializedSize();
-
-					next_payload_type = session_group_sa_payload.GetPayloadType();
-				}
-			}
-		}
-	}
 
 	//now we have a SA payload with  spis from all GMs' sessions
-
 	this->SendPhaseTwoMessage(session,
 			IkeHeader::INFORMATIONAL,
 			false,
@@ -2401,11 +2398,6 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 	{
 		//ok
 	}
-	else if (next_payload_type == IkePayloadHeader::NO_NEXT_PAYLOAD)
-	{
-		//empty ike packet, ok
-		//Q has nothing to push
-	}
 	else
 	{
 		NS_ASSERT (false);
@@ -2419,52 +2411,71 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 
 	do {
 		IkePayload pushed_gsa_payload = IkePayload::GetEmptyPayloadFromPayloadType(next_payload_type);
-
 		packet->RemoveHeader(pushed_gsa_payload);
-
 		Ptr<IkeGsaPayloadSubstructure> gsa_payload_substructure = DynamicCast<IkeGsaPayloadSubstructure>(pushed_gsa_payload.GetSubstructure());
 
-		/*
-		 * We base the process onto each individual group.
-		 * If there is one or more spi of a group get rejected, we collect those rejected spis and pack them into a payload substructure
-		 * If there is no rejection for that group. A policy will be established and those spis of that group will be installed
-		 */
-		this->ProcessGsaPushNQForOneGrp(	session,
-								gsa_payload_substructure->GetGsaPushId(),
-								gsa_payload_substructure->GetSourceTrafficSelector(),
-								gsa_payload_substructure->GetDestTrafficSelector(),
-								gsa_payload_substructure->GetProposals(),
-								retval_toreject_payload_subs);
-
-		/*********************debug*************************/
-		if (0 == previous_gsa_push_id)
+		if ((gsa_payload_substructure->GetSourceTrafficSelector().GetStartingAddress().Get() == 0) &&
+				(gsa_payload_substructure->GetSourceTrafficSelector().GetEndingAddress().Get() == 0) &&
+				(gsa_payload_substructure->GetDestTrafficSelector().GetStartingAddress().Get() == 0) &&
+				(gsa_payload_substructure->GetDestTrafficSelector().GetEndingAddress().Get() == 0))
 		{
-			//debug code, gsa push id should either be all 0 or all of the same value
-		}
-		else if (previous_gsa_push_id == gsa_payload_substructure->GetGsaPushId())
-		{
-			//debug code, gsa push id should either be all 0 or all of the same value
+			//the Q has nothing to push
+			uint32_t gsa_push_id = gsa_payload_substructure->GetGsaPushId();
+			if (0 != gsa_push_id)
+			{
+				NS_ASSERT (false);
+			}
+			if (0 != gsa_payload_substructure->GetProposals().size())
+			{
+				NS_ASSERT (false);
+			}
+			//send ack
+			this->SendAcceptAck(session, previous_gsa_push_id);
 		}
 		else
 		{
-			//no ok
-			NS_ASSERT (false);
-		}
-		previous_gsa_push_id = gsa_payload_substructure->GetGsaPushId();
-		/********************debug**************************/
+			/*
+			 * We base the process onto each individual group.
+			 * If there is one or more spi of a group get rejected, we collect those rejected spis and pack them into a payload substructure
+			 * If there is no rejection for that group. A policy will be established and those spis of that group will be installed
+			 */
+			this->ProcessGsaPushNQForOneGrp(	session,
+									gsa_payload_substructure->GetGsaPushId(),
+									gsa_payload_substructure->GetSourceTrafficSelector(),
+									gsa_payload_substructure->GetDestTrafficSelector(),
+									gsa_payload_substructure->GetProposals(),
+									retval_toreject_payload_subs);
 
-		next_payload_type = pushed_gsa_payload.GetNextPayloadType();
-		if (next_payload_type == IkePayloadHeader::GSA_PUSH)
-		{
-			go_on = true;
-		}
-		else if (next_payload_type == IkePayloadHeader::NO_NEXT_PAYLOAD)
-		{
-			go_on = false;
-		}
-		else
-		{
-			NS_ASSERT (false);
+			/*********************debug*************************/
+			if (0 == previous_gsa_push_id)
+			{
+				//debug code, gsa push id should either be all 0 or all of the same value
+			}
+			else if (previous_gsa_push_id == gsa_payload_substructure->GetGsaPushId())
+			{
+				//debug code, gsa push id should either be all 0 or all of the same value
+			}
+			else
+			{
+				//no ok
+				NS_ASSERT (false);
+			}
+			previous_gsa_push_id = gsa_payload_substructure->GetGsaPushId();
+			/********************debug**************************/
+
+			next_payload_type = pushed_gsa_payload.GetNextPayloadType();
+			if (next_payload_type == IkePayloadHeader::GSA_PUSH)
+			{
+				go_on = true;
+			}
+			else if (next_payload_type == IkePayloadHeader::NO_NEXT_PAYLOAD)
+			{
+				go_on = false;
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
 		}
 	} while (true == go_on);
 
@@ -3012,7 +3023,7 @@ GsamL4Protocol::HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const I
 
 	if (first_payload_type == IkePayloadHeader::GROUP_NOTIFY)
 	{
-		IkePayload fisrt_group_notify_payload;
+		IkePayload fisrt_group_notify_payload = IkePayload::GetEmptyPayloadFromPayloadType(first_payload_type);
 		packet->RemoveHeader(fisrt_group_notify_payload);
 		Ptr<IkeGroupNotifySubstructure> fisrt_group_notify_sub = DynamicCast<IkeGroupNotifySubstructure>(fisrt_group_notify_payload.GetSubstructure());
 
@@ -3152,17 +3163,11 @@ GsamL4Protocol::HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> s
 {
 	NS_LOG_FUNCTION (this);
 
-	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
+	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::GROUP_NOTIFY;
 
 	do {
-		IkePayload gsa_rejection_payload;
+		IkePayload gsa_rejection_payload = IkePayload::GetEmptyPayloadFromPayloadType(next_payload_type);
 		packet->RemoveHeader(gsa_rejection_payload);
-		IkePayloadHeader::PAYLOAD_TYPE this_payload_type = gsa_rejection_payload.GetPayloadType();
-
-		if (this_payload_type != IkePayloadHeader::GROUP_NOTIFY)
-		{
-			NS_ASSERT (false);
-		}
 
 		Ptr<IkeGroupNotifySubstructure> gsa_rejection_sub = DynamicCast<IkeGroupNotifySubstructure>(gsa_rejection_payload.GetSubstructure());
 
