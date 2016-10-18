@@ -2429,6 +2429,10 @@ GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader,
 			{
 				NS_ASSERT (false);
 			}
+			if (pushed_gsa_payload.GetNextPayloadType() != IkePayloadHeader::NO_NEXT_PAYLOAD)
+			{
+				NS_ASSERT (false);
+			}
 			//send ack
 			this->SendAcceptAck(session, previous_gsa_push_id);
 		}
@@ -2706,7 +2710,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 		//empty session group
 		//probably Q is waiting for reply from designated GM
 	}
-	else if (gsa_proposals.size() == 1)
+	else if ((gsa_proposals.size() % 2) == 1)
 	{
 		//not ok
 		NS_ASSERT (false);
@@ -2716,6 +2720,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 		//ok
 	}
 
+	//intermediate results
 	std::list<uint32_t> lst_u32_gsa_q_spis_to_install;
 	std::list<uint32_t> lst_u32_gsa_r_spis_to_reject;
 	std::list<uint32_t> lst_u32_gsa_r_spis_to_install;
@@ -2787,28 +2792,35 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 		{
 			//nq should not have policy of that group address installed
 			//duplicate check should have been performed by caller method
-			NS_ASSERT (false);
+			//NS_ASSERT (false);
+			//aserrt had been reached here
+			//maybe a join for the same group has been invoked
+			//**************************************
+			if (session_group->GetRelatedGsaQ() == 0)
+			{
+				NS_ASSERT (false);
+			}
 		}
-
-
-		session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+		else
+		{
+			if (session_group->GetRelatedGsaQ() != 0)
+			{
+				NS_ASSERT (false);
+			}
+			session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+			for (std::list<uint32_t>::const_iterator const_it = lst_u32_gsa_q_spis_to_install.begin();
+					const_it != lst_u32_gsa_q_spis_to_install.end();
+					const_it++)
+			{
+				session_group->InstallGsaQ(*const_it);
+			}
+		}
 
 		//install gsa_q and gsa_r(s)
-		if (session_group->GetRelatedGsaQ() != 0)
-		{
-			NS_ASSERT (false);
-		}
 
 		if (session_group->GetSessionsConst().size() != 0)
 		{
 			NS_ASSERT (false);
-		}
-
-		for (std::list<uint32_t>::const_iterator const_it = lst_u32_gsa_q_spis_to_install.begin();
-				const_it != lst_u32_gsa_q_spis_to_install.end();
-				const_it++)
-		{
-			session_group->InstallGsaQ(*const_it);
 		}
 
 		for (std::list<uint32_t>::const_iterator const_it = lst_u32_gsa_r_spis_to_install.begin();
@@ -3008,7 +3020,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 	if (gsa_push_session->IsAllReplied())
 	{
 		//create new spis base on what is received and modify those IpSecSAEntry
-		gsa_push_session->GenerateNewSpisAndModitySa();
+		gsa_push_session->GenerateNewSpisAndModifySa();
 		//and then send Gsa repush
 		this->Send_GSA_RE_PUSH(gsa_push_session);
 	}
@@ -3084,7 +3096,6 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 		//do nothing
 		//Q just sends what it already has to NQ
 
-
 }
 
 void
@@ -3096,7 +3107,7 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 
 	Ptr<IkeGroupNotifySubstructure> ack_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(ack_payload.GetSubstructure());
 
-
+	gsa_push_session->MarkNqSessionReplied(session);
 	if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
 	{
 		if (true == gsa_push_session->IsAllReplied())
@@ -3202,14 +3213,8 @@ GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSess
 	uint32_t gsa_push_id = 0;
 	Ptr<GsaPushSession> gsa_push_session = 0;
 	do {
-		IkePayload spi_notify_payload;
+		IkePayload spi_notify_payload = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::GROUP_NOTIFY);
 		packet->RemoveHeader(spi_notify_payload);
-		IkePayloadHeader::PAYLOAD_TYPE this_payload_type = spi_notify_payload.GetPayloadType();
-
-		if (this_payload_type != IkePayloadHeader::GROUP_NOTIFY)
-		{
-			NS_ASSERT (false);
-		}
 
 		Ptr<IkeGroupNotifySubstructure> gsa_rejection_sub = DynamicCast<IkeGroupNotifySubstructure>(spi_notify_payload.GetSubstructure());
 
@@ -3238,6 +3243,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSess
 		next_payload_type = spi_notify_payload.GetNextPayloadType();
 	} while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD);
 
+	gsa_push_session->MarkNqSessionReplied(session);
 	if (true == gsa_push_session->IsAllReplied())
 	{
 		this->ProcessGsaSpiNotificationFromNQ(gsa_push_session);
@@ -3315,6 +3321,7 @@ GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_se
 		//install Gsa
 		//send revised spi q, spi r, if exists, to new GM and all other GMs of the same group, if they exist.
 		//send revised spi q, spi r to all NQs
+		gsa_push_session->GenerateNewSpisAndModifySa();
 		this->Send_GSA_RE_PUSH(gsa_push_session);
 	}
 }

@@ -1228,7 +1228,14 @@ GsaPushSession::MarkNqSessionReplied (Ptr<GsamSession> nq_session)
 		NS_ASSERT (false);
 	}
 
-	std::size_t total_size = this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_acked_notified.size();
+	if (nq_session->GetGroupAddress() != GsamConfig::GetSingleton()->GetIgmpv3DestGrpReportAddress())
+	{
+		NS_ASSERT (false);
+	}
+
+	std::size_t ori_size_unreplied_nq_sessions = this->m_lst_ptr_nq_sessions_sent_unreplied.size();
+	std::size_t ori_size_acked_notified_nq_sessions = this->m_lst_ptr_nq_sessions_acked_notified.size();
+	std::size_t total_size = ori_size_unreplied_nq_sessions + ori_size_acked_notified_nq_sessions;
 
 	this->m_lst_ptr_nq_sessions_sent_unreplied.remove(nq_session);
 
@@ -1246,6 +1253,11 @@ GsaPushSession::MarkOtherGmSessionReplied (Ptr<GsamSession> other_gm_session)
 	NS_LOG_FUNCTION (this);
 
 	if (other_gm_session == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (other_gm_session->GetGroupAddress() == GsamConfig::GetSingleton()->GetIgmpv3DestGrpReportAddress())
 	{
 		NS_ASSERT (false);
 	}
@@ -1428,7 +1440,7 @@ GsaPushSession::AggregateGsaRSpiNotification (const std::set<uint32_t>& set_spi_
 }
 
 void
-GsaPushSession::GenerateNewSpisAndModitySa (void)
+GsaPushSession::GenerateNewSpisAndModifySa (void)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -2400,7 +2412,7 @@ GsamSession::InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 	else
 	{
 		//what to do if there is already an existing element?
-		NS_ASSERT (false);
+		//ignore
 	}
 }
 

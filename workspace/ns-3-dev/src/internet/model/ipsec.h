@@ -241,7 +241,7 @@ public:	//non-const
 	void SwitchStatus (void);
 	void AggregateGsaQSpiNotification (const std::set<uint32_t>& set_spi_notification);
 	void AggregateGsaRSpiNotification (const std::set<uint32_t>& set_spi_notification);
-	void GenerateNewSpisAndModitySa (void);	//this method may also invoke GsaPushSession::InstallGsaPair();
+	void GenerateNewSpisAndModifySa (void);	//this method may also invoke GsaPushSession::InstallGsaPair();
 	void AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_for_nqs,
 											 std::list<std::pair<Ptr<GsamSession>, Ptr<Packet> > >& retval_lst_gm_session_packet_bundles);
 	void PushBackNqRejectionGroupNotifySub (Ptr<IkeGroupNotifySubstructure> sub);

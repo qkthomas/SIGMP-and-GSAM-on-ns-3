@@ -165,21 +165,21 @@ void
 GsamApplication::GenerateEvent (void)
 {
 	NS_LOG_FUNCTION (this);
-	if (0 < this->m_num_events)
+	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
 	{
-		if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
-		{
 
-		}
-		else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
-		{
-			Ptr<GsamL4Protocol> gsam = this->GetGsam();
-			Ipv4Address group_address = GsamConfig::GetSingleton()->GetIgmpv3DestGrpReportAddress();
-			Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
-			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
-			gsam->Send_IKE_SA_INIT(session);
-		}
-		else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	{
+		Ptr<GsamL4Protocol> gsam = this->GetGsam();
+		Ipv4Address group_address = GsamConfig::GetSingleton()->GetIgmpv3DestGrpReportAddress();
+		Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
+		Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
+		gsam->Send_IKE_SA_INIT(session);
+	}
+	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
+	{
+		if (0 < this->m_num_events)
 		{
 			//join
 			Ptr<GsamL4Protocol> gsam = this->GetGsam();
@@ -187,18 +187,19 @@ GsamApplication::GenerateEvent (void)
 			Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
 			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
 			gsam->Send_IKE_SA_INIT(session);
-		}
-		else
-		{
-			NS_ASSERT (false);
-		}
-		this->m_num_events--;
-		if (0 < this->m_num_events)
-		{
-			Time delay = Seconds (1.0);
-			this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+			this->m_num_events--;
+			if (0 < this->m_num_events)
+			{
+				Time delay = Seconds (1.0);
+				this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
+			}
 		}
 	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
 }
 
 } /* namespace ns3 */
