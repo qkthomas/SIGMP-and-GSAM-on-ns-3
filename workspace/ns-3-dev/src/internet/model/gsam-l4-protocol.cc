@@ -498,7 +498,7 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 			packet_gm_nqs,
 			true);
 	//sending packet copies to nq sessions
-	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetNqSessions().begin();
+	for (	std::set<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetNqSessions().begin();
 			const_it != gsa_push_session->GetNqSessions().end();
 			const_it++)
 	{
@@ -537,7 +537,7 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 		Ptr<Packet> packet_other_gms = Create<Packet>();
 		packet_other_gms->AddHeader(re_push_other_gms_payload);
 
-		for (	std::list<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetOtherGmSessions().begin();
+		for (	std::set<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetOtherGmSessions().begin();
 				const_it != gsa_push_session->GetOtherGmSessions().end();
 				const_it++)
 		{
@@ -1044,6 +1044,12 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 
 	m_socket->Send(packet);
 
+	//Cancel retransmission
+	session->GetRetransmitTimer().Cancel();
+//*******debug code***********************
+//disable retransmission
+	retransmit = false;
+//*******debug code***********************
 	if (true == retransmit)
 	{
 		bool session_retransmit = session->IsRetransmit();
@@ -1060,19 +1066,18 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 //		}
 //*******************legacy codes, not understand why, saved for archived**********************
 
-		//Cancel retransmission
-		session->GetRetransmitTimer().Cancel();
+
 		//schedule retransmission
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, session_retransmit);
 		session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
-		//scheudle timeout
-		session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeout());
 	}
 	else
 	{
-		session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeout());
+		//
 	}
+	//scheudle timeout
+	session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeout());
 }
 
 void
@@ -3006,12 +3011,21 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 	{
 		//gm session
 		gsa_push_session = session->GetGsaPushSession();
+		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+		{
+			NS_ASSERT (false);
+		}
+
 		gsa_push_session->MarkGmSessionReplied();
 	}
 	else
 	{
 		//other gm session for gsa q spi request
 		gsa_push_session = session->GetGsaPushSession(first_payload_sub->GetGsaPushId());
+		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+		{
+			NS_ASSERT (false);
+		}
 		gsa_push_session->MarkOtherGmSessionReplied(session);
 	}
 
@@ -3070,7 +3084,14 @@ GsamL4Protocol::HandleGsaAckRejectSpiResponseFromNQ (Ptr<Packet> packet, const I
 		}
 		else if (first_group_notify_type == IkeGroupNotifySubstructure::GSA_R_SPI_NOTIFICATION)
 		{
-			this->HandleGsaSpiNotificationFromNQ(packet, session);
+			if (0 == gsa_push_id)
+			{
+				NS_ASSERT (false);
+			}
+			else
+			{
+				this->HandleGsaSpiNotificationFromNQ(packet, session);
+			}
 		}
 		else
 		{
@@ -3107,9 +3128,9 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 
 	Ptr<IkeGroupNotifySubstructure> ack_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(ack_payload.GetSubstructure());
 
-	gsa_push_session->MarkNqSessionReplied(session);
 	if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
 	{
+		gsa_push_session->MarkNqSessionReplied(session);
 		if (true == gsa_push_session->IsAllReplied())
 		{
 			gsa_push_session->InstallGsaPair();
@@ -3238,6 +3259,11 @@ GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSess
 			gsa_push_session = session->GetGsaPushSession(gsa_push_id);
 		}
 
+		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+		{
+			NS_ASSERT (false);
+		}
+
 		gsa_push_session->AggregateGsaRSpiNotification(gsa_rejection_sub->GetSpis());
 
 		next_payload_type = spi_notify_payload.GetNextPayloadType();
@@ -3296,7 +3322,7 @@ GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_se
 										true);
 		}
 
-		for (std::list<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetNqSessions().begin();
+		for (std::set<Ptr<GsamSession> >::const_iterator const_it = gsa_push_session->GetNqSessions().begin();
 				const_it != gsa_push_session->GetNqSessions().end();
 				const_it++)
 		{

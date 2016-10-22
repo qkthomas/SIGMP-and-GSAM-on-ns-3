@@ -258,10 +258,11 @@ public:	//const
 	Ptr<GsamSession> GetGmSession (void) const;
 	bool IsGmsSpiRequested (void) const;
 	bool IsNqsSpiRequested (void) const;
-	const std::list<Ptr<GsamSession> >& GetNqSessions (void) const;
-	const std::list<Ptr<GsamSession> >& GetOtherGmSessions (void) const;
+	const std::set<Ptr<GsamSession> >& GetNqSessions (void) const;
+	const std::set<Ptr<GsamSession> >& GetOtherGmSessions (void) const;
 private:
 	void ClearNqSessions (void);
+	void ClearOtherGmSessions (void);
 private:	//fields
 	uint32_t m_id;
 	GsaPushSession::GSA_PUSH_STATUS m_status;
@@ -270,12 +271,14 @@ private:	//fields
 	Ptr<IpSecDatabase> m_ptr_database;
 	Ptr<GsamSession> m_ptr_gm_session;
 	bool m_flag_gm_session_acked_notified;
-	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_sent_unreplied;
-	std::list<Ptr<GsamSession> > m_lst_ptr_nq_sessions_acked_notified;
 
-	//for spi request only
-	std::list<Ptr<GsamSession> > m_lst_ptr_other_gm_sessions_sent_unreplied;
-	std::list<Ptr<GsamSession> > m_lst_ptr_other_gm_sessions_replied_notified;
+	//nq sessions
+	std::set<Ptr<GsamSession> > m_set_ptr_nq_sessions_sent_unreplied;
+	std::set<Ptr<GsamSession> > m_set_ptr_nq_sessions_acked_notified;
+
+	//other gm sessions that need updates, for spi request only
+	std::set<Ptr<GsamSession> > m_set_ptr_other_gm_sessions_sent_unreplied;
+	std::set<Ptr<GsamSession> > m_set_ptr_other_gm_sessions_replied_notified;
 
 	Ptr<IpSecSAEntry> m_ptr_gsa_q_to_install;
 	uint32_t m_gsa_q_spi_before_revision;
@@ -318,7 +321,7 @@ private:
 public:	//static
 	static GsamSession::PHASE_ONE_ROLE GetLocalRole (const IkeHeader& incoming_header);
 public:	//operator
-	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
+//	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
 public:	//self defined
 	void SetPhaseOneRole (GsamSession::PHASE_ONE_ROLE role);
 	//init sa
@@ -345,9 +348,9 @@ public:	//self defined
 	void SetGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
 	void InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
 	void ClearGsaPushSession (void);
+	void ClearGsaPushSession (const Ptr<GsaPushSession> gsa_push_session);
 	Ptr<GsaPushSession> CreateAndSetGsaPushSession (void);
 	void SetCachePacket (Ptr<Packet> packet);
-	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_push_id);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -368,6 +371,7 @@ public: //const
 	bool IsHostGroupMember (void) const;
 	bool IsHostNonQuerier (void) const;
 	Ptr<GsaPushSession> GetGsaPushSession (void) const;
+	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_push_id) const;
 	Ptr<Packet> GetCachePacket (void) const;
 	Ptr<GsamSessionGroup> GetSessionGroup (void) const;
 private:
@@ -680,7 +684,7 @@ private:
 private:	//fields
 	std::list<Ptr<GsamSession> > m_lst_ptr_all_sessions;
 	std::list<Ptr<GsamSessionGroup> > m_lst_ptr_session_groups;
-	std::list<Ptr<GsaPushSession> > m_lst_ptr_gsa_push_sessions;
+	std::set<Ptr<GsaPushSession> > m_set_ptr_gsa_push_sessions;
 	uint32_t m_window_size;
 	Ptr<IpSecPolicyDatabase> m_ptr_spd;
 	Ptr<IpSecSADatabase> m_ptr_sad;

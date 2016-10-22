@@ -1042,18 +1042,21 @@ GsaPushSession::GsaPushSession ()
 GsaPushSession::~GsaPushSession()
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsaPushSession::~GsaPushSession(), id: " << this->m_id << std::endl;
+
 	this->m_ptr_database->GetInfo()->FreeGsaPushId(this->m_id);
 	this->m_ptr_gm_session = 0;
-	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
-	this->m_lst_ptr_nq_sessions_acked_notified.clear();
-	this->m_lst_ptr_other_gm_sessions_sent_unreplied.clear();
-	this->m_lst_ptr_other_gm_sessions_replied_notified.clear();
+
 	this->m_ptr_gsa_q_to_install = 0;
 	this->m_ptr_gsa_r_to_install = 0;
 	this->m_ptr_database = 0;
 	this->m_set_aggregated_gsa_q_spi_notification.clear();
 	this->m_set_aggregated_gsa_r_spi_notification.clear();
 	this->m_lst_nq_rejected_spis_subs.clear();
+
+	this->ClearNqSessions();
+	this->ClearOtherGmSessions();
 }
 
 TypeId
@@ -1188,22 +1191,26 @@ GsaPushSession::SelfRemoval (void)
 {
 	NS_LOG_FUNCTION (this);
 
+	std::cout << "GsaPushSession::SelfRemoval(), id: " << this->m_id << std::endl;
+
 	if (this->m_ptr_database == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	if (this->m_lst_ptr_nq_sessions_sent_unreplied.size() != 0)
+	if (this->m_set_ptr_nq_sessions_sent_unreplied.size() != 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	for (	std::list<Ptr<GsamSession> >::iterator it = this->m_lst_ptr_nq_sessions_acked_notified.begin();
-			it != this->m_lst_ptr_nq_sessions_acked_notified.end();
-			it++)
+	this->ClearNqSessions();
+
+	if (0 != m_set_ptr_other_gm_sessions_sent_unreplied.size())
 	{
-		(*it)->ClearGsaPushSession();
+		NS_ASSERT (false);
 	}
+
+	this->ClearOtherGmSessions();
 
 	this->m_ptr_gm_session->ClearGsaPushSession();
 
@@ -1233,15 +1240,21 @@ GsaPushSession::MarkNqSessionReplied (Ptr<GsamSession> nq_session)
 		NS_ASSERT (false);
 	}
 
-	std::size_t ori_size_unreplied_nq_sessions = this->m_lst_ptr_nq_sessions_sent_unreplied.size();
-	std::size_t ori_size_acked_notified_nq_sessions = this->m_lst_ptr_nq_sessions_acked_notified.size();
+	std::size_t ori_size_unreplied_nq_sessions = this->m_set_ptr_nq_sessions_sent_unreplied.size();
+	std::size_t ori_size_acked_notified_nq_sessions = this->m_set_ptr_nq_sessions_acked_notified.size();
 	std::size_t total_size = ori_size_unreplied_nq_sessions + ori_size_acked_notified_nq_sessions;
 
-	this->m_lst_ptr_nq_sessions_sent_unreplied.remove(nq_session);
+	if (1 != this->m_set_ptr_nq_sessions_sent_unreplied.erase(nq_session))
+	{
+		NS_ASSERT (false);
+	}
 
-	this->m_lst_ptr_nq_sessions_acked_notified.push_back(nq_session);
+	if (false == this->m_set_ptr_nq_sessions_acked_notified.insert(nq_session).second)
+	{
+		NS_ASSERT (false);
+	}
 
-	if (total_size != (this->m_lst_ptr_nq_sessions_sent_unreplied.size() + this->m_lst_ptr_nq_sessions_acked_notified.size()))
+	if (total_size != (this->m_set_ptr_nq_sessions_sent_unreplied.size() + this->m_set_ptr_nq_sessions_acked_notified.size()))
 	{
 		NS_ASSERT (false);
 	}
@@ -1262,13 +1275,19 @@ GsaPushSession::MarkOtherGmSessionReplied (Ptr<GsamSession> other_gm_session)
 		NS_ASSERT (false);
 	}
 
-	std::size_t total_size = this->m_lst_ptr_other_gm_sessions_sent_unreplied.size() + this->m_lst_ptr_other_gm_sessions_replied_notified.size();
+	std::size_t total_size = this->m_set_ptr_other_gm_sessions_sent_unreplied.size() + this->m_set_ptr_other_gm_sessions_replied_notified.size();
 
-	this->m_lst_ptr_other_gm_sessions_sent_unreplied.remove(other_gm_session);
+	if (1 != this->m_set_ptr_other_gm_sessions_sent_unreplied.erase(other_gm_session))
+	{
+		NS_ASSERT (false);
+	}
 
-	this->m_lst_ptr_other_gm_sessions_replied_notified.push_back(other_gm_session);
+	if (false == this->m_set_ptr_other_gm_sessions_replied_notified.insert(other_gm_session).second)
+	{
+		NS_ASSERT (false);
+	}
 
-	if (total_size != (this->m_lst_ptr_other_gm_sessions_sent_unreplied.size() + this->m_lst_ptr_other_gm_sessions_replied_notified.size()))
+	if (total_size != (this->m_set_ptr_other_gm_sessions_sent_unreplied.size() + this->m_set_ptr_other_gm_sessions_replied_notified.size()))
 	{
 		NS_ASSERT (false);
 	}
@@ -1283,7 +1302,10 @@ GsaPushSession::PushBackNqSession (Ptr<GsamSession> nq_session)
 		NS_ASSERT (false);
 	}
 
-	this->m_lst_ptr_nq_sessions_sent_unreplied.push_back(nq_session);
+	if (false == this->m_set_ptr_nq_sessions_sent_unreplied.insert(nq_session).second)
+	{
+		NS_ASSERT (false);
+	}
 }
 
 void
@@ -1295,7 +1317,10 @@ GsaPushSession::PushBackOtherGmSession (Ptr<GsamSession> other_gm_session)
 		NS_ASSERT (false);
 	}
 
-	this->m_lst_ptr_other_gm_sessions_sent_unreplied.push_back(other_gm_session);
+	if (false == this->m_set_ptr_other_gm_sessions_sent_unreplied.insert(other_gm_session).second)
+	{
+		NS_ASSERT (false);
+	}
 }
 
 Ptr<IpSecSAEntry>
@@ -1395,6 +1420,16 @@ GsaPushSession::SwitchStatus (void)
 	NS_LOG_FUNCTION (this);
 
 	if (this->m_status == GsaPushSession::NONE)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (0 != this->m_set_ptr_other_gm_sessions_sent_unreplied.size())
+	{
+		NS_ASSERT (false);
+	}
+
+	if (0 != this->m_set_ptr_other_gm_sessions_replied_notified.size())
 	{
 		NS_ASSERT (false);
 	}
@@ -1749,16 +1784,33 @@ GsaPushSession::IsAllReplied (void) const
 		}
 	}
 
-	std::size_t size_nq_sessions_sent_unreplied = this->m_lst_ptr_nq_sessions_sent_unreplied.size();
+	std::size_t size_nq_sessions_sent_unreplied = this->m_set_ptr_nq_sessions_sent_unreplied.size();
 	if (size_nq_sessions_sent_unreplied != 0)
 	{
 		retval = false;
 	}
+	else
+	{
+		std::size_t size_nq_sessions_replied = this->m_set_ptr_nq_sessions_acked_notified.size();
+		if (0 == size_nq_sessions_replied)
+		{
+			NS_ASSERT (false);
+		}
+	}
 
-	std::size_t size_other_gm_sessions_sent_unreplied = this->m_lst_ptr_other_gm_sessions_sent_unreplied.size();
+	std::size_t size_other_gm_sessions_sent_unreplied = this->m_set_ptr_other_gm_sessions_sent_unreplied.size();
 	if (size_other_gm_sessions_sent_unreplied != 0)
 	{
 		retval = false;
+	}
+	else
+	{
+		std::size_t size_other_gm_sessions_replied = this->m_set_ptr_other_gm_sessions_replied_notified.size();
+		if (0 == size_other_gm_sessions_replied)
+		{
+			//ok for non spi request
+			//or when there is no other gm session with the same group address involved
+		}
 	}
 
 	return retval;
@@ -1808,8 +1860,45 @@ GsaPushSession::ClearNqSessions (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	this->m_lst_ptr_nq_sessions_sent_unreplied.clear();
-	this->m_lst_ptr_nq_sessions_acked_notified.clear();
+	for (std::set<Ptr<GsamSession> >::iterator it = this->m_set_ptr_nq_sessions_sent_unreplied.begin();
+		it != this->m_set_ptr_nq_sessions_sent_unreplied.end();
+		it++)
+	{
+		(*it)->ClearGsaPushSession(this);
+	}
+
+	for (std::set<Ptr<GsamSession> >::iterator it = this->m_set_ptr_nq_sessions_acked_notified.begin();
+		it != this->m_set_ptr_nq_sessions_acked_notified.end();
+		it++)
+	{
+		(*it)->ClearGsaPushSession(this);
+	}
+
+	this->m_set_ptr_nq_sessions_sent_unreplied.clear();
+	this->m_set_ptr_nq_sessions_acked_notified.clear();
+}
+
+void
+GsaPushSession::ClearOtherGmSessions (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	for (std::set<Ptr<GsamSession> >::iterator it = this->m_set_ptr_other_gm_sessions_sent_unreplied.begin();
+		it != this->m_set_ptr_other_gm_sessions_sent_unreplied.end();
+		it++)
+	{
+		(*it)->ClearGsaPushSession(this);
+	}
+
+	for (std::set<Ptr<GsamSession> >::iterator it = this->m_set_ptr_other_gm_sessions_replied_notified.begin();
+		it != this->m_set_ptr_other_gm_sessions_replied_notified.end();
+		it++)
+	{
+		(*it)->ClearGsaPushSession(this);
+	}
+
+	this->m_set_ptr_other_gm_sessions_sent_unreplied.clear();
+	this->m_set_ptr_other_gm_sessions_replied_notified.clear();
 }
 
 Ptr<GsamSession>
@@ -1834,18 +1923,18 @@ GsaPushSession::IsNqsSpiRequested (void) const
 	return this->m_flag_nqs_spi_requested;
 }
 
-const std::list<Ptr<GsamSession> >&
+const std::set<Ptr<GsamSession> >&
 GsaPushSession::GetNqSessions (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_lst_ptr_nq_sessions_acked_notified;
+	return this->m_set_ptr_nq_sessions_acked_notified;
 }
 
-const std::list<Ptr<GsamSession> >&
+const std::set<Ptr<GsamSession> >&
 GsaPushSession::GetOtherGmSessions (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_lst_ptr_other_gm_sessions_replied_notified;
+	return this->m_set_ptr_other_gm_sessions_replied_notified;
 }
 
 /********************************************************
@@ -1977,38 +2066,38 @@ GsamSession::GetCurrentMessageId (void) const
 	return this->m_current_message_id;
 }
 
-bool
-operator == (GsamSession const& lhs, GsamSession const& rhs)
-{
-	bool retval = true;
-
-	if (lhs.m_peer_address != rhs.m_peer_address)
-	{
-		retval = false;
-	}
-
-	if (lhs.m_ptr_init_sa != rhs.m_ptr_init_sa)
-	{
-		retval = false;
-	}
-
-	if (lhs.m_ptr_kek_sa != rhs.m_ptr_kek_sa)
-	{
-		retval = false;
-	}
-
-	if (lhs.m_p1_role != rhs.m_p1_role)
-	{
-		retval = false;
-	}
-
-	if (lhs.m_current_message_id != rhs.m_current_message_id)
-	{
-		retval = false;
-	}
-
-	return retval;
-}
+//bool
+//operator == (GsamSession const& lhs, GsamSession const& rhs)
+//{
+//	bool retval = true;
+//
+//	if (lhs.m_peer_address != rhs.m_peer_address)
+//	{
+//		retval = false;
+//	}
+//
+//	if (lhs.m_ptr_init_sa != rhs.m_ptr_init_sa)
+//	{
+//		retval = false;
+//	}
+//
+//	if (lhs.m_ptr_kek_sa != rhs.m_ptr_kek_sa)
+//	{
+//		retval = false;
+//	}
+//
+//	if (lhs.m_p1_role != rhs.m_p1_role)
+//	{
+//		retval = false;
+//	}
+//
+//	if (lhs.m_current_message_id != rhs.m_current_message_id)
+//	{
+//		retval = false;
+//	}
+//
+//	return retval;
+//}
 
 GsamSession::PHASE_ONE_ROLE
 GsamSession::GetPhaseOneRole (void) const
@@ -2413,6 +2502,7 @@ GsamSession::InsertGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 	{
 		//what to do if there is already an existing element?
 		//ignore
+		NS_ASSERT (false);
 	}
 }
 
@@ -2427,6 +2517,22 @@ GsamSession::ClearGsaPushSession (void)
 	}
 
 	this->m_ptr_push_session = 0;
+}
+
+void
+GsamSession::ClearGsaPushSession (const Ptr<GsaPushSession> gsa_push_session)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (0 == gsa_push_session)
+	{
+		NS_ASSERT (false);
+	}
+
+	if (1 != this->m_set_ptr_push_sessions.erase(gsa_push_session))
+	{
+		NS_ASSERT (false);
+	}
 }
 
 Ptr<GsaPushSession>
@@ -2606,7 +2712,7 @@ GsamSession::GetGsaPushSession (void) const
 }
 
 Ptr<GsaPushSession>
-GsamSession::GetGsaPushSession (uint32_t gsa_push_id)
+GsamSession::GetGsaPushSession (uint32_t gsa_push_id) const
 {
 	if (this->GetGroupAddress() != GsamConfig::GetIgmpv3DestGrpReportAddress())
 	{
@@ -2617,9 +2723,14 @@ GsamSession::GetGsaPushSession (uint32_t gsa_push_id)
 
 	if (gsa_push_id == 0)
 	{
-		//not gsa push session
-		//ok for newly joined nq session
-		this->m_ptr_push_session = this->GetDatabase()->CreateGsaPushSession();
+//		//not gsa push session
+//		//ok for newly joined nq session
+//		this->m_ptr_push_session = this->GetDatabase()->CreateGsaPushSession();
+
+
+
+		//not ok
+		NS_ASSERT (false);
 	}
 	else
 	{
@@ -4071,7 +4182,7 @@ IpSecDatabase::~IpSecDatabase()
 	this->m_ptr_sad = 0;
 	this->m_ptr_info = 0;
 	this->m_lst_ptr_session_groups.clear();
-	this->m_lst_ptr_gsa_push_sessions.clear();
+	this->m_set_ptr_gsa_push_sessions.clear();
 }
 
 TypeId
@@ -4387,6 +4498,10 @@ IpSecDatabase::CreateGsaPushSession (void)
 
 	Ptr<GsaPushSession> retval = GsaPushSession::CreatePushSession(this->m_ptr_info->RegisterGsaPushId());
 	retval->SetDatabase(this);
+	if (false == this->m_set_ptr_gsa_push_sessions.insert(retval).second)
+	{
+		NS_ASSERT (false);
+	}
 	return retval;
 }
 
@@ -4434,7 +4549,10 @@ IpSecDatabase::RemoveGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 {
 	NS_LOG_FUNCTION (this);
 
-	this->m_lst_ptr_gsa_push_sessions.remove(gsa_push_session);
+	if (1 !=this->m_set_ptr_gsa_push_sessions.erase(gsa_push_session))
+	{
+		NS_ASSERT (false);
+	}
 }
 
 Time
