@@ -1,0 +1,5 @@
+number-of-node:5
+number-of-nq:1
+fake-rejection-probability:50
+nq-join-time:10
+gm-join-time:2

@@ -80,7 +80,7 @@ main (int argc, char *argv[])
 
 	Ipv4InterfaceContainerMulticast interfaces = address.Assign (devices);
 
-	GsamConfig::GetSingleton()->SetupIgmpAndGsam(interfaces);
+	GsamConfig::GetSingleton()->SetupIgmpAndGsam(interfaces, GsamConfig::GetSingleton()->GetNumberOfNqs());
 
 	if (nodes.GetN() > 0)
 	{

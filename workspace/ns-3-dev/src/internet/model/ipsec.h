@@ -18,6 +18,8 @@
 #include "ns3/nstime.h"
 #include "ns3/ipv4-interface-container-multicast.h"
 #include "igmpv3-l4-protocol.h"
+#include <string>
+#include <map>
 
 namespace ns3 {
 
@@ -53,30 +55,36 @@ public:	//Object override
 	GsamConfig ();
 	virtual ~GsamConfig();
 	virtual TypeId GetInstanceTypeId (void) const;
-public:	//static
+public:	//static methods
 	static IPsec::MODE GetDefaultIpsecMode (void);
 	static uint8_t GetDefaultIpsecProtocolId (void);
 	static IPsec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
 	static Ipv4Address GetIgmpv3DestGrpReportAddress (void);
 	static Ptr<GsamConfig> GetSingleton (void);
-	static bool IsFalseByPercentage (uint8_t percentage_0_to_100);
+	static bool IsFalseByPercentage (uint16_t percentage_0_to_100);
+	static void ReadAndParse (Ptr<GsamConfig> singleton);
 public:	//
-	void SetSpiRejectPropability (uint8_t between_0_and_100);
 	void SetQAddress (Ipv4Address address);
 	void SetDefaultSessionTimeout (Time time);
 	void SetDefaultRetransmitTimeout (Time time);
 	Ipv4Address GetAnUnusedSecGrpAddress (void);
-	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint8_t num_nqs = 2);
+	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs = 2);
 public:	//const
-	uint8_t GetSpiRejectPropability (void) const;
+	uint16_t GetSpiRejectPropability (void) const;
 	Ipv4Address GetQAddress (void) const;
 	Time GetDefaultRetransmitTimeout (void) const;
 	Time GetDefaultSessionTimeout (void) const;
 	Ipv4Address GetAUsedSecGrpAddress (void) const;
+	uint16_t GetNumberOfNodes (void) const;
+	uint16_t GetNumberOfNqs (void) const;
+	bool IsNodeIsNq (uint32_t node_id) const;
+	Time GetNqJoinTimeInSeconds (void) const;
+	Time GetGmJoinTimeInSeconds (void) const;
 private:	//static member
 	static Ptr<GsamConfig> m_ptr_config_instance;
+	const static std::string m_path_config;
 private:
-	uint8_t m_spi_rejection_propability;
+	std::map<std::string, uint16_t> m_map_settings;
 	Ipv4Address m_q_unicast_address;
 	Time m_default_session_timeout;
 	Time m_default_retransmit_timeout;

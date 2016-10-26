@@ -26,6 +26,10 @@
 #include "gsam-l4-protocol.h"
 #include "ns3/ptr.h"
 #include <cstdlib>
+#include <jsoncpp/json/json.h>
+#include <fstream>
+#include <string>
+#include <sstream>
 
 namespace ns3 {
 
@@ -266,7 +270,8 @@ GsamUtility::ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID 
 
 NS_OBJECT_ENSURE_REGISTERED (GsamConfig);
 
-Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
+Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = 0;
+const std::string GsamConfig::m_path_config = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/Config.txt";
 
 TypeId
 GsamConfig::GetTypeId (void)
@@ -280,8 +285,7 @@ GsamConfig::GetTypeId (void)
 }
 
 GsamConfig::GsamConfig ()
-  :  m_spi_rejection_propability (0),
-	 m_q_unicast_address (Ipv4Address("0.0.0.0")),
+  :  m_q_unicast_address (Ipv4Address("0.0.0.0")),
 	 m_default_session_timeout (Seconds(2.0)),
 	 m_default_retransmit_timeout (Seconds(2.0))
 {
@@ -295,6 +299,7 @@ GsamConfig::~GsamConfig()
 {
 	NS_LOG_FUNCTION (this);
 	this->m_set_used_sec_grp_addresses.clear();
+	this->m_map_settings.clear();
 
 }
 
@@ -329,18 +334,21 @@ GsamConfig::GetIgmpv3DestGrpReportAddress (void)
 	return Ipv4Address ("224.0.0.22");
 }
 
-uint8_t
+uint16_t
 GsamConfig::GetSpiRejectPropability (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_spi_rejection_propability;
-}
-
-void
-GsamConfig::SetSpiRejectPropability (uint8_t between_0_and_100)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_spi_rejection_propability = between_0_and_100;
+	uint16_t retval = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("fake-rejection-probability");
+	if (const_it != this->m_map_settings.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	return retval;
 }
 
 Ptr<GsamConfig>
@@ -349,15 +357,16 @@ GsamConfig::GetSingleton (void)
 	if (0 == GsamConfig::m_ptr_config_instance)
 	{
 		GsamConfig::m_ptr_config_instance = Create<GsamConfig>();
+		GsamConfig::ReadAndParse(GsamConfig::m_ptr_config_instance);
 	}
 	return GsamConfig::m_ptr_config_instance;
 }
 
 bool
-GsamConfig::IsFalseByPercentage (uint8_t percentage_0_to_100)
+GsamConfig::IsFalseByPercentage (uint16_t percentage_0_to_100)
 {
 	bool retval = true;
-	uint8_t random_num = rand() % 100;
+	uint16_t random_num = rand() % 100;
 	if (random_num < percentage_0_to_100)
 	{
 		retval = false;
@@ -367,6 +376,45 @@ GsamConfig::IsFalseByPercentage (uint8_t percentage_0_to_100)
 		retval = true;
 	}
 	return retval;
+}
+
+void
+GsamConfig::ReadAndParse (Ptr<GsamConfig> singleton)
+{
+	std::ifstream config_doc(GsamConfig::m_path_config.c_str());
+	if (config_doc.is_open())
+	{
+		std::cout << "These are the settings:" << std::endl;
+		std::string line;
+		while (std::getline(config_doc, line))
+		{
+			std::cout << line << '\n';
+			std::size_t semi_column_found_first_pos = line.find_first_of(':');
+			std::size_t semi_column_found_last_pos = line.find_last_of(':');
+			if (semi_column_found_first_pos != semi_column_found_last_pos)
+			{
+				//the line has more than one ':'
+				NS_ASSERT (false);
+			}
+			std::string option_name = line.substr(0, semi_column_found_first_pos);
+			std::string value_text = line.substr(semi_column_found_first_pos + 1, line.length() - 1);
+			uint16_t value = 0;
+			if (std::stringstream(value_text) >> value)
+			{
+				//ok
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
+			singleton->m_map_settings.insert(std::pair<std::string, uint16_t>(option_name, value));
+		}
+		config_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open file";
+	}
 }
 
 void
@@ -444,8 +492,121 @@ GsamConfig::GetAUsedSecGrpAddress (void) const
 	return Ipv4Address(*const_it);
 }
 
+uint16_t
+GsamConfig::GetNumberOfNodes (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("number-of-node");
+	if (const_it != this->m_map_settings.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
+uint16_t
+GsamConfig::GetNumberOfNqs (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("number-of-nq");
+	if (const_it != this->m_map_settings.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
+bool
+GsamConfig::IsNodeIsNq (uint32_t node_id) const
+{
+	uint16_t number_nodes = this->GetNumberOfNodes();
+	if (number_nodes <= 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	uint16_t number_nqs = this->GetNumberOfNqs();
+
+	if (number_nqs <= 0)
+	{
+		NS_ASSERT (false);
+	}
+	if (number_nqs >= number_nodes)
+	{
+		NS_ASSERT (false);
+	}
+
+	bool retval = false;
+	if (node_id > 0)
+	{
+		if (node_id <= number_nqs)
+		{
+			retval = true;
+		}
+		else
+		{
+			//retval = false;
+		}
+	}
+	else if (node_id < 0)
+	{
+		NS_ASSERT (false);
+	}
+	else// (node_id == 0)
+	{
+		//retval = false;
+	}
+	return retval;
+}
+
+Time
+GsamConfig::GetNqJoinTimeInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t seconds_u16 = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("nq-join-time");
+	if (const_it != this->m_map_settings.end())
+	{
+		seconds_u16 = const_it->second;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	Time retval(seconds_u16);
+	return retval;
+}
+
+Time
+GsamConfig::GetGmJoinTimeInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t seconds_u16 = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("nq-join-time");
+	if (const_it != this->m_map_settings.end())
+	{
+		seconds_u16 = const_it->second;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	Time retval(seconds_u16);
+	return retval;
+}
+
 void
-GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint8_t num_nqs)
+GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -479,7 +640,7 @@ GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces,
 				GsamConfig::GetSingleton()->SetQAddress(if_ipv4_addr);
 				ipv4->GetIgmp()->SetRole(Igmpv3L4Protocol::QUERIER);
 			}
-			else if ((0 < count) && (count < 3))
+			else if ((0 < count) && (count <= num_nqs))
 			{
 				//set nqs
 				ipv4->GetIgmp()->SetRole(Igmpv3L4Protocol::NONQUERIER);
@@ -1396,15 +1557,18 @@ GsaPushSession::InstallGsaPair (void)
 	//the new gm session can already have Gsa Q because there is a existing gm session group for that group address
 	if (0 == gsa_q)
 	{
+		std::cout << "Installing Gsa Q: " << this->m_ptr_gsa_q_to_install->GetSpi() << std::endl;
 		gsa_q = policy->GetOutboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_q_to_install->GetSpi());
 		this->m_ptr_gm_session->AssociateGsaQ(gsa_q);
 	}
 	else
 	{
+		std::cout << "Installing Gsa Q: " << this->m_ptr_gsa_q_to_install->GetSpi() << std::endl;
 		gsa_q->SetSpi(this->m_ptr_gsa_q_to_install->GetSpi());
 	}
 
 	//gsa_r must be completely new
+	std::cout << "Installing Gsa R: " << this->m_ptr_gsa_r_to_install->GetSpi() << std::endl;
 	Ptr<IpSecSAEntry> gsa_r = policy->GetInboundSAD()->CreateIpSecSAEntry(this->m_ptr_gsa_r_to_install->GetSpi());
 	this->m_ptr_gm_session->SetRelatedGsaR(gsa_r);
 

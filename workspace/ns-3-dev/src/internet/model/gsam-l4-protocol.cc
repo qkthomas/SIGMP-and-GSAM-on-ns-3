@@ -405,6 +405,11 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(gsa_push_proposal_payload);
 
+	std::cout << "GsamL4Protocol::Send_GSA_PUSH_GM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
+	std::cout << " Gsa Q: " << suggested_gsa_q_spi->ToUint32();
+	std::cout << " Gsa R: " << suggested_gsa_r_spi->ToUint32();
+
 	this->SendPhaseTwoMessage(	session,
 						IkeHeader::INFORMATIONAL,
 						false,
@@ -490,6 +495,10 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 	uint32_t length_beside_ikeheader_gm_nqs = re_push_gm_nqs_payload.GetSerializedSize();
 	Ptr<Packet> packet_gm_nqs = Create<Packet>();
 	packet_gm_nqs->AddHeader(re_push_gm_nqs_payload);
+
+	std::cout << "GsamL4Protocol::Send_GSA_RE_PUSH, Node: " << this->m_node->GetId();
+	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
+
 	this->SendPhaseTwoMessage(	gm_session,
 			IkeHeader::CREATE_CHILD_SA,
 			false,
@@ -647,6 +656,8 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 		next_payload_type = session_group_sa_payload.GetPayloadType();
 	}
 
+	std::cout << "GsamL4Protocol::Send_GSA_PUSH_NQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+
 	//now we have a SA payload with  spis from all GMs' sessions
 	this->SendPhaseTwoMessage(session,
 			IkeHeader::INFORMATIONAL,
@@ -661,6 +672,10 @@ void
 GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsaPushSession> gsa_push_session, GsaPushSession::SPI_REQUEST_TYPE spi_request_type)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::Send_SPI_REQUEST, Node: " << this->m_node->GetId();
+	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
+
 //	Ptr<GsaPushSession> gsa_push_session = 0;
 //	if (session->GetGroupAddress() == GsamConfig::GetIgmpv3DestGrpReportAddress())
 //	{
@@ -676,6 +691,8 @@ GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsaPushSession> gsa_push_session, GsaPushS
 //	}
 	if (0 != gsa_push_session)
 	{
+		std::cout << "GsamL4Protocol::Send_SPI_REQUEST, Node: " << this->m_node->GetId() << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
+
 		IkePayload spi_request_payload;
 		IkeTrafficSelector dummy_ts = IkeTrafficSelector::GetIpv4DummyTs();
 		Ptr<IkeGroupNotifySubstructure> spi_request_sub = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
@@ -1756,6 +1773,8 @@ GsamL4Protocol::HandleSpiRequestGMNQ (Ptr<Packet> packet, const IkeHeader& ikehe
 {
 	NS_LOG_FUNCTION (this);
 
+	std::cout << "GsamL4Protocol::HandleSpiRequestGMNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session << std::endl;
+
 	IkePayloadHeader::PAYLOAD_TYPE first_payload_type = ikeheader.GetNextPayloadType();
 
 	if (first_payload_type != IkePayloadHeader::GROUP_NOTIFY)
@@ -1791,6 +1810,9 @@ void
 GsamL4Protocol::SendSpiReportGMNQ (Ptr<GsamSession> session, uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::SendSpiReportGMNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " GsaPush Id: " << gsa_push_id << std::endl;
 
 	Ptr<IpSecPolicyDatabase> session_spd = session->GetDatabase()->GetPolicyDatabase();
 	std::list<Ptr<Spi> > session_spd_spis;
@@ -1913,6 +1935,9 @@ void
 GsamL4Protocol::HandleGsaRepushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::HandleGsaRepushGM, Node: " << this->m_node->GetId() << ", GsamSession: " << session << std::endl;
+
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = ikeheader.GetNextPayloadType();
 
 	while (next_payload_type != IkePayloadHeader::NO_NEXT_PAYLOAD)
@@ -2035,6 +2060,8 @@ void
 GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::HandleGsaRepushNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session << std::endl;
 
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = ikeheader.GetNextPayloadType();
 
@@ -2258,6 +2285,9 @@ GsamL4Protocol::SendAcceptAck (Ptr<GsamSession> session,  uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
 
+	std::cout << "GsamL4Protocol::SendAcceptAck, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " GsaPush Id: " << gsa_push_id << std::endl;
+
 	IkeTrafficSelector empty_ts = IkeTrafficSelector::GetIpv4DummyTs();
 
 	Ptr<IkeGroupNotifySubstructure> ack_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(	GsamConfig::GetDefaultGSAProposalId(),
@@ -2286,6 +2316,9 @@ void
 GsamL4Protocol::FakeRejection (Ptr<GsamSession> session, uint32_t u32_spi)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "samL4Protocol::FakeRejection, Node: " << this->m_node->GetId() << ", GsamSession: " << session << std::endl;
+
 	Ptr<GsamInfo> info = session->GetInfo();
 	info->OccupyIpsecSpi(u32_spi);
 
@@ -2332,6 +2365,8 @@ void
 GsamL4Protocol::HandleGsaPushGM (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::GsamL4Protocol::HandleGsaPushGM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
 
 	IkePayloadHeader::PAYLOAD_TYPE first_payload_type = ikeheader.GetNextPayloadType();
 
@@ -2398,6 +2433,8 @@ void
 GsamL4Protocol::HandleGsaPushNQ (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = ikeheader.GetNextPayloadType();
+
+	std::cout << "GsamL4Protocol::HandleGsaPushNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session << std::endl;
 
 	if (next_payload_type == IkePayloadHeader::GSA_PUSH)
 	{
@@ -2510,6 +2547,10 @@ GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
 {
 	NS_LOG_FUNCTION (this);
 
+	std::cout << "GsamL4Protocol::ProcessGsaPushGM, Node: " << this->m_node->GetId() << ", GsamSession: " << session << std::endl;
+	std::cout << ", Processing, Gsa Q: " << gsa_q_proposal->GetSpi()->ToUint32();
+	std::cout << ", Gsa R: " <<gsa_r_proposal->GetSpi()->ToUint32() << std::endl;
+
 	Ptr<IpSecSAEntry> local_gsa_q = session->GetRelatedGsaQ();
 	Ptr<IpSecSAEntry> local_gsa_r = session->GetRelatedGsaR();
 
@@ -2533,6 +2574,9 @@ GsamL4Protocol::ProcessGsaPushGM (	Ptr<GsamSession> session,
 				//Fake Reject
 				if (false == GsamConfig::IsFalseByPercentage(GsamConfig::GetSingleton()->GetSpiRejectPropability()))
 				{
+					std::cout << "GsamL4Protocol::ProcessGsaPushGM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+					std::cout << " GsaPush Id: " << gsa_push_id << std::endl;
+					std::cout << "FakeRejection, Gsa Q: " << pushed_gsa_q_spi << std::endl;
 					this->FakeRejection(session, pushed_gsa_q_spi);
 					this->RejectGsaQ(session, gsa_push_id, ts_src, ts_dest, gsa_q_proposal);
 				}
@@ -2678,6 +2722,10 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 								const Ptr<IkeSaProposal> gsa_r_proposal)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::SendAcceptAck, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " GsaPush Id: " << gsa_push_id << std::endl;
+
 	Ptr<IkeGroupNotifySubstructure> ack_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(	GsamConfig::GetDefaultGSAProposalId(),
 																																IPsec::AH_ESP_SPI_SIZE,
 																																IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT,
@@ -2708,6 +2756,9 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 									std::list<Ptr<IkePayloadSubstructure> >& retval_toreject_payload_subs)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "ProcessGsaPushNQForOneGrp, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " GsaPush Id: " << gsa_push_id << std::endl;
 
 	if (gsa_proposals.size() == 0)
 	{
@@ -2740,6 +2791,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 		{
 			Ptr<Spi> gsa_q_proposal_spi = gsa_proposal->GetSpi();
 			lst_u32_gsa_q_spis_to_install.push_back(gsa_q_proposal_spi->ToUint32());
+			std::cout << "Accepting Gsa Q: " << gsa_q_proposal_spi->ToUint32() << std::endl;
 		}
 		else if (true == gsa_proposal->IsNewGsaR())
 		{
@@ -2750,12 +2802,16 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 			{
 				//spis to reject
 				lst_u32_gsa_r_spis_to_reject.push_back(gsa_r_proposal_spi->ToUint32());
+				std::cout << "Real Reject Gsa Q: " << gsa_r_proposal_spi->ToUint32() << std::endl;
 			}
 			else
 			{
 				//Fake Reject
 				if (false == GsamConfig::IsFalseByPercentage(GsamConfig::GetSingleton()->GetSpiRejectPropability()))
 				{
+					std::cout << "GsamL4Protocol::ProcessGsaPushNQForOneGrp, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+					std::cout << " GsaPush Id: " << gsa_push_id << std::endl;
+					std::cout << "FakeRejection, Gsa R: " << gsa_r_proposal_spi->ToUint32() << std::endl;
 					this->FakeRejection(session, gsa_r_proposal_spi->ToUint32());
 					lst_u32_gsa_r_spis_to_reject.push_back(gsa_r_proposal_spi->ToUint32());
 				}
@@ -2763,6 +2819,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 				{
 					//spis to install
 					lst_u32_gsa_r_spis_to_install.push_back(gsa_r_proposal_spi->ToUint32());
+					std::cout << "Accepting Gsa R: " << gsa_r_proposal_spi->ToUint32() << std::endl;
 				}
 			}
 		}
@@ -2920,6 +2977,9 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 
 		if (true == gsa_push_session->IsAllReplied())
 		{
+			std::cout << "GsamL4Protocol::HandleGsaAckFromGM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+			std::cout << " Starting to Install Gsa Pair, ";
+			std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
 			gsa_push_session->InstallGsaPair();
 		}
 	}
@@ -2937,6 +2997,8 @@ void
 GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::HandleGsaRejectionFromGM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
 
 	if (first_payload.GetNextPayloadType() != IkePayloadHeader::NO_NEXT_PAYLOAD)
 	{
@@ -2958,6 +3020,7 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 	}
 
 	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
+	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
 	uint32_t gsa_q = *(lst_spi_first_payload_sub.begin());
 
 	if (gsa_q != gsa_push_session->GetGsaQ()->GetSpi())
@@ -2976,6 +3039,9 @@ void
 GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePayload& first_payload, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::HandleGsaSpiNotificationFromGM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+
 	Ptr<IkeGroupNotifySubstructure> first_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(first_payload.GetSubstructure());
 
 	if (first_payload_sub->GetTrafficSelectorSrc().GetStartingAddress().Get() != 0)
@@ -3011,6 +3077,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 	{
 		//gm session
 		gsa_push_session = session->GetGsaPushSession();
+		std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
 		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
 		{
 			NS_ASSERT (false);
@@ -3117,6 +3184,10 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 		//do nothing
 		//Q just sends what it already has to NQ
 
+	std::cout << "GsamL4Protocol::HandleGsaAckFromNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " Starting to Install Gsa Pair, ";
+	std::cout << " No GsaPush Id: " << std::endl;
+
 }
 
 void
@@ -3133,6 +3204,9 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 		gsa_push_session->MarkNqSessionReplied(session);
 		if (true == gsa_push_session->IsAllReplied())
 		{
+			std::cout << "GsamL4Protocol::HandleGsaAckFromNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+			std::cout << " Starting to Install Gsa Pair, ";
+			std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
 			gsa_push_session->InstallGsaPair();
 		}
 	}
@@ -3151,6 +3225,8 @@ GsamL4Protocol::HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> s
 {
 	NS_LOG_FUNCTION (this);
 	//There should be no gsa push session attached to the nq session on the Q, yet.
+	std::cout << "GsamL4Protocol::HandleGsaRejectionFromNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " No GsaPush Id: " << std::endl;
 	Ptr<GsaPushSession> gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
 
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
@@ -3195,6 +3271,9 @@ GsamL4Protocol::HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> s
 {
 	NS_LOG_FUNCTION (this);
 
+	std::cout << "GsamL4Protocol::HandleGsaRejectionFromNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
+
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::GROUP_NOTIFY;
 
 	do {
@@ -3230,6 +3309,9 @@ void
 GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::HandleGsaSpiNotificationFromNQ, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
 	uint32_t gsa_push_id = 0;
 	Ptr<GsaPushSession> gsa_push_session = 0;
@@ -3257,6 +3339,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromNQ (Ptr<Packet> packet, Ptr<GsamSess
 		if (0 == gsa_push_session)
 		{
 			gsa_push_session = session->GetGsaPushSession(gsa_push_id);
+			std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
 		}
 
 		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
@@ -3280,6 +3363,9 @@ void
 GsamL4Protocol::ProcessGsaSpiNotificationFromNQ (Ptr<GsaPushSession> gsa_push_session)
 {
 	NS_LOG_FUNCTION (this);
+
+	std::cout << "GsamL4Protocol::ProcessGsaSpiNotificationFromNQ, Node: " << this->m_node->GetId();
+	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
 
 	if (0 == gsa_push_session)
 	{

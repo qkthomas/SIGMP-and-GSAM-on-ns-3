@@ -52,12 +52,12 @@ GsamApplication::StartApplication (void)
 	}
 	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
 	{
-		Time delay = Seconds (2.0);
+		Time delay = GsamConfig::GetSingleton()->GetNqJoinTimeInSeconds();
 		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
 	}
 	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
 	{
-		Time delay = Seconds (8.0);
+		Time delay = GsamConfig::GetSingleton()->GetGmJoinTimeInSeconds();
 		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
 	}
 	else
@@ -92,7 +92,6 @@ GsamApplication::Initialization (void)
 {
 	this->m_ptr_gsam = this->GetGsam();
 	this->m_ptr_igmp = this->GetIgmp();
-	GsamConfig::GetSingleton()->SetSpiRejectPropability(50);
 
 	std::cout << "Node id: " << this->m_node->GetId() << ", ";
 	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
