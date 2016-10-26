@@ -26,7 +26,6 @@
 #include "gsam-l4-protocol.h"
 #include "ns3/ptr.h"
 #include <cstdlib>
-#include <jsoncpp/json/json.h>
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -1575,7 +1574,7 @@ GsaPushSession::InstallGsaPair (void)
 	Ptr<GsamInfo> info = this->m_ptr_database->GetInfo();
 	info->OccupyIpsecSpi(this->m_ptr_gsa_r_to_install->GetSpi());
 
-	this->SelfRemoval();
+//	this->SelfRemoval();
 }
 
 void

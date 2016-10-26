@@ -2073,6 +2073,7 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 		}
 
 		IkePayload gsa_repush_payload = IkePayload::GetEmptyPayloadFromPayloadType(next_payload_type);
+		packet->RemoveHeader(gsa_repush_payload);
 		Ptr<IkeGsaPayloadSubstructure> gsa_repush_sub = DynamicCast<IkeGsaPayloadSubstructure>(gsa_repush_payload.GetSubstructure());
 
 		const IkeTrafficSelector& ts_src = gsa_repush_sub->GetSourceTrafficSelector();

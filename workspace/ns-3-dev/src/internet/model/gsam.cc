@@ -4687,6 +4687,10 @@ IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (uint32_t gsa_push_id,
 													Ipv4Address group_address,
 													bool is_repush)
 {
+	if (0 == group_address.Get())
+	{
+		NS_ASSERT (false);
+	}
 	IkeTrafficSelector ts_src = IkeTrafficSelector::GenerateSrcSecureGroupTs();
 	IkeTrafficSelector ts_dest = IkeTrafficSelector::GenerateDestSecureGroupTs(group_address);
 	Ptr<IkeGsaPayloadSubstructure> retval = IkeGsaPayloadSubstructure::GenerateEmptyGsaPayload (gsa_push_id, ts_src, ts_dest, is_repush);
