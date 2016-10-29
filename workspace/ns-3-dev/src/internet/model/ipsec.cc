@@ -26,7 +26,6 @@
 #include "gsam-l4-protocol.h"
 #include "ns3/ptr.h"
 #include <cstdlib>
-#include <jsoncpp/json/json.h>
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -1605,9 +1604,9 @@ GsaPushSession::SwitchStatus (void)
 
 	if (this->m_status == GsaPushSession::GSA_PUSH_ACK)
 	{
-		this->m_status = GsaPushSession::SPI_REQUEST_RESPONSE;
+		this->m_status = GsaPushSession::SPI_CONFLICT_RESOLVE;
 	}
-	else if (this->m_status == GsaPushSession::SPI_REQUEST_RESPONSE)
+	else if (this->m_status == GsaPushSession::SPI_CONFLICT_RESOLVE)
 	{
 		this->m_status = GsaPushSession::GSA_PUSH_ACK;
 	}
@@ -1643,7 +1642,7 @@ GsaPushSession::GenerateNewSpisAndModifySa (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_status != GsaPushSession::SPI_REQUEST_RESPONSE)
+	if (this->m_status != GsaPushSession::SPI_CONFLICT_RESOLVE)
 	{
 		NS_ASSERT (false);
 	}
@@ -1707,7 +1706,7 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_fo
 	NS_LOG_FUNCTION (this);
 	//nq sessions driven spi notification request response
 
-	if (this->m_status != GsaPushSession::SPI_REQUEST_RESPONSE)
+	if (this->m_status != GsaPushSession::SPI_CONFLICT_RESOLVE)
 	{
 		NS_ASSERT (false);
 	}
@@ -1979,28 +1978,28 @@ GsaPushSession::IsAllReplied (void) const
 			}
 		}
 	}
-	else if (GsaPushSession::SPI_REQUEST_RESPONSE == this->GetStatus())
+	else if (GsaPushSession::SPI_CONFLICT_RESOLVE == this->GetStatus())
 	{
 		if (true == this->m_flag_gms_spi_requested)
 		{
 			if (false == this->m_flag_gm_session_acked_notified)
-						{
-							retval = false;
-						}
+			{
+				retval = false;
+			}
 			std::size_t size_other_gm_sessions_sent_unreplied = this->m_set_ptr_other_gm_sessions_sent_unreplied.size();
-					if (size_other_gm_sessions_sent_unreplied != 0)
-					{
-						retval = false;
-					}
-					else
-					{
-						std::size_t size_other_gm_sessions_replied = this->m_set_ptr_other_gm_sessions_replied_notified.size();
-						if (0 == size_other_gm_sessions_replied)
-						{
-							//ok for non spi request
-							//or when there is no other gm session with the same group address involved
-						}
-					}
+			if (size_other_gm_sessions_sent_unreplied != 0)
+			{
+				retval = false;
+			}
+			else
+			{
+				std::size_t size_other_gm_sessions_replied = this->m_set_ptr_other_gm_sessions_replied_notified.size();
+				if (0 == size_other_gm_sessions_replied)
+				{
+					//ok for non spi request
+					//or when there is no other gm session with the same group address involved
+				}
+			}
 		}
 		else
 		{

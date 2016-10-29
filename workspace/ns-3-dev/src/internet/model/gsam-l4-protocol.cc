@@ -767,7 +767,7 @@ GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsaPushSession> gsa_push_session, GsaPushS
 				NS_ASSERT (false);
 			}
 		}
-		else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_REQUEST_RESPONSE)
+		else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
 		{
 			//switch status may have been invoked by other sessions (nq or gm) which belongs to the same gsa_push_session
 			if (spi_request_type == GsaPushSession::GSA_Q_SPI_REQUEST)
@@ -2984,7 +2984,7 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 			gsa_push_session->InstallGsaPair();
 		}
 	}
-	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_REQUEST_RESPONSE)
+	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
 	{
 		//do nothing
 	}
@@ -3211,7 +3211,7 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 			gsa_push_session->InstallGsaPair();
 		}
 	}
-	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_REQUEST_RESPONSE)
+	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
 	{
 		//ignore
 	}
