@@ -63,6 +63,13 @@ public:	//static methods
 	static Ptr<GsamConfig> GetSingleton (void);
 	static bool IsFalseByPercentage (uint16_t percentage_0_to_100);
 	static void ReadAndParse (Ptr<GsamConfig> singleton);
+public:	//log method
+	static void Log (	const std::string& func_name,
+						uint32_t node_id,
+						const Ptr<GsamSession> session,
+						uint32_t gsa_push_id,
+						uint32_t gsa_q_spi,
+						uint32_t gsa_r_spi);
 public:	//
 	void SetQAddress (Ipv4Address address);
 	void SetDefaultSessionTimeout (Time time);
@@ -90,6 +97,7 @@ private:
 	Time m_default_retransmit_timeout;
 	std::pair<uint32_t, uint32_t> m_sec_grp_addr_range;
 	std::set<uint32_t> m_set_used_sec_grp_addresses;
+	std::map<uint32_t, uint32_t> m_map_u32_ipv4addr_to_node_id;
 };
 
 class GsamInfo : public Object {

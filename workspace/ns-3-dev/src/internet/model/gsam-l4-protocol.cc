@@ -405,10 +405,11 @@ GsamL4Protocol::Send_GSA_PUSH_GM (Ptr<GsamSession> session)
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(gsa_push_proposal_payload);
 
-	std::cout << "GsamL4Protocol::Send_GSA_PUSH_GM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
-	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
-	std::cout << " Gsa Q: " << suggested_gsa_q_spi->ToUint32();
-	std::cout << " Gsa R: " << suggested_gsa_r_spi->ToUint32();
+//	std::cout << "GsamL4Protocol::Send_GSA_PUSH_GM, Node: " << this->m_node->GetId() << ", GsamSession: " << session;
+//	std::cout << " GsaPush Id: " << gsa_push_session->GetId() << std::endl;
+//	std::cout << " Gsa Q: " << suggested_gsa_q_spi->ToUint32();
+//	std::cout << " Gsa R: " << suggested_gsa_r_spi->ToUint32();
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId(), suggested_gsa_q_spi->ToUint32(), suggested_gsa_r_spi->ToUint32());
 
 	this->SendPhaseTwoMessage(	session,
 						IkeHeader::INFORMATIONAL,

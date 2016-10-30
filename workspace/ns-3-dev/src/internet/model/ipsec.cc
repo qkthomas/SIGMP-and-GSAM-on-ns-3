@@ -299,7 +299,7 @@ GsamConfig::~GsamConfig()
 	NS_LOG_FUNCTION (this);
 	this->m_set_used_sec_grp_addresses.clear();
 	this->m_map_settings.clear();
-
+	this->m_map_u32_ipv4addr_to_node_id.clear();
 }
 
 TypeId
@@ -414,6 +414,24 @@ GsamConfig::ReadAndParse (Ptr<GsamConfig> singleton)
 	{
 		std::cout << "Unable to open file";
 	}
+}
+
+void
+GsamConfig::Log (	const std::string& func_name,
+					uint32_t node_id,
+					const Ptr<GsamSession> session,
+					uint32_t gsa_push_id,
+					uint32_t gsa_q_spi,
+					uint32_t gsa_r_spi)
+{
+	const std::string split = ", ";
+	std::cout << func_name << split;
+	std::cout << "Node Id: " << node_id << split;
+	std::cout << "Session: " << session << split;
+	std::cout << "Peer Node Id: " << GsamConfig::GetSingleton()->m_map_u32_ipv4addr_to_node_id.find(session->GetPeerAddress().Get())->second << std::endl;
+	std::cout << "Gsa Push Id: " << gsa_push_id << split;
+	std::cout << "Gsa Q's Spi: " << gsa_q_spi << split;
+	std::cout << "Gsa R's Spi: " << gsa_r_spi << std::endl;
 }
 
 void
@@ -623,7 +641,8 @@ GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces,
 		uint32_t ifindex = it->second;
 
 		uint32_t n_addr = ipv4->GetNAddresses(ifindex);
-		std::cout << "Printing address of interface: " << ifindex << " of Node" << ipv4->GetNetDevice(ifindex)->GetNode()->GetId() << std::endl;
+		uint32_t node_id = ipv4->GetNetDevice(ifindex)->GetNode()->GetId();
+		std::cout << "Printing address of interface: " << ifindex << " of Node" << node_id << std::endl;
 		for (	uint32_t n_addr_it = 0;
 				n_addr_it < n_addr;
 				n_addr_it++)
@@ -649,6 +668,7 @@ GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces,
 				//set gms
 				ipv4->GetIgmp()->SetRole(Igmpv3L4Protocol::GROUP_MEMBER);
 			}
+			this->m_map_u32_ipv4addr_to_node_id.insert(std::pair<uint32_t, uint32_t>(if_ipv4_addr.Get(), node_id));
 			count++;
 		}
 		std::cout << std::endl;
