@@ -435,6 +435,56 @@ GsamConfig::Log (	const std::string& func_name,
 }
 
 void
+GsamConfig::Log (	const std::string& func_name,
+					uint32_t node_id,
+					const Ptr<GsamSession> session,
+					bool retransmit)
+{
+	const std::string split = ", ";
+	std::cout << func_name << split;
+	std::cout << "Node Id: " << node_id << split;
+	std::cout << "Session: " << session << split;
+	std::cout << "Peer Node Id: " << GsamConfig::GetSingleton()->m_map_u32_ipv4addr_to_node_id.find(session->GetPeerAddress().Get())->second << std::endl;
+	if (true == retransmit)
+	{
+		std::cout << "Same packet is scheduled for retransmission" << std::endl;
+	}
+}
+
+void
+GsamConfig::Log (	const std::string& func_name,
+					uint32_t node_id,
+					uint32_t gsa_push_id)
+{
+	const std::string split = ", ";
+	std::cout << func_name << split;
+	std::cout << "Node Id: " << node_id << split;
+	std::cout << "Gsa Push Id: " << gsa_push_id << std::endl;;
+}
+
+void
+GsamConfig::LogGsaQ (const std::string& msg, uint32_t gsa_q_spi)
+{
+	const std::string split = ", ";
+	std::cout << msg << split;
+	std::cout << "Gsa Q's Spi" << gsa_q_spi <<std::endl;
+}
+
+void
+GsamConfig::LogGsaR (const std::string& msg, uint32_t gsa_r_spi)
+{
+	const std::string split = ", ";
+	std::cout << msg << split;
+	std::cout << "Gsa R's Spi" << gsa_r_spi <<std::endl;
+}
+
+void
+GsamConfig::LogMsg (const std::string& msg)
+{
+	std::cout << msg << std::endl;
+}
+
+void
 GsamConfig::SetQAddress (Ipv4Address address)
 {
 	NS_LOG_FUNCTION (this);
@@ -708,6 +758,7 @@ GsamInfo::~GsamInfo()
 	this->m_set_occupied_gsam_spis.clear();
 	this->m_set_occupied_ipsec_spis.clear();
 	this->m_set_occupied_gsa_push_ids.clear();
+	this->m_set_deleted_gsa_push_id.clear();
 }
 
 TypeId
@@ -863,6 +914,13 @@ GsamInfo::OccupyIpsecSpi (uint32_t spi)
 }
 
 void
+GsamInfo::InsertDeletedGsaPushId (uint32_t gsa_push_id)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_set_deleted_gsa_push_id.insert(gsa_push_id);
+}
+
+void
 GsamInfo::OccupyGsaPushId (uint32_t gsa_push_id)
 {
 	NS_LOG_FUNCTION (this);
@@ -938,10 +996,23 @@ GsamInfo::GenerateIpsecSpi (void) const
 bool
 GsamInfo::IsIpsecSpiOccupied (uint32_t spi) const
 {
+	NS_LOG_FUNCTION (this);
 	bool retval = false;
 
 	retval = (this->m_set_occupied_ipsec_spis.find(spi) != this->m_set_occupied_ipsec_spis.end());
 
+	return retval;
+}
+
+bool
+GsamInfo::IsGsaPushIdDeleted (uint32_t gsa_push_id) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = true;
+	if (this->m_set_deleted_gsa_push_id.end() == this->m_set_deleted_gsa_push_id.find(gsa_push_id))
+	{
+		retval = false;
+	}
 	return retval;
 }
 
@@ -1395,6 +1466,8 @@ GsaPushSession::SelfRemoval (void)
 	this->m_ptr_gm_session->ClearGsaPushSession();
 
 	this->m_ptr_database->RemoveGsaPushSession(this);
+
+	this->m_ptr_database->GetInfo()->InsertDeletedGsaPushId(this->GetId());
 }
 
 void
@@ -1543,6 +1616,8 @@ void
 GsaPushSession::InstallGsaPair (void)
 {
 	NS_LOG_FUNCTION (this);
+
+	GsamConfig::LogMsg(__FUNCTION__);
 
 	if (false == this->m_ptr_gm_session->IsHostQuerier())
 	{
@@ -2996,7 +3071,16 @@ GsamSession::GetGsaPushSession (uint32_t gsa_push_id) const
 
 	if (retval == 0)
 	{
-		NS_ASSERT (false);
+		if (true == this->m_ptr_database->GetInfo()->IsGsaPushIdDeleted(gsa_push_id))
+		{
+			//ok
+			std::cout << "The gsa push id belongs to a deleted gsa push session" << std::endl;
+		}
+		else
+		{
+			std::cout << "No gsa push session with this id existed" << std::endl;
+			NS_ASSERT (false);
+		}
 	}
 
 	return retval;
@@ -4795,6 +4879,7 @@ void
 IpSecDatabase::RemoveGsaPushSession (Ptr<GsaPushSession> gsa_push_session)
 {
 	NS_LOG_FUNCTION (this);
+
 
 	if (1 !=this->m_set_ptr_gsa_push_sessions.erase(gsa_push_session))
 	{

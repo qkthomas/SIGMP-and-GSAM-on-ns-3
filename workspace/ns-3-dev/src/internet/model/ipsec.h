@@ -70,6 +70,16 @@ public:	//log method
 						uint32_t gsa_push_id,
 						uint32_t gsa_q_spi,
 						uint32_t gsa_r_spi);
+	static void Log (	const std::string& func_name,
+							uint32_t node_id,
+							const Ptr<GsamSession> session,
+							bool retransmit = false);
+	static void Log (	const std::string& func_name,
+							uint32_t node_id,
+							uint32_t gsa_push_id);
+	static void LogGsaQ (const std::string& msg, uint32_t gsa_q_spi);
+	static void LogGsaR (const std::string& msg, uint32_t gsa_r_spi);
+	static void LogMsg (const std::string& msg);
 public:	//
 	void SetQAddress (Ipv4Address address);
 	void SetDefaultSessionTimeout (Time time);
@@ -127,12 +137,14 @@ public:	//self-defined
 	void SetSecGrpStart (Ipv4Address address);
 	void SetSecGrpEnd (Ipv4Address address);
 	void OccupyIpsecSpi (uint32_t spi);
+	void InsertDeletedGsaPushId (uint32_t gsa_push_id);
 public: //const
 	Time GetRetransmissionDelay (void) const;
 	uint32_t GetLocalAvailableIpsecSpi (void) const;
 	uint32_t GetLocalAvailableIpsecSpi (const std::set<uint32_t>& external_occupied_u32_set) const;
 	uint32_t GenerateIpsecSpi (void) const;
 	bool IsIpsecSpiOccupied (uint32_t spi) const;
+	bool IsGsaPushIdDeleted (uint32_t gsa_push_id) const;
 private:
 	uint64_t GetLocalAvailableGsamSpi (void) const;
 	uint32_t GetLocalAvailableGsaPushId (void) const;
@@ -147,6 +159,7 @@ private:	//fields
 	Time m_retransmission_delay;
 	Ipv4Address m_sec_group_start;
 	Ipv4Address m_sec_group_end;
+	std::set<uint32_t> m_set_deleted_gsa_push_id;
 };
 
 class GsamSa : public Object {
