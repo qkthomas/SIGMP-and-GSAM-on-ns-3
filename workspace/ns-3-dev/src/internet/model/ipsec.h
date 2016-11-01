@@ -95,6 +95,7 @@ public:	//const
 	Time GetNqJoinTimeInSeconds (void) const;
 	Time GetGmJoinTimeInSeconds (void) const;
 	uint16_t GetNumberOfRetransmission (void) const;
+	bool IsRetransmissionDisable (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
@@ -380,6 +381,8 @@ public:	//self defined
 	void ClearGsaPushSession (const Ptr<GsaPushSession> gsa_push_session);
 	Ptr<GsaPushSession> CreateAndSetGsaPushSession (void);
 	void SetCachePacket (Ptr<Packet> packet);
+	void SetNumberRetransmission (uint16_t number_retransmission);
+	void DecrementNumberRetransmission (void);
 public: //const
 	bool HaveInitSa (void) const;
 	bool HaveKekSa (void) const;
@@ -421,7 +424,7 @@ private:	//fields
 	//nq session or
 	//other gm sessions for spi request
 	std::set<Ptr<GsaPushSession> > m_set_ptr_push_sessions;
-
+	uint16_t m_number_retranmission;
 	Ptr<Packet> m_last_sent_packet;
 };
 

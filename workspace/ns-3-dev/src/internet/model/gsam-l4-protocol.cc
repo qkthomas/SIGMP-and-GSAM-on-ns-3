@@ -240,6 +240,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session)
 	packet->AddHeader(ikeheader);
 
 	session->SetCachePacket(packet);
+	session->SetNumberRetransmission(GsamConfig::GetSingleton()->GetNumberOfRetransmission());
 	this->DoSendMessage(session, true);
 }
 
@@ -1002,6 +1003,7 @@ GsamL4Protocol::SendPhaseOneMessage (	Ptr<GsamSession> session,
 
 	session->SetCachePacket(cache_packet);
 
+	session->SetNumberRetransmission(GsamConfig::GetSingleton()->GetNumberOfRetransmission());
 	this->DoSendMessage(session, actual_retransmit);
 }
 
@@ -1048,7 +1050,7 @@ GsamL4Protocol::SendPhaseTwoMessage (	Ptr<GsamSession> session,
 	}
 
 	session->SetCachePacket(cache_packet);
-
+	session->SetNumberRetransmission(GsamConfig::GetSingleton()->GetNumberOfRetransmission());
 	this->DoSendMessage(session, actual_retransmit);
 }
 
@@ -1067,10 +1069,7 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 
 	//Cancel retransmission
 	session->GetRetransmitTimer().Cancel();
-//*******debug code***********************
-//disable retransmission
-	retransmit = false;
-//*******debug code***********************
+
 	if (true == retransmit)
 	{
 		bool session_retransmit = session->IsRetransmit();
@@ -1092,6 +1091,8 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
 		session->GetRetransmitTimer().SetArguments(session, session_retransmit);
 		session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
+		//decrement retransmission count
+		session->DecrementNumberRetransmission();
 	}
 	else
 	{

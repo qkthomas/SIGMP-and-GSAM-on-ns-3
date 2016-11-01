@@ -703,6 +703,38 @@ GsamConfig::GetNumberOfRetransmission (void) const
 	return retval;
 }
 
+bool
+GsamConfig::IsRetransmissionDisable (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("retransmission-disable");
+	if (const_it != this->m_map_settings.end())
+	{
+		uint16_t is_disable = const_it->second;
+		if (1 == is_disable)
+		{
+			retval = true;
+		}
+		else if (0 == is_disable)
+		{
+			retval = false;
+		}
+		else
+		{
+			//option found but set to invaild value. Neither 0 nor 1
+			NS_ASSERT (false);
+		}
+
+	}
+	else
+	{
+		//do nothing
+		//retval = false;
+	}
+	return retval;
+}
+
 void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {
@@ -2317,6 +2349,7 @@ GsamSession::GsamSession ()
 	 m_ptr_database (0),
 	 m_ptr_related_gsa_r (0),
 	 m_ptr_push_session (0),
+	 m_number_retranmission (0),
 	 m_last_sent_packet (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -2685,17 +2718,20 @@ GsamSession::IsRetransmit (void)
 
 	bool retval = false;
 
-	if (GsamSession::INITIATOR == this->m_p1_role)
+	if (false == GsamConfig::GetSingleton()->IsRetransmissionDisable())
 	{
-		retval = false;
-	}
-	else if (GsamSession::RESPONDER == this->m_p1_role)
-	{
-		retval = false;
+		if (this->m_number_retranmission > 0)
+		{
+			retval = true;
+		}
+		else
+		{
+			retval = false;
+		}
 	}
 	else
 	{
-		NS_ASSERT (false);
+		retval = false;
 	}
 
 	return retval;
@@ -2911,6 +2947,30 @@ GsamSession::SetCachePacket (Ptr<Packet> packet)
 	}
 	this->m_last_sent_packet = 0;
 	this->m_last_sent_packet = packet;
+}
+
+void
+GsamSession::SetNumberRetransmission (uint16_t number_retransmission)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 > number_retransmission)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_number_retranmission = number_retransmission;
+	}
+}
+
+void
+GsamSession::DecrementNumberRetransmission (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_number_retranmission > 0)
+	{
+		this->m_number_retranmission--;
+	}
 }
 
 Ptr<GsamInfo>

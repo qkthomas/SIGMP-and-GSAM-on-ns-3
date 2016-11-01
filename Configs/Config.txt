@@ -6,3 +6,4 @@ gm-join-time:2
 number-of-retransmission:0
 retransmission-timeout:2
 session-timeout:2
+retransmission-disable:0
