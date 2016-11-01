@@ -561,6 +561,8 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 
 		}
 	}
+
+	gsa_push_session->SelfRemoval();
 }
 
 void
@@ -2798,6 +2800,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 		if (true == gsa_proposal->IsNewGsaQ())
 		{
 			Ptr<Spi> gsa_q_proposal_spi = gsa_proposal->GetSpi();
+			lst_u32_gsa_q_spis_to_install.push_back(gsa_q_proposal_spi->ToUint32());
 			GsamConfig::LogGsaQ ("Accepting", gsa_q_proposal_spi->ToUint32());
 		}
 		else if (true == gsa_proposal->IsNewGsaR())
@@ -2982,6 +2985,7 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 		{
 			GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
 			gsa_push_session->InstallGsaPair();
+			gsa_push_session->SelfRemoval();
 		}
 	}
 	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
@@ -3225,6 +3229,7 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 		{
 			GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
 			gsa_push_session->InstallGsaPair();
+			gsa_push_session->SelfRemoval();
 		}
 	}
 	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)

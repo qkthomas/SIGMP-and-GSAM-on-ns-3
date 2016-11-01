@@ -81,9 +81,6 @@ public:	//log method
 	static void LogGsaR (const std::string& msg, uint32_t gsa_r_spi);
 	static void LogMsg (const std::string& msg);
 public:	//
-	void SetQAddress (Ipv4Address address);
-	void SetDefaultSessionTimeout (Time time);
-	void SetDefaultRetransmitTimeout (Time time);
 	Ipv4Address GetAnUnusedSecGrpAddress (void);
 	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs = 2);
 public:	//const
@@ -97,6 +94,9 @@ public:	//const
 	bool IsNodeIsNq (uint32_t node_id) const;
 	Time GetNqJoinTimeInSeconds (void) const;
 	Time GetGmJoinTimeInSeconds (void) const;
+	uint16_t GetNumberOfRetransmission (void) const;
+private://private methods
+	void SetQAddress (Ipv4Address address);
 private:	//static member
 	static Ptr<GsamConfig> m_ptr_config_instance;
 	const static std::string m_path_config;

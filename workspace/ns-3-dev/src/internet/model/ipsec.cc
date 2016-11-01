@@ -511,28 +511,41 @@ Time
 GsamConfig::GetDefaultSessionTimeout (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_default_session_timeout;
-}
-
-void
-GsamConfig::SetDefaultSessionTimeout (Time time)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_default_session_timeout = time;
+	uint16_t retval = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("session-timeout");
+	if (const_it != this->m_map_settings.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	return Time(retval);
 }
 
 Time
 GsamConfig::GetDefaultRetransmitTimeout (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return this->m_default_retransmit_timeout;
-}
-
-void
-GsamConfig::SetDefaultRetransmitTimeout (Time time)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_default_retransmit_timeout = time;
+	uint16_t retval = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("retransmission-timeout");
+	if (const_it != this->m_map_settings.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		if (0 == this->GetNumberOfRetransmission())
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	return Time(retval);
 }
 
 Ipv4Address
@@ -669,6 +682,24 @@ GsamConfig::GetGmJoinTimeInSeconds (void) const
 		NS_ASSERT (false);
 	}
 	Time retval(seconds_u16);
+	return retval;
+}
+
+uint16_t
+GsamConfig::GetNumberOfRetransmission (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("number-of-retransmission");
+	if (const_it != this->m_map_settings.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
 	return retval;
 }
 
