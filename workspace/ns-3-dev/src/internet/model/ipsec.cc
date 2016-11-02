@@ -438,13 +438,18 @@ void
 GsamConfig::Log (	const std::string& func_name,
 					uint32_t node_id,
 					const Ptr<GsamSession> session,
-					bool retransmit)
+					bool retransmit,
+					Ptr<Packet> packet)
 {
 	const std::string split = ", ";
 	std::cout << func_name << split;
 	std::cout << "Node Id: " << node_id << split;
 	std::cout << "Session: " << session << split;
 	std::cout << "Peer Node Id: " << GsamConfig::GetSingleton()->m_map_u32_ipv4addr_to_node_id.find(session->GetPeerAddress().Get())->second << std::endl;
+	if (0 != packet)
+	{
+		std::cout << "Sending Packet: " << packet << std::endl;
+	}
 	if (true == retransmit)
 	{
 		std::cout << "Same packet is scheduled for retransmission" << std::endl;
@@ -467,7 +472,7 @@ GsamConfig::LogGsaQ (const std::string& msg, uint32_t gsa_q_spi)
 {
 	const std::string split = ", ";
 	std::cout << msg << split;
-	std::cout << "Gsa Q's Spi" << gsa_q_spi <<std::endl;
+	std::cout << "Gsa Q's Spi: " << gsa_q_spi <<std::endl;
 }
 
 void
@@ -475,7 +480,7 @@ GsamConfig::LogGsaR (const std::string& msg, uint32_t gsa_r_spi)
 {
 	const std::string split = ", ";
 	std::cout << msg << split;
-	std::cout << "Gsa R's Spi" << gsa_r_spi <<std::endl;
+	std::cout << "Gsa R's Spi: " << gsa_r_spi <<std::endl;
 }
 
 void
@@ -731,6 +736,24 @@ GsamConfig::IsRetransmissionDisable (void) const
 	{
 		//do nothing
 		//retval = false;
+	}
+	return retval;
+}
+
+uint16_t
+GsamConfig::GetGmJoinEventNumber (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("gm-join-event-number");
+	if (const_it != this->m_map_settings.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
 	}
 	return retval;
 }
@@ -2711,10 +2734,9 @@ GsamSession::SceduleTimeout (Time delay)
 }
 
 bool
-GsamSession::IsRetransmit (void)
+GsamSession::IsRetransmit (void) const
 {
 	NS_LOG_FUNCTION (this);
-	//place holder
 
 	bool retval = false;
 
@@ -2735,6 +2757,13 @@ GsamSession::IsRetransmit (void)
 	}
 
 	return retval;
+}
+
+uint16_t
+GsamSession::GetRemainingRetransmissionCount (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_number_retranmission;
 }
 
 Ipv4Address

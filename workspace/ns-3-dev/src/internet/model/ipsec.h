@@ -73,7 +73,8 @@ public:	//log method
 	static void Log (	const std::string& func_name,
 							uint32_t node_id,
 							const Ptr<GsamSession> session,
-							bool retransmit = false);
+							bool retransmit = false,
+							Ptr<Packet> packet = 0);
 	static void Log (	const std::string& func_name,
 							uint32_t node_id,
 							uint32_t gsa_push_id);
@@ -96,6 +97,7 @@ public:	//const
 	Time GetGmJoinTimeInSeconds (void) const;
 	uint16_t GetNumberOfRetransmission (void) const;
 	bool IsRetransmissionDisable (void) const;
+	uint16_t GetGmJoinEventNumber (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
@@ -368,7 +370,6 @@ public:	//self defined
 	void SetMessageId (uint32_t message_id);
 	Timer& GetRetransmitTimer (void);
 	void SceduleTimeout (Time delay);
-	bool IsRetransmit (void);
 	void SetPeerAddress (Ipv4Address peer_address);
 	void SetGroupAddress (Ipv4Address group_address);
 	void SetRelatedGsaR (Ptr<IpSecSAEntry> gsa_r);
@@ -406,6 +407,8 @@ public: //const
 	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_push_id) const;
 	Ptr<Packet> GetCachePacket (void) const;
 	Ptr<GsamSessionGroup> GetSessionGroup (void) const;
+	bool IsRetransmit (void) const;
+	uint16_t GetRemainingRetransmissionCount (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields

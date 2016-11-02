@@ -90,7 +90,7 @@ main (int argc, char *argv[])
 			ObjectFactory factory;
 			factory.SetTypeId(GsamApplication::GetTypeId());
 			Ptr<Application> app = factory.Create<GsamApplication>();
-			DynamicCast<GsamApplication>(app)->SetEventsNumber(5);
+			DynamicCast<GsamApplication>(app)->SetEventsNumber(GsamConfig::GetSingleton()->GetGmJoinEventNumber());
 			app->SetStartTime(Seconds(0.));
 			app->SetStopTime(Seconds(double(simulation_seconds)));
 			nodes.Get(i)->AddApplication(app);

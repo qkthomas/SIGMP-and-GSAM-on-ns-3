@@ -193,6 +193,8 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamSession> session)
 	//rfc 5996 page 10
 	NS_LOG_FUNCTION (this);
 
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
+
 	if (0 != session->GetCurrentMessageId())
 	{
 		NS_ASSERT (false);
@@ -248,6 +250,8 @@ void
 GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
 
 	if (0 != session->GetCurrentMessageId())
 	{
@@ -1059,9 +1063,17 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 {
 	NS_LOG_FUNCTION (this);
 
-	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
+	bool session_retransmit = session->IsRetransmit();
+
+	//bool retransmit is for identifying initiator or responder
+	if (session->GetRemainingRetransmissionCount() < GsamConfig::GetSingleton()->GetNumberOfRetransmission())
+	{
+		std::cout << "Retransmitting." << std::endl;
+	}
 
 	Ptr<Packet> packet = session->GetCachePacket();
+
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, (session_retransmit && retransmit), packet);
 
 	m_socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom(session->GetPeerAddress()), GsamL4Protocol::PROT_NUMBER));
 
@@ -1070,33 +1082,33 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 	//Cancel retransmission
 	session->GetRetransmitTimer().Cancel();
 
-	if (true == retransmit)
+	if (true == session_retransmit)
 	{
-		bool session_retransmit = session->IsRetransmit();
+		if (true == retransmit)
+		{
+			//*******************legacy codes, not understand why, saved for archived**********************
+			//		if (true == session->GetRetransmitTimer().IsRunning())
+			//		{
+			//			//something may went wrong.
+			//			NS_ASSERT (false);
+			//		}
+			//		else
+			//		{
+			//			session->GetRetransmitTimer().Cancel();
+			//		}
+			//*******************legacy codes, not understand why, saved for archived**********************
 
-//*******************legacy codes, not understand why, saved for archived**********************
-//		if (true == session->GetRetransmitTimer().IsRunning())
-//		{
-//			//something may went wrong.
-//			NS_ASSERT (false);
-//		}
-//		else
-//		{
-//			session->GetRetransmitTimer().Cancel();
-//		}
-//*******************legacy codes, not understand why, saved for archived**********************
-
-
-		//schedule retransmission
-		session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
-		session->GetRetransmitTimer().SetArguments(session, session_retransmit);
-		session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
-		//decrement retransmission count
-		session->DecrementNumberRetransmission();
-	}
-	else
-	{
-		//
+			//schedule retransmission
+			session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
+			session->GetRetransmitTimer().SetArguments(session, session_retransmit);
+			session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
+			//decrement retransmission count
+			session->DecrementNumberRetransmission();
+		}
+		else
+		{
+			//do nothing
+		}
 	}
 	//scheudle timeout
 	session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeout());
@@ -1182,10 +1194,13 @@ GsamL4Protocol::HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& 
 
 		session->SetMessageId(message_id);
 
+		GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
+
 		this->RespondIkeSaInit(session);
 	}
 	else
 	{
+		GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
 		if (session->GetCurrentMessageId() == message_id)
 		{
 			//duplicate received
@@ -1204,6 +1219,8 @@ GsamL4Protocol::HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ik
 	NS_LOG_FUNCTION (this << packet);
 
 	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(ikeheader, peer_address);
+
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
 
 	if (0 == session)
 	{
@@ -1281,6 +1298,8 @@ GsamL4Protocol::RespondIkeSaInit (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
+
 	//setting up Nr
 	IkePayload n_r;
 	n_r.SetSubstructure(IkeNonceSubstructure::GenerateNonceSubstructure());
@@ -1357,6 +1376,8 @@ void
 GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
+
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
 
 	uint32_t message_id = ikeheader.GetMessageId();
 
@@ -1504,6 +1525,8 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 {
 	NS_LOG_FUNCTION (this);
 
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
+
 	uint32_t message_id = ikeheader.GetMessageId();
 
 	if (session->GetCurrentMessageId() == message_id)
@@ -1615,6 +1638,8 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 									const std::list<IkeTrafficSelector>& narrowed_tssr)
 {
 	NS_LOG_FUNCTION (this);
+
+	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
 
 	//Setting up TSr
 	IkePayload tsr = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::TRAFFIC_SELECTOR_RESPONDER);

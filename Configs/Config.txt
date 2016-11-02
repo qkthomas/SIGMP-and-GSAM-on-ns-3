@@ -3,7 +3,8 @@ number-of-nq:1
 fake-rejection-probability:50
 nq-join-time:10
 gm-join-time:2
-number-of-retransmission:0
+number-of-retransmission:1
 retransmission-timeout:2
 session-timeout:2
 retransmission-disable:0
+gm-join-event-number:1
