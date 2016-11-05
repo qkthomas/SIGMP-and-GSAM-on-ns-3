@@ -459,6 +459,15 @@ GsamConfig::Log (	const std::string& func_name,
 void
 GsamConfig::Log (	const std::string& func_name,
 					uint32_t node_id,
+					const Ptr<GsamSession> session,
+					uint32_t gsa_push_id)
+{
+
+}
+
+void
+GsamConfig::Log (	const std::string& func_name,
+					uint32_t node_id,
 					uint32_t gsa_push_id)
 {
 	const std::string split = ", ";
@@ -4694,7 +4703,7 @@ IpSecDatabase::GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, ui
 		Ptr<GsamSession> session_it = (*const_it);
 		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
 				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
-				 session_it->GetInitSaResponderSpi() == 0 &&
+//				 session_it->GetInitSaResponderSpi() == 0 &&
 				 session_it->GetPeerAddress() == peer_address)
 			)
 		{

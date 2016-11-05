@@ -76,6 +76,10 @@ public:	//log method
 							bool retransmit = false,
 							Ptr<Packet> packet = 0);
 	static void Log (	const std::string& func_name,
+						uint32_t node_id,
+						const Ptr<GsamSession> session,
+						uint32_t gsa_push_id);
+	static void Log (	const std::string& func_name,
 							uint32_t node_id,
 							uint32_t gsa_push_id);
 	static void LogGsaQ (const std::string& msg, uint32_t gsa_q_spi);
@@ -725,6 +729,14 @@ private:	//fields
 	Ptr<IpSecSADatabase> m_ptr_sad;
 	Ptr<GsamInfo> m_ptr_info;
 	Ptr<GsamL4Protocol> m_ptr_gsam;
+};
+
+class SimpleAuthenticationHeader : public Header {
+private:
+	uint8_t m_next_header;
+	uint8_t m_ah_len;
+	uint32_t m_spi;
+	uint32_t m_seq_number;
 };
 
 } /* namespace ns3 */

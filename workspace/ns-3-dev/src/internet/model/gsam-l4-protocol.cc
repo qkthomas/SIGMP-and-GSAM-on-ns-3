@@ -30,6 +30,7 @@
 #include <cstdlib>
 #include <ctime>
 #include "ns3/socket-factory.h"
+#include "ns3/udp-l4-protocol-multicast.h"
 
 namespace ns3 {
 
@@ -145,6 +146,14 @@ GsamL4Protocol::Initialization (void)
 	this->m_socket->Bind(local);
 	this->m_socket->SetRecvCallback (MakeCallback (&GsamL4Protocol::HandleRead, this));
 	this->m_socket->SetAllowBroadcast (true);
+
+	//Create by pass policy
+	Ptr<IpSecPolicyEntry> gsam_bypass_policy = this->m_ptr_database->GetPolicyDatabase()->CreatePolicyEntry();
+	gsam_bypass_policy->SetSrcAddressRange(Ipv4Address::GetAny(), Ipv4Address::GetBroadcast());
+	gsam_bypass_policy->SetProcessChoice(IPsec::BYPASS);
+	gsam_bypass_policy->SetProtocolNum(UdpL4ProtocolMulticast::PROT_NUMBER);
+	gsam_bypass_policy->SetTranSrcPortRange(GsamL4Protocol::PROT_NUMBER, GsamL4Protocol::PROT_NUMBER);
+	gsam_bypass_policy->SetTranDestPortRange(GsamL4Protocol::PROT_NUMBER, GsamL4Protocol::PROT_NUMBER);
 }
 
 void
@@ -1204,6 +1213,7 @@ GsamL4Protocol::HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& 
 		if (session->GetCurrentMessageId() == message_id)
 		{
 			//duplicate received
+			GsamConfig::LogMsg("Respond to duplicate ");
 			this->DoSendMessage(session, false);
 		}
 		else
@@ -1465,6 +1475,7 @@ GsamL4Protocol::HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& 
 	else if (session->GetCurrentMessageId() == message_id)
 	{
 		//incoming duplicate invitation
+		GsamConfig::LogMsg("Respond to duplicate ");
 		this->DoSendMessage(session, false);
 	}
 	else	//(session->GetCurrentMessageId() > message_id)
@@ -3002,6 +3013,20 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 		NS_ASSERT (false);
 	}
 
+	Ptr<IkeGroupNotifySubstructure> first_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(first_payload.GetSubstructure());
+
+	uint32_t first_payload_gsa_push_id = first_payload_sub->GetGsaPushId();
+
+	if (true == session->GetInfo()->IsGsaPushIdDeleted(first_payload_gsa_push_id))
+	{
+		GsamConfig::GetSingleton()->LogMsg("Incoming gsa push id belongs was deleted");
+		return;
+	}
+	else
+	{
+
+	}
+
 	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
 	if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
 	{
@@ -3102,6 +3127,17 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 	Ptr<GsaPushSession> gsa_push_session = 0;
 	uint32_t payload_gsa_push_id = first_payload_sub->GetGsaPushId();
 	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, payload_gsa_push_id);
+
+	if (true == session->GetInfo()->IsGsaPushIdDeleted(payload_gsa_push_id))
+	{
+		GsamConfig::GetSingleton()->LogMsg("Incoming gsa push id belongs was deleted");
+		return;
+	}
+	else
+	{
+		//ok
+	}
+
 	if (payload_gsa_push_id == session->GetGsaPushSession()->GetId())
 	{
 		//gm session
