@@ -5062,6 +5062,198 @@ IpSecDatabase::SetGsam (Ptr<GsamL4Protocol> gsam)
 	this->m_ptr_gsam = gsam;
 }
 
+/********************************************************
+ *        SimpleAuthenticationHeader
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (SimpleAuthenticationHeader);
+
+TypeId
+SimpleAuthenticationHeader::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::SimpleAuthenticationHeader")
+	    .SetParent<Header> ()
+	    //.SetGroupName("Internet")
+		.AddConstructor<SimpleAuthenticationHeader> ();
+	  return tid;
+}
+
+SimpleAuthenticationHeader::SimpleAuthenticationHeader ()
+  :  m_next_header (0),
+	 m_ah_len (0),
+	 m_spi (0),
+	 m_seq_number (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+SimpleAuthenticationHeader::SimpleAuthenticationHeader (uint8_t next_header,
+														uint8_t ah_len,
+														uint32_t spi,
+														uint32_t seq_number)
+  :  m_next_header (next_header),
+	 m_ah_len (ah_len),
+	 m_spi (spi),
+	 m_seq_number (seq_number)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+SimpleAuthenticationHeader::~SimpleAuthenticationHeader ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+SimpleAuthenticationHeader::Serialize (Buffer::Iterator start) const
+{
+	NS_LOG_FUNCTION (this << &start);
+	Buffer::Iterator i = start;
+
+	i.WriteU8(this->m_next_header);
+	i.WriteU8(this->m_ah_len);
+	i.WriteHtonU32(this->m_spi);
+	i.WriteHtonU32(this->m_seq_number);
+}
+
+uint32_t
+SimpleAuthenticationHeader::Deserialize (Buffer::Iterator start)
+{
+	NS_LOG_FUNCTION (this << &start);
+	uint32_t byte_read = 0;
+	Buffer::Iterator i = start;
+
+	this->m_next_header = i.ReadU8();
+	byte_read++;
+
+	this->m_ah_len = i.ReadU8();
+	byte_read++;
+
+	this->m_spi = i.ReadNtohU32();
+	byte_read += 4;
+
+	this->m_seq_number = i.ReadNtohU32();
+	byte_read += 4;
+
+	return byte_read;
+}
+
+uint32_t
+SimpleAuthenticationHeader::GetSerializedSize (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return 12;
+}
+
+TypeId
+SimpleAuthenticationHeader::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return SimpleAuthenticationHeader::GetTypeId ();
+}
+
+void
+SimpleAuthenticationHeader::Print (std::ostream &os) const
+{
+	NS_LOG_FUNCTION (this << &os);
+	os << "SimpleAuthenticationHeader: " << this << ": ";
+	os << "Ah Spi: " << this->m_spi << std::endl;
+}
+
+/********************************************************
+ *        IpSecFilter
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IpSecFilter);
+
+TypeId
+IpSecFilter::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IpSecFilter")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<IpSecFilter> ()
+			;
+	return tid;
+}
+
+IpSecFilter::IpSecFilter ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IpSecFilter::~IpSecFilter()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+TypeId
+IpSecFilter::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IpSecFilter::GetTypeId();
+}
+
+void
+IpSecFilter::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IpSecFilter::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Ptr<GsamL4Protocol>
+IpSecFilter::GetGsam (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<GsamL4Protocol> retval = 0;
+	if (0 == this->m_ptr_gsam)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		retval = this->m_ptr_gsam;
+	}
+
+	return retval;
+}
+
+Ptr<Igmpv3L4Protocol>
+IpSecFilter::GetIgmp (void) const
+{
+	NS_LOG_FUNCTION (this);
+	const Ptr<Node> node = this->m_ptr_gsam->GetNode();
+	Ptr<Igmpv3L4Protocol> retval = node->GetObject<Igmpv3L4Protocol> ();
+
+	if (0 == retval)
+	{
+		std::cout << "Node id: " << node->GetId() << ", ";
+		std::cout << "does not have igmp." << std::endl;
+		NS_ASSERT (false);
+	}
+
+	return retval;
+}
+
+void
+IpSecFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == gsam)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_gsam = gsam;
+	}
+}
+
 } /* namespace ns3 */
 
 

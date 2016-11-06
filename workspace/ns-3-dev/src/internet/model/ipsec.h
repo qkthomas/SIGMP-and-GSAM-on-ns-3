@@ -732,11 +732,61 @@ private:	//fields
 };
 
 class SimpleAuthenticationHeader : public Header {
+	/*
+	 *                      1                   2                   3
+	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 * |  Next Header  |   AH Length   |           Reserved            |
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 * |                           SPI                                 |
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 * |                     Sequence Number                           |
+	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
+public:	//Header override
+	static TypeId GetTypeId (void);
+	SimpleAuthenticationHeader ();
+	explicit SimpleAuthenticationHeader (	uint8_t next_header,
+											uint8_t ah_len,
+											uint32_t spi,
+											uint32_t seq_number);
+	virtual ~SimpleAuthenticationHeader ();
+public:	//Header override
+	virtual void Serialize (Buffer::Iterator start) const;
+	virtual uint32_t Deserialize (Buffer::Iterator start);
+	virtual uint32_t GetSerializedSize (void) const;
+	virtual TypeId GetInstanceTypeId (void) const;
+	virtual void Print (std::ostream &os) const;
 private:
 	uint8_t m_next_header;
 	uint8_t m_ah_len;
 	uint32_t m_spi;
 	uint32_t m_seq_number;
+};
+
+class IpSecFilter : public Object {
+public:	//Object override
+	static TypeId GetTypeId (void);
+	IpSecFilter ();
+	virtual ~IpSecFilter();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+
+public:	//self-defined const
+	Ptr<GsamL4Protocol> GetGsam (void) const;
+	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+public:	//self-defined non-const
+	void SetGsam (Ptr<GsamL4Protocol> gsam);
+private:
+	Ptr<GsamL4Protocol> m_ptr_gsam;
 };
 
 } /* namespace ns3 */
