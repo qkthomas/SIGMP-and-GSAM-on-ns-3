@@ -1875,7 +1875,7 @@ IkeSaProposal::SetProposalNumber (uint8_t proposal_num)
 }
 
 void
-IkeSaProposal::SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
+IkeSaProposal::SetProtocolId (IpSec::SA_Proposal_PROTOCOL_ID protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_protocol_id = protocol_id;
@@ -1919,12 +1919,12 @@ IkeSaProposal::GetSpi (void) const
 	return this->m_ptr_spi;
 }
 
-IPsec::SA_Proposal_PROTOCOL_ID
+IpSec::SA_Proposal_PROTOCOL_ID
 IkeSaProposal::GetProtocolId (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	IPsec::SA_Proposal_PROTOCOL_ID retval = IPsec::SA_PROPOSAL_IKE;
+	IpSec::SA_Proposal_PROTOCOL_ID retval = IpSec::SA_PROPOSAL_IKE;
 
 	if (1 == this->m_protocol_id)
 	{
@@ -1932,11 +1932,11 @@ IkeSaProposal::GetProtocolId (void) const
 	}
 	else if (2 == this->m_protocol_id)
 	{
-		retval = IPsec::SA_PROPOSAL_AH;
+		retval = IpSec::SA_PROPOSAL_AH;
 	}
 	else if (3 == this->m_protocol_id)
 	{
-		retval = IPsec::SA_PROPOSAL_ESP;
+		retval = IpSec::SA_PROPOSAL_ESP;
 	}
 	else
 	{
@@ -1947,20 +1947,20 @@ IkeSaProposal::GetProtocolId (void) const
 }
 
 uint8_t
-IkeSaProposal::GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id)
+IkeSaProposal::GetSPISizeByProtocolId (IpSec::SA_Proposal_PROTOCOL_ID protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 
 	uint8_t size = 0;
 
 	switch (protocol_id) {
-	case IPsec::SA_PROPOSAL_IKE:
+	case IpSec::SA_PROPOSAL_IKE:
 		size = 8;	//8 bytes
 		break;
-	case IPsec::SA_PROPOSAL_AH:
+	case IpSec::SA_PROPOSAL_AH:
 		size = 4;
 		break;
-	case IPsec::SA_PROPOSAL_ESP:
+	case IpSec::SA_PROPOSAL_ESP:
 		size = 4;
 		break;
 	default:
@@ -1997,7 +1997,7 @@ IkeSaProposal::GenerateInitIkeProposal ()
 {
 	Ptr<IkeSaProposal> retval = Create<IkeSaProposal>();
 	//set ike
-	retval->SetProtocolId(IPsec::SA_PROPOSAL_IKE);
+	retval->SetProtocolId(IpSec::SA_PROPOSAL_IKE);
 	//no need to set spi, set transform
 	IkeTransformSubStructure transform  = IkeTransformSubStructure::GetEmptyTransform();
 	retval->PushBackTransform(transform);
@@ -2009,7 +2009,7 @@ IkeSaProposal::GenerateAuthIkeProposal (const Ptr<Spi> spi)
 {
 	Ptr<IkeSaProposal> retval = Create<IkeSaProposal>();
 	//set ike
-	retval->SetProtocolId(IPsec::SA_PROPOSAL_IKE);
+	retval->SetProtocolId(IpSec::SA_PROPOSAL_IKE);
 	//set spi
 	retval->SetSPI(spi);
 	//set trasform
@@ -2186,7 +2186,7 @@ IkeSaPayloadSubstructure::GetPayloadType (void) const
 	return IkePayloadHeader::SECURITY_ASSOCIATION;
 }
 
-IPsec::SA_Proposal_PROTOCOL_ID
+IpSec::SA_Proposal_PROTOCOL_ID
 IkeSaPayloadSubstructure::GetFirstProposalProtocolId (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -4902,15 +4902,15 @@ IkeGroupNotifySubstructure::SetProtocolId (uint8_t protocol_id)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (protocol_id == IPsec::SA_PROPOSAL_IKE)
+	if (protocol_id == IpSec::SA_PROPOSAL_IKE)
 	{
 		//ok
 	}
-	else if (protocol_id == IPsec::SA_PROPOSAL_AH)
+	else if (protocol_id == IpSec::SA_PROPOSAL_AH)
 	{
 		//ok
 	}
-	else if (protocol_id == IPsec::SA_PROPOSAL_ESP)
+	else if (protocol_id == IpSec::SA_PROPOSAL_ESP)
 	{
 		//ok
 	}
@@ -5087,15 +5087,15 @@ uint8_t
 IkeGroupNotifySubstructure::GetProtocolId (void) const
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_protocol_id == IPsec::SA_PROPOSAL_IKE)
+	if (this->m_protocol_id == IpSec::SA_PROPOSAL_IKE)
 	{
 		//ok
 	}
-	else if (this->m_protocol_id == IPsec::SA_PROPOSAL_AH)
+	else if (this->m_protocol_id == IpSec::SA_PROPOSAL_AH)
 	{
 		//ok
 	}
-	else if (this->m_protocol_id == IPsec::SA_PROPOSAL_ESP)
+	else if (this->m_protocol_id == IpSec::SA_PROPOSAL_ESP)
 	{
 		//ok
 	}
@@ -5200,7 +5200,7 @@ IkeGroupNotifySubstructure::GetPayloadType (void) const
 }
 
 Ptr<IkeGroupNotifySubstructure>
-IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
+IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure (	IpSec::SA_Proposal_PROTOCOL_ID protocol_id,
 																	uint8_t spi_size,
 																	IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
 																	uint32_t gsa_push_id,

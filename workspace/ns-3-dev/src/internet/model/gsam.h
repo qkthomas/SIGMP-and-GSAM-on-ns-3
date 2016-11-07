@@ -37,7 +37,7 @@ class IkeSaProposal;
 class IkeTrafficSelector;
 class IkeGsaProposal;
 
-class IPsec {
+class IpSec {
 public:
 	enum SA_Proposal_PROTOCOL_ID {
 		SA_PROPOSAL_RESERVED = 0,
@@ -522,15 +522,15 @@ public:	//non-const
 	void SetLast (void);
 	void ClearLast (void);
 	void SetProposalNumber (uint8_t proposal_num);
-	void SetProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
+	void SetProtocolId (IpSec::SA_Proposal_PROTOCOL_ID protocol_id);
 	void SetSPI (const Ptr<Spi> spi);
 	void PushBackTransform (IkeTransformSubStructure transform);
 public:	//const
 	bool IsLast (void) const;
 	Ptr<Spi> GetSpi (void) const;
-	IPsec::SA_Proposal_PROTOCOL_ID GetProtocolId (void) const;
+	IpSec::SA_Proposal_PROTOCOL_ID GetProtocolId (void) const;
 protected:
-	uint8_t GetSPISizeByProtocolId (IPsec::SA_Proposal_PROTOCOL_ID protocol_id);
+	uint8_t GetSPISizeByProtocolId (IpSec::SA_Proposal_PROTOCOL_ID protocol_id);
 	/*
 	 * Iterate the list of transform and set the last one's "field last"
 	 */
@@ -581,7 +581,7 @@ public:	//self-defined
 public:	//const
 	const std::list<Ptr<IkeSaProposal> >& GetProposals (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
-	IPsec::SA_Proposal_PROTOCOL_ID GetFirstProposalProtocolId (void) const;
+	IpSec::SA_Proposal_PROTOCOL_ID GetFirstProposalProtocolId (void) const;
 protected:
 	/*
 	 * Iterate the list of proposals and set the last one's "field last"
@@ -1286,7 +1286,7 @@ public:	//const
 	const std::set<uint32_t>& GetSpis (void) const;
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//static
-	static Ptr<IkeGroupNotifySubstructure> GenerateEmptyGroupNotifySubstructure (	IPsec::SA_Proposal_PROTOCOL_ID protocol_id,
+	static Ptr<IkeGroupNotifySubstructure> GenerateEmptyGroupNotifySubstructure (	IpSec::SA_Proposal_PROTOCOL_ID protocol_id,
 														uint8_t spi_size,
 														IkeGroupNotifySubstructure::NOTIFY_MESSAGE_TYPE msg_type,
 														uint32_t gsa_push_id,

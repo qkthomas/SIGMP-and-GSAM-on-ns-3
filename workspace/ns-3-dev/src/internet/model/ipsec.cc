@@ -29,6 +29,9 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include "ns3/ipv4-header.h"
+#include "tcp-header.h"
+#include "udp-header.h"
 
 namespace ns3 {
 
@@ -242,19 +245,19 @@ GsamUtility::LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint3
 }
 
 uint8_t
-GsamUtility::ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id)
+GsamUtility::ConvertSaProposalIdToIpProtocolNum (IpSec::SA_Proposal_PROTOCOL_ID sa_protocol_id)
 {
 	uint8_t retval = 0;
 	switch (sa_protocol_id)
 	{
-		case IPsec::SA_PROPOSAL_IKE:
+		case IpSec::SA_PROPOSAL_IKE:
 			NS_ASSERT (false);
 			break;
-		case IPsec::SA_PROPOSAL_AH:
-			retval = IPsec::IP_ID_AH;
+		case IpSec::SA_PROPOSAL_AH:
+			retval = IpSec::IP_ID_AH;
 			break;
-		case IPsec::SA_PROPOSAL_ESP:
-			retval = IPsec::IP_ID_ESP;
+		case IpSec::SA_PROPOSAL_ESP:
+			retval = IpSec::IP_ID_ESP;
 			break;
 		default:
 			NS_ASSERT (false);
@@ -309,22 +312,22 @@ GsamConfig::GetInstanceTypeId (void) const
 	return GsamConfig::GetTypeId();
 }
 
-IPsec::MODE
+IpSec::MODE
 GsamConfig::GetDefaultIpsecMode (void)
 {
-	return IPsec::TRANSPORT;
+	return IpSec::TRANSPORT;
 }
 
 uint8_t
 GsamConfig::GetDefaultIpsecProtocolId (void)
 {
-	return IPsec::IP_ID_AH;
+	return IpSec::IP_ID_AH;
 }
 
-IPsec::SA_Proposal_PROTOCOL_ID
+IpSec::SA_Proposal_PROTOCOL_ID
 GsamConfig::GetDefaultGSAProposalId (void)
 {
-	return IPsec::SA_PROPOSAL_AH;
+	return IpSec::SA_PROPOSAL_AH;
 }
 
 Ipv4Address
@@ -1954,7 +1957,7 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_fo
 				NS_ASSERT (false);
 			}
 
-			if (value_const_it->GetSpiSize() != IPsec::AH_ESP_SPI_SIZE)
+			if (value_const_it->GetSpiSize() != IpSec::AH_ESP_SPI_SIZE)
 			{
 				NS_ASSERT (false);
 			}
@@ -1962,7 +1965,7 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_fo
 			IkeTrafficSelector ts_src = value_const_it->GetTrafficSelectorSrc();
 			IkeTrafficSelector ts_dest = value_const_it->GetTrafficSelectorDest();
 			//find policy
-			Ptr<IpSecPolicyEntry> policy = this->m_ptr_database->GetPolicyDatabase()->GetPolicy(ts_src, ts_dest);
+			Ptr<IpSecPolicyEntry> policy = this->m_ptr_database->GetPolicyDatabase()->GetExactMatchedPolicy(ts_src, ts_dest);
 			if (policy == 0)
 			{
 				NS_ASSERT (false);
@@ -3387,8 +3390,8 @@ GsamSessionGroup::GetSessions (void)
 void
 GsamSessionGroup::EtablishPolicy (Ipv4Address group_address,
 									uint8_t protocol_id,
-									IPsec::PROCESS_CHOICE policy_process_choice,
-									IPsec::MODE ipsec_mode)
+									IpSec::PROCESS_CHOICE policy_process_choice,
+									IpSec::MODE ipsec_mode)
 {
 	NS_LOG_FUNCTION (this);
 	if (group_address.Get() == 0)
@@ -3409,8 +3412,8 @@ void
 GsamSessionGroup::EtablishPolicy (	const IkeTrafficSelector& ts_src,
 									const IkeTrafficSelector& ts_dest,
 									uint8_t protocol_id,
-									IPsec::PROCESS_CHOICE policy_process_choice,
-									IPsec::MODE ipsec_mode)
+									IpSec::PROCESS_CHOICE policy_process_choice,
+									IpSec::MODE ipsec_mode)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -3513,7 +3516,7 @@ GsamSessionGroup::GetRelatedPolicy (void)
 	else
 	{
 		std::pair<IkeTrafficSelector, IkeTrafficSelector> tss = GsamUtility::GetTsPairFromGroupAddress(this->m_group_address);
-		retval = this->m_ptr_database->GetPolicyDatabase()->GetPolicy(tss.first, tss.second);
+		retval = this->m_ptr_database->GetPolicyDatabase()->GetExactMatchedPolicy(tss.first, tss.second);
 		if (0 != retval)
 		{
 			this->m_ptr_related_policy = retval;
@@ -4019,12 +4022,12 @@ IpSecPolicyEntry::IpSecPolicyEntry ()
 	 m_dest_starting_address (Ipv4Address ("0.0.0.0")),
 	 m_dest_ending_address (Ipv4Address ("0.0.0.0")),
 	 m_ip_protocol_num (0),
-	 m_ipsec_mode (IPsec::NONE),
+	 m_ipsec_mode (IpSec::NONE),
 	 m_src_transport_protocol_starting_num (0),
 	 m_src_transport_protocol_ending_num (0),
 	 m_dest_transport_protocol_starting_num (0),
 	 m_dest_transport_protocol_ending_num (0),
-	 m_process_choise (IPsec::BYPASS),
+	 m_process_choise (IpSec::BYPASS),
 	 m_ptr_spd (0),
 	 m_ptr_outbound_sad (0)
 {
@@ -4066,13 +4069,13 @@ IpSecPolicyEntry::DoDispose (void)
 }
 
 void
-IpSecPolicyEntry::SetProcessChoice (IPsec::PROCESS_CHOICE process_choice)
+IpSecPolicyEntry::SetProcessChoice (IpSec::PROCESS_CHOICE process_choice)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_process_choise = process_choice;
 }
 
-IPsec::PROCESS_CHOICE
+IpSec::PROCESS_CHOICE
 IpSecPolicyEntry::GetProcessChoice (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -4087,7 +4090,7 @@ IpSecPolicyEntry::SetProtocolNum (uint8_t protocol_id)
 }
 
 void
-IpSecPolicyEntry::SetIpsecMode (IPsec::MODE mode)
+IpSecPolicyEntry::SetIpsecMode (IpSec::MODE mode)
 {
 	NS_LOG_FUNCTION (this);
 	this->m_ipsec_mode = mode;
@@ -4100,7 +4103,7 @@ IpSecPolicyEntry::GetProtocolNum () const
 	return this->m_ip_protocol_num;
 }
 
-IPsec::MODE
+IpSec::MODE
 IpSecPolicyEntry::GetIpsecMode (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -4580,7 +4583,7 @@ IpSecPolicyDatabase::GetInboundSpis (std::list<Ptr<Spi> >& retval) const
 }
 
 Ptr<IpSecPolicyEntry>
-IpSecPolicyDatabase::GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const
+IpSecPolicyDatabase::GetExactMatchedPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const
 {
 	NS_LOG_FUNCTION (this);
 
@@ -4594,6 +4597,160 @@ IpSecPolicyDatabase::GetPolicy (const IkeTrafficSelector& ts_src, const IkeTraff
 				((*const_it)->GetTrafficSelectorDest() == ts_dest))
 		{
 			retval = (*const_it);
+			break;
+		}
+	}
+
+	//retval is allowed to be zero
+	return retval;
+}
+
+Ptr<IpSecPolicyEntry>
+IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, Ptr<Packet> packet) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IpSecPolicyEntry> retval = 0;
+
+	for (std::list<Ptr<IpSecPolicyEntry> >::const_iterator const_it = this->m_lst_entries.begin();
+			const_it != this->m_lst_entries.end();
+			const_it++)
+	{
+		Ptr<IpSecPolicyEntry> value_const_it = (*const_it);
+		bool match = true;
+
+		//check source address
+		if ((value_const_it->GetSrcAddressRangeStart() == Ipv4Address::GetAny()) &&
+				(value_const_it->GetSrcAddressRangeEnd() == Ipv4Address::GetAny()))
+		{
+			//match
+		}
+		else
+		{
+			if (value_const_it->GetSrcAddressRangeStart().Get() <= ipv4header.GetSource().Get())
+			{
+				if (value_const_it->GetSrcAddressRangeEnd().Get() >= ipv4header.GetSource().Get())
+				{
+					//match
+				}
+				else
+				{
+					//no match
+					match = false;
+				}
+			}
+			else
+			{
+				//no match
+				match = false;
+			}
+		}
+		//check destination address
+		if ((value_const_it->GetDestAddressRangeStart() == Ipv4Address::GetAny()) &&
+				(value_const_it->GetDestAddressRangeEnd() == Ipv4Address::GetAny()))
+		{
+			//match
+		}
+		else
+		{
+			if (value_const_it->GetDestAddressRangeStart().Get() <= ipv4header.GetDestination().Get())
+			{
+				if (value_const_it->GetDestAddressRangeEnd().Get() >= ipv4header.GetDestination().Get())
+				{
+					//match
+				}
+				else
+				{
+					//no match
+					match = false;
+				}
+			}
+			else
+			{
+				//no match
+				match = false;
+			}
+		}
+		//check transport protocol ports
+		if (6 == ipv4header.GetProtocol())
+		{
+			//tcp
+			TcpHeader tcpheader;
+			packet->RemoveHeader(tcpheader);
+			if ((value_const_it->GetTranSrcStartingPort() <= tcpheader.GetSourcePort()) &&
+					(value_const_it->GetTranSrcEndingPort() >= tcpheader.GetSourcePort()))
+			{
+				if ((value_const_it->GetTranDestStartingPort() <= tcpheader.GetDestinationPort()) &&
+						(value_const_it->GetTranDestEndingPort() >= tcpheader.GetDestinationPort()))
+				{
+					//match
+				}
+				else
+				{
+					//no match
+					match = false;
+				}
+			}
+			else
+			{
+				//no match
+				match = false;
+			}
+			packet->AddHeader(tcpheader);
+		}
+		else if (17 == ipv4header.GetProtocol())
+		{
+			//udp
+			UdpHeader udpheader;
+			packet->RemoveHeader(udpheader);
+			if ((value_const_it->GetTranSrcStartingPort() <= udpheader.GetSourcePort()) &&
+					(value_const_it->GetTranSrcEndingPort() >= udpheader.GetSourcePort()))
+			{
+				if ((value_const_it->GetTranDestStartingPort() <= udpheader.GetDestinationPort()) &&
+						(value_const_it->GetTranDestEndingPort() >= udpheader.GetDestinationPort()))
+				{
+					//match
+				}
+				else
+				{
+					//no match
+					match = false;
+				}
+			}
+			else
+			{
+				//no match
+				match = false;
+			}
+			packet->AddHeader(udpheader);
+		}
+		else
+		{
+			if ((value_const_it->GetTranSrcStartingPort() == 0) &&
+					(value_const_it->GetTranSrcEndingPort() == 0))
+			{
+				if ((value_const_it->GetTranDestStartingPort() == 0) &&
+						(value_const_it->GetTranDestEndingPort() == 0))
+				{
+					//match
+				}
+				else
+				{
+					//no match
+					match = false;
+				}
+			}
+			else
+			{
+				//no match
+				match = false;
+			}
+		}
+
+
+		if (true == match)
+		{
+			retval = value_const_it;
+			break;
 		}
 	}
 
@@ -5240,6 +5397,18 @@ IpSecFilter::GetIgmp (void) const
 	return retval;
 }
 
+Ptr<IpSecDatabase>
+IpSecFilter::GetDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IpSecDatabase> retval = this->GetGsam()->GetIpSecDatabase();
+	if (0 == retval)
+	{
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
 void
 IpSecFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
 {
@@ -5252,6 +5421,55 @@ IpSecFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
 	{
 		this->m_ptr_gsam = gsam;
 	}
+}
+
+IpSec::PROCESS_CHOICE
+IpSecFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
+{
+	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
+	Ipv4Header ipv4header;
+	incoming_and_retval_packet->RemoveHeader(ipv4header);
+	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(ipv4header, incoming_and_retval_packet);
+	if (0 == policy)
+	{
+		//no policy found
+		//do gasm
+	}
+	else
+	{
+		//policy found
+		retval = policy->GetProcessChoice();
+		if (retval == IpSec::BYPASS)
+		{
+
+		}
+		else if (retval == IpSec::DISCARD)
+		{
+
+		}
+		else if (retval == IpSec::PROTECT)
+		{
+			if (IpSec::IP_ID_AH == ipv4header.GetProtocol())
+			{
+				SimpleAuthenticationHeader simpleah;
+				incoming_and_retval_packet->RemoveHeader(simpleah);
+				//continue code
+			}
+			else if (IpSec::IP_ID_ESP == ipv4header.GetProtocol())
+			{
+				NS_ASSERT (false);
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	return retval;
 }
 
 } /* namespace ns3 */

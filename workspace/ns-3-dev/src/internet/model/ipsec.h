@@ -46,7 +46,7 @@ public://static
 	static std::pair<IkeTrafficSelector, IkeTrafficSelector> GetTsPairFromGroupAddress (Ipv4Address group_address);
 	static void LstSpiToLstU32 (const std::list<Ptr<Spi> >& lst_spi, std::list<uint32_t>& retval_lst_u32);
 	static void LstSpiToSetU32 (const std::list<Ptr<Spi> >& lst_spi, std::set<uint32_t>& retval_lst_u32);
-	static uint8_t ConvertSaProposalIdToIpProtocolNum (IPsec::SA_Proposal_PROTOCOL_ID sa_protocol_id);
+	static uint8_t ConvertSaProposalIdToIpProtocolNum (IpSec::SA_Proposal_PROTOCOL_ID sa_protocol_id);
 };
 
 class GsamConfig : public Object {
@@ -56,9 +56,9 @@ public:	//Object override
 	virtual ~GsamConfig();
 	virtual TypeId GetInstanceTypeId (void) const;
 public:	//static methods
-	static IPsec::MODE GetDefaultIpsecMode (void);
+	static IpSec::MODE GetDefaultIpsecMode (void);
 	static uint8_t GetDefaultIpsecProtocolId (void);
-	static IPsec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
+	static IpSec::SA_Proposal_PROTOCOL_ID GetDefaultGSAProposalId (void);
 	static Ipv4Address GetIgmpv3DestGrpReportAddress (void);
 	static Ptr<GsamConfig> GetSingleton (void);
 	static bool IsFalseByPercentage (uint16_t percentage_0_to_100);
@@ -462,13 +462,13 @@ public: //self-defined
 	std::list<Ptr<GsamSession> >& GetSessions (void);
 	void EtablishPolicy (Ipv4Address group_address,
 							uint8_t protocol_id,
-							IPsec::PROCESS_CHOICE policy_process_choice,
-							IPsec::MODE ipsec_mode);
+							IpSec::PROCESS_CHOICE policy_process_choice,
+							IpSec::MODE ipsec_mode);
 	void EtablishPolicy (	const IkeTrafficSelector& ts_src,
 							const IkeTrafficSelector& ts_dest,
 							uint8_t protocol_id,
-							IPsec::PROCESS_CHOICE policy_process_choice,
-							IPsec::MODE ipsec_mode);
+							IpSec::PROCESS_CHOICE policy_process_choice,
+							IpSec::MODE ipsec_mode);
 	void InstallGsaQ (uint32_t spi);
 	void InstallGsaR (uint32_t spi);
 	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void);
@@ -589,9 +589,9 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//const
-	IPsec::PROCESS_CHOICE GetProcessChoice (void) const;
+	IpSec::PROCESS_CHOICE GetProcessChoice (void) const;
 	uint8_t GetProtocolNum (void) const;
-	IPsec::MODE GetIpsecMode (void) const;
+	IpSec::MODE GetIpsecMode (void) const;
 	uint16_t GetTranSrcStartingPort (void) const;
 	uint16_t GetTranSrcEndingPort (void) const;
 	uint16_t GetTranDestStartingPort (void) const;
@@ -607,9 +607,9 @@ public:	//const
 	IkeTrafficSelector GetTrafficSelectorDest (void) const;
 	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
 public:
-	void SetProcessChoice (IPsec::PROCESS_CHOICE process_choice);
+	void SetProcessChoice (IpSec::PROCESS_CHOICE process_choice);
 	void SetProtocolNum (uint8_t protocol_id);
-	void SetIpsecMode (IPsec::MODE mode);
+	void SetIpsecMode (IpSec::MODE mode);
 	void SetTranSrcStartingPort (uint16_t port_num);
 	void SetTranSrcEndingPort (uint16_t port_num);
 	void SetTranDestStartingPort (uint16_t port_num);
@@ -632,12 +632,12 @@ private:
 	Ipv4Address m_dest_starting_address;
 	Ipv4Address m_dest_ending_address;
 	uint8_t m_ip_protocol_num;
-	IPsec::MODE m_ipsec_mode;
+	IpSec::MODE m_ipsec_mode;
 	uint16_t m_src_transport_protocol_starting_num;
 	uint16_t m_src_transport_protocol_ending_num;
 	uint16_t m_dest_transport_protocol_starting_num;
 	uint16_t m_dest_transport_protocol_ending_num;
-	IPsec::PROCESS_CHOICE m_process_choise;
+	IpSec::PROCESS_CHOICE m_process_choise;
 	Ptr<IpSecPolicyDatabase> m_ptr_spd;
 	Ptr<IpSecSADatabase> m_ptr_outbound_sad;
 	Ptr<IpSecSADatabase> m_ptr_inbound_sad;
@@ -667,7 +667,8 @@ public:	//const
 	Ptr<IpSecDatabase> GetRootDatabase (void) const;
 	Ptr<GsamInfo> GetInfo (void) const;
 	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
-	Ptr<IpSecPolicyEntry> GetPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const;
+	Ptr<IpSecPolicyEntry> GetExactMatchedPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const;
+	Ptr<IpSecPolicyEntry> GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, Ptr<Packet> packet) const;
 private:
 	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
 private:	//fields
@@ -783,8 +784,10 @@ private:
 public:	//self-defined const
 	Ptr<GsamL4Protocol> GetGsam (void) const;
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
+	Ptr<IpSecDatabase> GetDatabase (void) const;
 public:	//self-defined non-const
 	void SetGsam (Ptr<GsamL4Protocol> gsam);
+	IpSec::PROCESS_CHOICE ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet);
 private:
 	Ptr<GsamL4Protocol> m_ptr_gsam;
 };

@@ -158,7 +158,7 @@ GsamL4Protocol::Initialization (void)
 	//Create by pass policy
 	Ptr<IpSecPolicyEntry> gsam_bypass_policy = this->m_ptr_database->GetPolicyDatabase()->CreatePolicyEntry();
 	gsam_bypass_policy->SetSrcAddressRange(Ipv4Address::GetAny(), Ipv4Address::GetBroadcast());
-	gsam_bypass_policy->SetProcessChoice(IPsec::BYPASS);
+	gsam_bypass_policy->SetProcessChoice(IpSec::BYPASS);
 	gsam_bypass_policy->SetProtocolNum(UdpL4ProtocolMulticast::PROT_NUMBER);
 	gsam_bypass_policy->SetTranSrcPortRange(GsamL4Protocol::PROT_NUMBER, GsamL4Protocol::PROT_NUMBER);
 	gsam_bypass_policy->SetTranDestPortRange(GsamL4Protocol::PROT_NUMBER, GsamL4Protocol::PROT_NUMBER);
@@ -720,7 +720,7 @@ GsamL4Protocol::Send_SPI_REQUEST (Ptr<GsaPushSession> gsa_push_session, GsaPushS
 		IkePayload spi_request_payload;
 		IkeTrafficSelector dummy_ts = IkeTrafficSelector::GetIpv4DummyTs();
 		Ptr<IkeGroupNotifySubstructure> spi_request_sub = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
-				IPsec::AH_ESP_SPI_SIZE,
+				IpSec::AH_ESP_SPI_SIZE,
 				IkeGroupNotifySubstructure::SPI_REQUEST,
 				gsa_push_session->GetId(),
 				dummy_ts,
@@ -1883,7 +1883,7 @@ GsamL4Protocol::SendSpiReportGMNQ (Ptr<GsamSession> session, uint32_t gsa_push_i
 	}
 
 	Ptr<IkeGroupNotifySubstructure> spi_report_payload_sub = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
-																																IPsec::AH_ESP_SPI_SIZE,
+																																IpSec::AH_ESP_SPI_SIZE,
 																																type,
 																																gsa_push_id,
 																																IkeTrafficSelector::GetIpv4DummyTs(),
@@ -2134,7 +2134,7 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 		Ipv4Address group_address = GsamUtility::CheckAndGetGroupAddressFromTrafficSelectors(ts_src, ts_dest);
 
 		Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
-		Ptr<IpSecPolicyEntry> policy = spd->GetPolicy(ts_src, ts_dest);
+		Ptr<IpSecPolicyEntry> policy = spd->GetExactMatchedPolicy(ts_src, ts_dest);
 		if (0 == policy)
 		{
 			GsamConfig::LogMsg("No Policy Exists");
@@ -2148,8 +2148,8 @@ GsamL4Protocol::HandleGsaRepushNQ (Ptr<Packet> packet, const IkeHeader& ikeheade
 			else
 			{
 				//etablish policy
-				session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
-				policy = spd->GetPolicy(ts_src, ts_dest);
+				session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IpSec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+				policy = spd->GetExactMatchedPolicy(ts_src, ts_dest);
 				if (0 == policy)
 				{
 					NS_ASSERT (false);
@@ -2297,8 +2297,8 @@ GsamL4Protocol::RejectGsaR (Ptr<GsamSession> session,
 {
 	NS_LOG_FUNCTION (this);
 
-	Ptr<IkeGroupNotifySubstructure> gsa_r_spis_to_reject_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(IPsec::SA_PROPOSAL_AH,
-																																				IPsec::AH_ESP_SPI_SIZE,
+	Ptr<IkeGroupNotifySubstructure> gsa_r_spis_to_reject_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(IpSec::SA_PROPOSAL_AH,
+																																				IpSec::AH_ESP_SPI_SIZE,
 																																				IkeGroupNotifySubstructure::GSA_R_SPI_REJECTION,
 																																				gsa_push_id,
 																																				ts_src,
@@ -2351,7 +2351,7 @@ GsamL4Protocol::SendAcceptAck (Ptr<GsamSession> session,  uint32_t gsa_push_id)
 	IkeTrafficSelector empty_ts = IkeTrafficSelector::GetIpv4DummyTs();
 
 	Ptr<IkeGroupNotifySubstructure> ack_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(	GsamConfig::GetDefaultGSAProposalId(),
-																																	IPsec::AH_ESP_SPI_SIZE,
+																																	IpSec::AH_ESP_SPI_SIZE,
 																																	IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT,
 																																	gsa_push_id,
 																																	empty_ts,
@@ -2685,7 +2685,7 @@ GsamL4Protocol::RejectGsaQ (Ptr<GsamSession> session,
 
 	//setting up payload contains rejected spi
 	Ptr<IkeGroupNotifySubstructure> reject_gsa_q_spi_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(GsamConfig::GetDefaultGSAProposalId(),
-																															IPsec::AH_ESP_SPI_SIZE,
+																															IpSec::AH_ESP_SPI_SIZE,
 																															IkeGroupNotifySubstructure::GSA_Q_SPI_REJECTION,
 																															gsa_push_id,
 																															ts_src,
@@ -2783,7 +2783,7 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_id);
 
 	Ptr<IkeGroupNotifySubstructure> ack_notify_substructure = IkeGroupNotifySubstructure::GenerateEmptyGroupNotifySubstructure(	GsamConfig::GetDefaultGSAProposalId(),
-																																IPsec::AH_ESP_SPI_SIZE,
+																																IpSec::AH_ESP_SPI_SIZE,
 																																IkeGroupNotifySubstructure::GSA_ACKNOWLEDGEDMENT,
 																																gsa_push_id,
 																																ts_src,
@@ -2920,7 +2920,7 @@ GsamL4Protocol::ProcessGsaPushNQForOneGrp (	Ptr<GsamSession> session,
 			{
 				NS_ASSERT (false);
 			}
-			session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IPsec::PROTECT, GsamConfig::GetDefaultIpsecMode());
+			session_group->EtablishPolicy(ts_src, ts_dest, GsamConfig::GetDefaultIpsecProtocolId(), IpSec::PROTECT, GsamConfig::GetDefaultIpsecMode());
 			for (std::list<uint32_t>::const_iterator const_it = lst_u32_gsa_q_spis_to_install.begin();
 					const_it != lst_u32_gsa_q_spis_to_install.end();
 					const_it++)
@@ -3069,7 +3069,7 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 
 	Ptr<IkeGroupNotifySubstructure> first_payload_sub = DynamicCast<IkeGroupNotifySubstructure>(first_payload.GetSubstructure());
 
-	if (first_payload_sub->GetSpiSize() != IPsec::AH_ESP_SPI_SIZE)
+	if (first_payload_sub->GetSpiSize() != IpSec::AH_ESP_SPI_SIZE)
 	{
 		NS_ASSERT (false);
 	}
@@ -3125,7 +3125,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 		NS_ASSERT (false);
 	}
 
-	if (IPsec::AH_ESP_SPI_SIZE != first_payload_sub->GetSpiSize())
+	if (IpSec::AH_ESP_SPI_SIZE != first_payload_sub->GetSpiSize())
 	{
 		NS_ASSERT (false);
 	}
@@ -3339,7 +3339,7 @@ GsamL4Protocol::HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> s
 			NS_ASSERT (false);
 		}
 
-		if (IPsec::AH_ESP_SPI_SIZE != gsa_rejection_sub->GetSpiSize())
+		if (IpSec::AH_ESP_SPI_SIZE != gsa_rejection_sub->GetSpiSize())
 		{
 			NS_ASSERT (false);
 		}
@@ -3377,7 +3377,7 @@ GsamL4Protocol::HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> s
 			NS_ASSERT (false);
 		}
 
-		if (IPsec::AH_ESP_SPI_SIZE != gsa_rejection_sub->GetSpiSize())
+		if (IpSec::AH_ESP_SPI_SIZE != gsa_rejection_sub->GetSpiSize())
 		{
 			NS_ASSERT (false);
 		}
@@ -3577,7 +3577,7 @@ GsamL4Protocol::CreateIpSecPolicy (Ptr<GsamSession> session, const IkeTrafficSel
 
 	Ptr<IpSecPolicyDatabase> spd = session->GetDatabase()->GetPolicyDatabase();
 	Ptr<IpSecPolicyEntry> policy_entry = spd->CreatePolicyEntry();
-	policy_entry->SetProcessChoice(IPsec::PROTECT);
+	policy_entry->SetProcessChoice(IpSec::PROTECT);
 	policy_entry->SetIpsecMode(GsamConfig::GetDefaultIpsecMode());
 	policy_entry->SetSrcAddressRange(tsi.GetStartingAddress(), tsi.GetEndingAddress());
 	policy_entry->SetTranSrcPortRange(tsi.GetStartPort(), tsi.GetEndPort());
@@ -3639,8 +3639,8 @@ GsamL4Protocol::CreateIpSecPolicy (	Ptr<GsamSession> session,
 		{
 			session->GetSessionGroup()->EtablishPolicy(*const_it_tsi_selector,
 														*const_it_tsr_selector,
-														IPsec::IP_ID_AH,
-														IPsec::PROTECT,
+														IpSec::IP_ID_AH,
+														IpSec::PROTECT,
 														GsamConfig::GetDefaultIpsecMode());
 		}
 	}
