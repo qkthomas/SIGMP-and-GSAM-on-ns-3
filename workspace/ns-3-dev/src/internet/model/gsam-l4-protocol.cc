@@ -60,7 +60,7 @@ GsamL4Protocol::GsamL4Protocol()
   : m_node (0),
 	m_socket (0),
 	m_ptr_database (0),
-	m_ptr_ipsec_filter (0)
+	m_ptr_gsam_filter (0)
 {
 	// TODO Auto-generated constructor stub
 	NS_LOG_FUNCTION (this);
@@ -143,10 +143,10 @@ GsamL4Protocol::Initialization (void)
 		this->m_socket = Socket::CreateSocket(this->m_node, tid);
 	}
 
-	if (this->m_ptr_ipsec_filter == 0)
+	if (this->m_ptr_gsam_filter == 0)
 	{
-		this->m_ptr_ipsec_filter = Create<IpSecFilter>;
-		this->m_ptr_ipsec_filter->SetGsam(this);
+		this->m_ptr_gsam_filter = Create<GsamFilter>();
+		this->m_ptr_gsam_filter->SetGsam(this);
 
 	}
 

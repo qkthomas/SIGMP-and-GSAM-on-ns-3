@@ -6,5 +6,7 @@ gm-join-time:2
 number-of-retransmission:1
 retransmission-timeout:2
 session-timeout:2
-retransmission-disable:0
+retransmission-disable:false
 gm-join-event-number:1
+sec-grp-address-range-start:230.0.0.0
+sec-grp-address-range-end:235.0.0.0

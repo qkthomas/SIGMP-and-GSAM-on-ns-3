@@ -287,13 +287,9 @@ GsamConfig::GetTypeId (void)
 }
 
 GsamConfig::GsamConfig ()
-  :  m_q_unicast_address (Ipv4Address("0.0.0.0")),
-	 m_default_session_timeout (Seconds(2.0)),
-	 m_default_retransmit_timeout (Seconds(2.0))
+  :  m_q_unicast_address (Ipv4Address("0.0.0.0"))
 {
 	NS_LOG_FUNCTION (this);
-	this->m_sec_grp_addr_range.first = Ipv4Address ("230.0.0.0").Get();
-	this->m_sec_grp_addr_range.second = Ipv4Address ("235.0.0.0").Get();
 	srand(time(NULL));
 }
 
@@ -341,10 +337,18 @@ GsamConfig::GetSpiRejectPropability (void) const
 {
 	NS_LOG_FUNCTION (this);
 	uint16_t retval = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("fake-rejection-probability");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("fake-rejection-probability");
 	if (const_it != this->m_map_settings.end())
 	{
-		retval = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
@@ -400,16 +404,7 @@ GsamConfig::ReadAndParse (Ptr<GsamConfig> singleton)
 			}
 			std::string option_name = line.substr(0, semi_column_found_first_pos);
 			std::string value_text = line.substr(semi_column_found_first_pos + 1, line.length() - 1);
-			uint16_t value = 0;
-			if (std::stringstream(value_text) >> value)
-			{
-				//ok
-			}
-			else
-			{
-				NS_ASSERT (false);
-			}
-			singleton->m_map_settings.insert(std::pair<std::string, uint16_t>(option_name, value));
+			singleton->m_map_settings.insert(std::pair<std::string, std::string>(option_name, value_text));
 		}
 		config_doc.close();
 	}
@@ -528,28 +523,44 @@ Time
 GsamConfig::GetDefaultSessionTimeout (void) const
 {
 	NS_LOG_FUNCTION (this);
-	uint16_t retval = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("session-timeout");
+	double value = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("session-timeout");
 	if (const_it != this->m_map_settings.end())
 	{
-		retval = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> value)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
 		NS_ASSERT (false);
 	}
-	return Time(retval);
+	return Time(value);
 }
 
 Time
 GsamConfig::GetDefaultRetransmitTimeout (void) const
 {
 	NS_LOG_FUNCTION (this);
-	uint16_t retval = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("retransmission-timeout");
+	double value = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("retransmission-timeout");
 	if (const_it != this->m_map_settings.end())
 	{
-		retval = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> value)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
@@ -562,17 +573,23 @@ GsamConfig::GetDefaultRetransmitTimeout (void) const
 			NS_ASSERT (false);
 		}
 	}
-	return Time(retval);
+	return Time(value);
 }
 
 Ipv4Address
 GsamConfig::GetAnUnusedSecGrpAddress (void)
 {
 	NS_LOG_FUNCTION (this);
-	uint32_t u32_addr = this->m_sec_grp_addr_range.first + (rand() % (this->m_sec_grp_addr_range.second - this->m_sec_grp_addr_range.first));
+	uint32_t sec_grp_addr_range_start = this->GetSecureGroupAddressRangeStart().Get();
+	uint32_t sec_grp_addr_range_end = this->GetSecureGroupAddressRangeEnd().Get();
+	if (sec_grp_addr_range_start > sec_grp_addr_range_end)
+	{
+		NS_ASSERT (false);
+	}
+	uint32_t u32_addr = sec_grp_addr_range_start + (rand() % (sec_grp_addr_range_end - sec_grp_addr_range_start));
 	while (this->m_set_used_sec_grp_addresses.end() != this->m_set_used_sec_grp_addresses.find(u32_addr))
 	{
-		u32_addr = this->m_sec_grp_addr_range.first + (rand() % (this->m_sec_grp_addr_range.second - this->m_sec_grp_addr_range.first));
+		u32_addr = sec_grp_addr_range_start + (rand() % (sec_grp_addr_range_end - sec_grp_addr_range_start));
 	}
 	this->m_set_used_sec_grp_addresses.insert(u32_addr);
 	return Ipv4Address (u32_addr);
@@ -594,10 +611,18 @@ GsamConfig::GetNumberOfNodes (void) const
 {
 	NS_LOG_FUNCTION (this);
 	uint16_t retval = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("number-of-node");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("number-of-node");
 	if (const_it != this->m_map_settings.end())
 	{
-		retval = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
@@ -611,10 +636,18 @@ GsamConfig::GetNumberOfNqs (void) const
 {
 	NS_LOG_FUNCTION (this);
 	uint16_t retval = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("number-of-nq");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("number-of-nq");
 	if (const_it != this->m_map_settings.end())
 	{
-		retval = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
@@ -670,17 +703,25 @@ Time
 GsamConfig::GetNqJoinTimeInSeconds (void) const
 {
 	NS_LOG_FUNCTION (this);
-	uint16_t seconds_u16 = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("nq-join-time");
+	double seconds_double = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("nq-join-time");
 	if (const_it != this->m_map_settings.end())
 	{
-		seconds_u16 = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> seconds_double)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
 		NS_ASSERT (false);
 	}
-	Time retval(seconds_u16);
+	Time retval(seconds_double);
 	return retval;
 }
 
@@ -688,17 +729,25 @@ Time
 GsamConfig::GetGmJoinTimeInSeconds (void) const
 {
 	NS_LOG_FUNCTION (this);
-	uint16_t seconds_u16 = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("nq-join-time");
+	double seconds_double = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("nq-join-time");
 	if (const_it != this->m_map_settings.end())
 	{
-		seconds_u16 = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> seconds_double)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
 		NS_ASSERT (false);
 	}
-	Time retval(seconds_u16);
+	Time retval(seconds_double);
 	return retval;
 }
 
@@ -707,10 +756,18 @@ GsamConfig::GetNumberOfRetransmission (void) const
 {
 	NS_LOG_FUNCTION (this);
 	uint16_t retval = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("number-of-retransmission");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("number-of-retransmission");
 	if (const_it != this->m_map_settings.end())
 	{
-		retval = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
@@ -725,15 +782,15 @@ GsamConfig::IsRetransmissionDisable (void) const
 {
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("retransmission-disable");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("retransmission-disable");
 	if (const_it != this->m_map_settings.end())
 	{
-		uint16_t is_disable = const_it->second;
-		if (1 == is_disable)
+		std::string value_text = const_it->second;
+		if ("true" == value_text)
 		{
 			retval = true;
 		}
-		else if (0 == is_disable)
+		else if ("false" == value_text)
 		{
 			retval = false;
 		}
@@ -757,10 +814,56 @@ GsamConfig::GetGmJoinEventNumber (void) const
 {
 	NS_LOG_FUNCTION (this);
 	uint16_t retval = 0;
-	std::map<std::string, uint16_t>::const_iterator const_it = this->m_map_settings.find("gm-join-event-number");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("gm-join-event-number");
 	if (const_it != this->m_map_settings.end())
 	{
-		retval = const_it->second;
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
+	return retval;
+}
+
+Ipv4Address
+GsamConfig::GetSecureGroupAddressRangeStart (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Ipv4Address retval;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("sec-grp-address-range-start");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		retval = Ipv4Address(value_text.c_str());
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
+	return retval;
+}
+
+Ipv4Address
+GsamConfig::GetSecureGroupAddressRangeEnd (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Ipv4Address retval;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("sec-grp-address-range-end");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		retval = Ipv4Address(value_text.c_str());
 	}
 	else
 	{
@@ -3929,6 +4032,7 @@ IpSecSADatabase::GetIpsecSAEntry (uint32_t spi) const
 		if (value_const_it->GetSpi() == spi)
 		{
 			retval = value_const_it;
+			break;
 		}
 	}
 
@@ -5317,54 +5421,88 @@ SimpleAuthenticationHeader::Print (std::ostream &os) const
 	os << "Ah Spi: " << this->m_spi << std::endl;
 }
 
+uint32_t
+SimpleAuthenticationHeader::GetSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_spi)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_spi;
+}
+
+uint32_t
+SimpleAuthenticationHeader::GetSeqNumber (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 > this->m_seq_number)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_seq_number;
+}
+
+uint8_t
+SimpleAuthenticationHeader::GetNextHeader (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 > this->m_next_header)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_next_header;
+}
+
 /********************************************************
  *        IpSecFilter
  ********************************************************/
 
-NS_OBJECT_ENSURE_REGISTERED (IpSecFilter);
+NS_OBJECT_ENSURE_REGISTERED (GsamFilter);
 
 TypeId
-IpSecFilter::GetTypeId (void)
+GsamFilter::GetTypeId (void)
 {
 	static TypeId tid = TypeId ("ns3::IpSecFilter")
     		.SetParent<Object> ()
 			.SetGroupName ("Internet")
-			.AddConstructor<IpSecFilter> ()
+			.AddConstructor<GsamFilter> ()
 			;
 	return tid;
 }
 
-IpSecFilter::IpSecFilter ()
+GsamFilter::GsamFilter ()
 {
 	NS_LOG_FUNCTION (this);
+	this->m_default_process_choice = IpSec::BYPASS;
 }
 
-IpSecFilter::~IpSecFilter()
+GsamFilter::~GsamFilter()
 {
 	NS_LOG_FUNCTION (this);
 }
 
 TypeId
-IpSecFilter::GetInstanceTypeId (void) const
+GsamFilter::GetInstanceTypeId (void) const
 {
 	NS_LOG_FUNCTION (this);
-	return IpSecFilter::GetTypeId();
+	return GsamFilter::GetTypeId();
 }
 
 void
-IpSecFilter::NotifyNewAggregate ()
+GsamFilter::NotifyNewAggregate ()
 {
 	NS_LOG_FUNCTION (this);
 }
 
 void
-IpSecFilter::DoDispose (void)
+GsamFilter::DoDispose (void)
 {
 	NS_LOG_FUNCTION (this);
 }
 
 Ptr<GsamL4Protocol>
-IpSecFilter::GetGsam (void) const
+GsamFilter::GetGsam (void) const
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<GsamL4Protocol> retval = 0;
@@ -5381,7 +5519,7 @@ IpSecFilter::GetGsam (void) const
 }
 
 Ptr<Igmpv3L4Protocol>
-IpSecFilter::GetIgmp (void) const
+GsamFilter::GetIgmp (void) const
 {
 	NS_LOG_FUNCTION (this);
 	const Ptr<Node> node = this->m_ptr_gsam->GetNode();
@@ -5398,7 +5536,7 @@ IpSecFilter::GetIgmp (void) const
 }
 
 Ptr<IpSecDatabase>
-IpSecFilter::GetDatabase (void) const
+GsamFilter::GetDatabase (void) const
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IpSecDatabase> retval = this->GetGsam()->GetIpSecDatabase();
@@ -5410,7 +5548,7 @@ IpSecFilter::GetDatabase (void) const
 }
 
 void
-IpSecFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
+GsamFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
 {
 	NS_LOG_FUNCTION (this);
 	if (0 == gsam)
@@ -5424,8 +5562,9 @@ IpSecFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
 }
 
 IpSec::PROCESS_CHOICE
-IpSecFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
+GsamFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
 {
+	NS_LOG_FUNCTION (this);
 	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
 	Ipv4Header ipv4header;
 	incoming_and_retval_packet->RemoveHeader(ipv4header);
@@ -5433,7 +5572,8 @@ IpSecFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
 	if (0 == policy)
 	{
 		//no policy found
-		//do gasm
+		//discard because it's incoming packet
+		retval = this->m_default_process_choice;
 	}
 	else
 	{
@@ -5453,7 +5593,23 @@ IpSecFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
 			{
 				SimpleAuthenticationHeader simpleah;
 				incoming_and_retval_packet->RemoveHeader(simpleah);
-				//continue code
+				//sa entry with matched spi
+				uint32_t header_spi = simpleah.GetSpi();
+				Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
+				Ptr<IpSecSAEntry> sa_entry = inbound_sad->GetIpsecSAEntry(header_spi);
+				if (0 == sa_entry)
+				{
+					//sa entry not found
+					retval = IpSec::DISCARD;
+				}
+				else
+				{
+					//sa entry found
+					//ok
+					//retval remain IpSec::PROTECT
+					ipv4header.SetProtocol(simpleah.GetNextHeader());
+					ipv4header.SetPayloadSize(incoming_and_retval_packet->GetSize());
+				}
 			}
 			else if (IpSec::IP_ID_ESP == ipv4header.GetProtocol())
 			{
@@ -5469,7 +5625,94 @@ IpSecFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
 			NS_ASSERT (false);
 		}
 	}
+	incoming_and_retval_packet->AddHeader(ipv4header);
 	return retval;
+}
+
+IpSec::PROCESS_CHOICE
+GsamFilter::ProcessOutgoingPacket (Ptr<Packet> outgoing_and_retval_packet)
+{
+	NS_LOG_FUNCTION (this);
+	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
+	Ipv4Header ipv4header;
+	outgoing_and_retval_packet->RemoveHeader(ipv4header);
+	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(ipv4header, outgoing_and_retval_packet);
+	if (0 == policy)
+	{
+		if (IpSec::IP_ID_IGMP == ipv4header.GetProtocol())
+		{
+			//no policy found
+			//do gsam
+			Ipv4Address group_address = ipv4header.GetDestination();
+			this->DoGsam(group_address);
+		}
+		else
+		{
+			retval = this->m_default_process_choice;
+		}
+	}
+	else
+	{
+		//policy found
+		retval = policy->GetProcessChoice();
+		if (retval == IpSec::BYPASS)
+		{
+
+		}
+		else if (retval == IpSec::DISCARD)
+		{
+
+		}
+		else if (retval == IpSec::PROTECT)
+		{
+			if (IpSec::IP_ID_AH == ipv4header.GetProtocol())
+			{
+				SimpleAuthenticationHeader simpleah;
+				outgoing_and_retval_packet->RemoveHeader(simpleah);
+				//sa entry with matched spi
+				uint32_t header_spi = simpleah.GetSpi();
+				Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
+				Ptr<IpSecSAEntry> sa_entry = inbound_sad->GetIpsecSAEntry(header_spi);
+				if (0 == sa_entry)
+				{
+					//sa entry not found
+					retval = IpSec::DISCARD;
+				}
+				else
+				{
+					//sa entry found
+					//ok
+					//retval remain IpSec::PROTECT
+					ipv4header.SetProtocol(simpleah.GetNextHeader());
+					ipv4header.SetPayloadSize(outgoing_and_retval_packet->GetSize());
+				}
+			}
+			else if (IpSec::IP_ID_ESP == ipv4header.GetProtocol())
+			{
+				NS_ASSERT (false);
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	outgoing_and_retval_packet->AddHeader(ipv4header);
+	return retval;
+}
+
+void
+GsamFilter::DoGsam (Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+	Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
+	Ptr<GsamL4Protocol> gsam = this->GetGsam();
+	Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
+	gsam->Send_IKE_SA_INIT(session);
 }
 
 } /* namespace ns3 */

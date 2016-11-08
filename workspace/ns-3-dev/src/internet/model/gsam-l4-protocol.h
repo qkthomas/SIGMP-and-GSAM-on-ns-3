@@ -203,7 +203,7 @@ private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;
 	Ptr<IpSecDatabase> m_ptr_database;
-	Ptr<IpSecFilter> m_ptr_ipsec_filter;
+	Ptr<GsamFilter> m_ptr_gsam_filter;
 };
 
 } /* namespace ns3 */

@@ -102,17 +102,16 @@ public:	//const
 	uint16_t GetNumberOfRetransmission (void) const;
 	bool IsRetransmissionDisable (void) const;
 	uint16_t GetGmJoinEventNumber (void) const;
+	Ipv4Address GetSecureGroupAddressRangeStart (void) const;
+	Ipv4Address GetSecureGroupAddressRangeEnd (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
 	static Ptr<GsamConfig> m_ptr_config_instance;
 	const static std::string m_path_config;
 private:
-	std::map<std::string, uint16_t> m_map_settings;
+	std::map<std::string, std::string> m_map_settings;
 	Ipv4Address m_q_unicast_address;
-	Time m_default_session_timeout;
-	Time m_default_retransmit_timeout;
-	std::pair<uint32_t, uint32_t> m_sec_grp_addr_range;
 	std::set<uint32_t> m_set_used_sec_grp_addresses;
 	std::map<uint32_t, uint32_t> m_map_u32_ipv4addr_to_node_id;
 };
@@ -758,6 +757,10 @@ public:	//Header override
 	virtual uint32_t GetSerializedSize (void) const;
 	virtual TypeId GetInstanceTypeId (void) const;
 	virtual void Print (std::ostream &os) const;
+public:	//self defined const
+	uint32_t GetSpi (void) const;
+	uint32_t GetSeqNumber (void) const;
+	uint8_t GetNextHeader (void) const;
 private:
 	uint8_t m_next_header;
 	uint8_t m_ah_len;
@@ -765,11 +768,11 @@ private:
 	uint32_t m_seq_number;
 };
 
-class IpSecFilter : public Object {
+class GsamFilter : public Object {
 public:	//Object override
 	static TypeId GetTypeId (void);
-	IpSecFilter ();
-	virtual ~IpSecFilter();
+	GsamFilter ();
+	virtual ~GsamFilter();
 	virtual TypeId GetInstanceTypeId (void) const;
 protected:
 	/*
@@ -788,8 +791,11 @@ public:	//self-defined const
 public:	//self-defined non-const
 	void SetGsam (Ptr<GsamL4Protocol> gsam);
 	IpSec::PROCESS_CHOICE ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet);
+	IpSec::PROCESS_CHOICE ProcessOutgoingPacket (Ptr<Packet> outgoing_and_retval_packet);
+	void DoGsam (Ipv4Address group_address);
 private:
 	Ptr<GsamL4Protocol> m_ptr_gsam;
+	IpSec::PROCESS_CHOICE m_default_process_choice;
 };
 
 } /* namespace ns3 */
