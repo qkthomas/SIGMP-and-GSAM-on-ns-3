@@ -147,6 +147,12 @@ GsamL4Protocol::Initialization (void)
 	{
 		this->m_ptr_gsam_filter = Create<GsamFilter>();
 		this->m_ptr_gsam_filter->SetGsam(this);
+		Ptr<Ipv4Multicast> ipv4 = this->GetObject<Ipv4Multicast> ();
+		if(0 == ipv4)
+		{
+			NS_ASSERT (false);
+		}
+		this->m_ptr_gsam_filter->SetDownTarget(MakeCallback (&Ipv4Multicast::Send, ipv4));
 
 	}
 

@@ -873,6 +873,21 @@ GsamConfig::GetSecureGroupAddressRangeEnd (void) const
 	return retval;
 }
 
+bool
+GsamConfig::IsGroupAddressSecureGroup (Ipv4Address group_address) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+	if (group_address.Get() >= this->GetSecureGroupAddressRangeStart().Get())
+	{
+		if (group_address.Get() <= this->GetSecureGroupAddressRangeEnd().Get())
+		{
+			retval = true;
+		}
+	}
+	return retval;
+}
+
 void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {
@@ -5341,7 +5356,7 @@ SimpleAuthenticationHeader::GetTypeId (void)
 
 SimpleAuthenticationHeader::SimpleAuthenticationHeader ()
   :  m_next_header (0),
-	 m_ah_len (0),
+	 m_payload_len (0),
 	 m_spi (0),
 	 m_seq_number (0)
 {
@@ -5349,11 +5364,11 @@ SimpleAuthenticationHeader::SimpleAuthenticationHeader ()
 }
 
 SimpleAuthenticationHeader::SimpleAuthenticationHeader (uint8_t next_header,
-														uint8_t ah_len,
+														uint8_t payload_len,
 														uint32_t spi,
 														uint32_t seq_number)
   :  m_next_header (next_header),
-	 m_ah_len (ah_len),
+	 m_payload_len (payload_len),
 	 m_spi (spi),
 	 m_seq_number (seq_number)
 {
@@ -5372,7 +5387,7 @@ SimpleAuthenticationHeader::Serialize (Buffer::Iterator start) const
 	Buffer::Iterator i = start;
 
 	i.WriteU8(this->m_next_header);
-	i.WriteU8(this->m_ah_len);
+	i.WriteU8(this->m_payload_len);
 	i.WriteHtonU32(this->m_spi);
 	i.WriteHtonU32(this->m_seq_number);
 }
@@ -5387,7 +5402,7 @@ SimpleAuthenticationHeader::Deserialize (Buffer::Iterator start)
 	this->m_next_header = i.ReadU8();
 	byte_read++;
 
-	this->m_ah_len = i.ReadU8();
+	this->m_payload_len = i.ReadU8();
 	byte_read++;
 
 	this->m_spi = i.ReadNtohU32();
@@ -5547,6 +5562,12 @@ GsamFilter::GetDatabase (void) const
 	return retval;
 }
 
+IpL4ProtocolMulticast::DownTargetCallback
+GsamFilter::GetDownTarget (void) const
+{
+  return m_downTarget;
+}
+
 void
 GsamFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
 {
@@ -5559,6 +5580,13 @@ GsamFilter::SetGsam (Ptr<GsamL4Protocol> gsam)
 	{
 		this->m_ptr_gsam = gsam;
 	}
+}
+
+void
+GsamFilter::SetDownTarget (IpL4ProtocolMulticast::DownTargetCallback callback)
+{
+  NS_LOG_FUNCTION (this);
+  m_downTarget = callback;
 }
 
 IpSec::PROCESS_CHOICE
@@ -5630,21 +5658,33 @@ GsamFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
 }
 
 IpSec::PROCESS_CHOICE
-GsamFilter::ProcessOutgoingPacket (Ptr<Packet> outgoing_and_retval_packet)
+GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
+									Ipv4Address source,
+									Ipv4Address destination,
+									uint8_t protocol,
+									Ptr<Ipv4Route> route)
 {
 	NS_LOG_FUNCTION (this);
 	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
-	Ipv4Header ipv4header;
-	outgoing_and_retval_packet->RemoveHeader(ipv4header);
-	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(ipv4header, outgoing_and_retval_packet);
+	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy();
 	if (0 == policy)
 	{
-		if (IpSec::IP_ID_IGMP == ipv4header.GetProtocol())
+		if (IpSec::IP_ID_IGMP == protocol)
 		{
 			//no policy found
-			//do gsam
-			Ipv4Address group_address = ipv4header.GetDestination();
-			this->DoGsam(group_address);
+			Ipv4Address group_address = destination;
+			if (true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(group_address))
+			{
+				//secure group
+				//do gsam
+				this->DoGsam(group_address, ipv4header, outgoing_and_retval_packet);
+				retval = IpSec::DISCARD;
+			}
+			else
+			{
+				//non secure group
+				retval = IpSec::BYPASS;
+			}
 		}
 		else
 		{
@@ -5665,10 +5705,10 @@ GsamFilter::ProcessOutgoingPacket (Ptr<Packet> outgoing_and_retval_packet)
 		}
 		else if (retval == IpSec::PROTECT)
 		{
-			if (IpSec::IP_ID_AH == ipv4header.GetProtocol())
+			if (IpSec::IP_ID_AH == protocol)
 			{
 				SimpleAuthenticationHeader simpleah;
-				outgoing_and_retval_packet->RemoveHeader(simpleah);
+				packet->RemoveHeader(simpleah);
 				//sa entry with matched spi
 				uint32_t header_spi = simpleah.GetSpi();
 				Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
@@ -5706,13 +5746,57 @@ GsamFilter::ProcessOutgoingPacket (Ptr<Packet> outgoing_and_retval_packet)
 }
 
 void
-GsamFilter::DoGsam (Ipv4Address group_address)
+GsamFilter::DoGsam (Ipv4Address group_address, const Ipv4Header& ipv4header, const Ptr<Packet> packet)
 {
 	NS_LOG_FUNCTION (this);
 	Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
 	Ptr<GsamL4Protocol> gsam = this->GetGsam();
 	Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
+	Ptr<Packet> stored_packet = packet->Copy();
+	stored_packet->AddHeader(ipv4header);
+	this->m_map_sessions_to_packets.insert(std::pair<Ptr<GsamSession>, Ptr<Packet> >(session, stored_packet));
 	gsam->Send_IKE_SA_INIT(session);
+}
+
+void
+GsamFilter::GsamCallBack (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_map_sessions_to_packets.end() != this->m_map_sessions_to_packets.find(session))
+	{
+		Ptr<Packet> stored_packet = this->m_map_sessions_to_packets.find(session)->second;
+		Ipv4Header ipv4header;
+		stored_packet->RemoveHeader(ipv4header);
+		Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(ipv4header, stored_packet);
+		if (0 == policy)
+		{
+			NS_ASSERT (false);
+		}
+		else
+		{
+			Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
+			std::list<Ptr<Spi> >& outbound_spis;
+			outbound_sad->GetSpis(outbound_spis);
+			SimpleAuthenticationHeader simpleah;
+			if (1 == outbound_spis.size())
+			{
+				//ok
+				Ptr<Spi> outbound_spi = outbound_spis.front();
+				simpleah = SimpleAuthenticationHeader(ipv4header.GetProtocol(), stored_packet->GetSize(), outbound_spi->ToUint32(), 0);
+				stored_packet->AddHeader(simpleah);
+				this->m_downTarget(stored_packet, ipv4header.GetSource(), ipv4header.GetDestination(), IpSec::IP_ID_AH, 0);
+			}
+			else
+			{
+				//not ok
+				NS_ASSERT (false);
+			}
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
 }
 
 } /* namespace ns3 */

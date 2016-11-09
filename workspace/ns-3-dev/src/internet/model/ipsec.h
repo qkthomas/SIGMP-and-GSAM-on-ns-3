@@ -20,6 +20,7 @@
 #include "igmpv3-l4-protocol.h"
 #include <string>
 #include <map>
+#include "ns3/ip-l4-protocol-multicast.h"
 
 namespace ns3 {
 
@@ -104,6 +105,7 @@ public:	//const
 	uint16_t GetGmJoinEventNumber (void) const;
 	Ipv4Address GetSecureGroupAddressRangeStart (void) const;
 	Ipv4Address GetSecureGroupAddressRangeEnd (void) const;
+	bool IsGroupAddressSecureGroup (Ipv4Address group_address) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
@@ -736,7 +738,7 @@ class SimpleAuthenticationHeader : public Header {
 	 *                      1                   2                   3
 	 *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 * |  Next Header  |   AH Length   |           Reserved            |
+	 * |  Next Header  |  Payload Len  |           Reserved            |
 	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	 * |                           SPI                                 |
 	 * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -747,7 +749,7 @@ public:	//Header override
 	static TypeId GetTypeId (void);
 	SimpleAuthenticationHeader ();
 	explicit SimpleAuthenticationHeader (	uint8_t next_header,
-											uint8_t ah_len,
+											uint8_t payload_len,
 											uint32_t spi,
 											uint32_t seq_number);
 	virtual ~SimpleAuthenticationHeader ();
@@ -763,7 +765,7 @@ public:	//self defined const
 	uint8_t GetNextHeader (void) const;
 private:
 	uint8_t m_next_header;
-	uint8_t m_ah_len;
+	uint8_t m_payload_len;
 	uint32_t m_spi;
 	uint32_t m_seq_number;
 };
@@ -788,14 +790,23 @@ public:	//self-defined const
 	Ptr<GsamL4Protocol> GetGsam (void) const;
 	Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
 	Ptr<IpSecDatabase> GetDatabase (void) const;
+	IpL4ProtocolMulticast::DownTargetCallback GetDownTarget (void) const;
 public:	//self-defined non-const
 	void SetGsam (Ptr<GsamL4Protocol> gsam);
+	void SetDownTarget (IpL4ProtocolMulticast::DownTargetCallback cb);
 	IpSec::PROCESS_CHOICE ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet);
-	IpSec::PROCESS_CHOICE ProcessOutgoingPacket (Ptr<Packet> outgoing_and_retval_packet);
-	void DoGsam (Ipv4Address group_address);
+	IpSec::PROCESS_CHOICE ProcessOutgoingPacket (	Ptr<Packet> packet,
+													Ipv4Address source,
+													Ipv4Address destination,
+													uint8_t protocol,
+													Ptr<Ipv4Route> route);
+	void DoGsam (Ipv4Address group_address, const Ipv4Header& ipv4header, const Ptr<Packet> packet);
+	void GsamCallBack (Ptr<GsamSession> session);
 private:
 	Ptr<GsamL4Protocol> m_ptr_gsam;
 	IpSec::PROCESS_CHOICE m_default_process_choice;
+	IpL4ProtocolMulticast::DownTargetCallback m_downTarget;   //!< Callback to send packets over IPv4
+	std::map<Ptr<GsamSession>, Ptr<Packet> > m_map_sessions_to_packets;
 };
 
 } /* namespace ns3 */
