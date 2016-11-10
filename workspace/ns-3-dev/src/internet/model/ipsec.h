@@ -669,7 +669,10 @@ public:	//const
 	Ptr<GsamInfo> GetInfo (void) const;
 	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
 	Ptr<IpSecPolicyEntry> GetExactMatchedPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const;
-	Ptr<IpSecPolicyEntry> GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, Ptr<Packet> packet) const;
+	Ptr<IpSecPolicyEntry> GetFallInRangeMatchedPolicy (	Ipv4Address source,
+														Ipv4Address destination,
+														uint8_t protocol,
+														Ptr<Packet> packet) const;
 private:
 	void PushBackEntry (Ptr<IpSecPolicyEntry> entry);
 private:	//fields
@@ -770,6 +773,40 @@ private:
 	uint32_t m_seq_number;
 };
 
+class GsamFilterCache : public Object {
+public:	//Object override
+	static TypeId GetTypeId (void);
+	GsamFilterCache ();
+	explicit GsamFilterCache (	Ptr<Packet> packet,
+								Ipv4Address source,
+								Ipv4Address destination,
+								uint8_t protocol,
+								Ptr<Ipv4Route> route);
+	virtual ~GsamFilterCache();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+public:	//self-defined non-const
+	Ptr<Packet> GetPacket (void) const;
+	Ipv4Address GetPacketSourceAddress (void) const;
+	Ipv4Address GetPacketDestinationAddress (void) const;
+	uint8_t GetIpProtocolId (void) const;
+	Ptr<Ipv4Route> GetRoute (void) const;
+private:
+	Ptr<Packet> m_l4_packet;
+	Ipv4Address m_addr_src;
+	Ipv4Address m_addr_dest;
+	uint8_t m_protocol;
+	Ptr<Ipv4Route> m_route;
+};
+
 class GsamFilter : public Object {
 public:	//Object override
 	static TypeId GetTypeId (void);
@@ -800,13 +837,13 @@ public:	//self-defined non-const
 													Ipv4Address destination,
 													uint8_t protocol,
 													Ptr<Ipv4Route> route);
-	void DoGsam (Ipv4Address group_address, const Ipv4Header& ipv4header, const Ptr<Packet> packet);
+	void DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache);
 	void GsamCallBack (Ptr<GsamSession> session);
 private:
 	Ptr<GsamL4Protocol> m_ptr_gsam;
 	IpSec::PROCESS_CHOICE m_default_process_choice;
 	IpL4ProtocolMulticast::DownTargetCallback m_downTarget;   //!< Callback to send packets over IPv4
-	std::map<Ptr<GsamSession>, Ptr<Packet> > m_map_sessions_to_packets;
+	std::map<Ptr<GsamSession>, Ptr<GsamFilterCache> > m_map_sessions_to_packets;
 };
 
 } /* namespace ns3 */

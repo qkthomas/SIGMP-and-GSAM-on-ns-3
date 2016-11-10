@@ -4725,7 +4725,10 @@ IpSecPolicyDatabase::GetExactMatchedPolicy (const IkeTrafficSelector& ts_src, co
 }
 
 Ptr<IpSecPolicyEntry>
-IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, Ptr<Packet> packet) const
+IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (	Ipv4Address source,
+													Ipv4Address destination,
+													uint8_t protocol,
+													Ptr<Packet> packet) const
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IpSecPolicyEntry> retval = 0;
@@ -4745,9 +4748,9 @@ IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, 
 		}
 		else
 		{
-			if (value_const_it->GetSrcAddressRangeStart().Get() <= ipv4header.GetSource().Get())
+			if (value_const_it->GetSrcAddressRangeStart().Get() <= source.Get())
 			{
-				if (value_const_it->GetSrcAddressRangeEnd().Get() >= ipv4header.GetSource().Get())
+				if (value_const_it->GetSrcAddressRangeEnd().Get() >= source.Get())
 				{
 					//match
 				}
@@ -4771,9 +4774,9 @@ IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, 
 		}
 		else
 		{
-			if (value_const_it->GetDestAddressRangeStart().Get() <= ipv4header.GetDestination().Get())
+			if (value_const_it->GetDestAddressRangeStart().Get() <= destination.Get())
 			{
-				if (value_const_it->GetDestAddressRangeEnd().Get() >= ipv4header.GetDestination().Get())
+				if (value_const_it->GetDestAddressRangeEnd().Get() >= destination.Get())
 				{
 					//match
 				}
@@ -4790,7 +4793,7 @@ IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, 
 			}
 		}
 		//check transport protocol ports
-		if (6 == ipv4header.GetProtocol())
+		if (6 == protocol)
 		{
 			//tcp
 			TcpHeader tcpheader;
@@ -4816,7 +4819,7 @@ IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (const Ipv4Header& ipv4header, 
 			}
 			packet->AddHeader(tcpheader);
 		}
-		else if (17 == ipv4header.GetProtocol())
+		else if (17 == protocol)
 		{
 			//udp
 			UdpHeader udpheader;
@@ -5470,7 +5473,117 @@ SimpleAuthenticationHeader::GetNextHeader (void) const
 }
 
 /********************************************************
- *        IpSecFilter
+ *        GsamFilterCache
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (GsamFilterCache);
+
+TypeId
+GsamFilterCache::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::GsamFilterCache")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<GsamFilter> ()
+			;
+	return tid;
+}
+
+GsamFilterCache::GsamFilterCache ()
+  :  m_l4_packet (0),
+	 m_addr_src (Ipv4Address ("0.0.0.0")),
+	 m_addr_dest (Ipv4Address ("0.0.0.0")),
+	 m_protocol (0),
+	 m_route (0)
+
+{
+	NS_LOG_FUNCTION (this);
+}
+
+GsamFilterCache::GsamFilterCache (	Ptr<Packet> packet,
+									Ipv4Address source,
+									Ipv4Address destination,
+									uint8_t protocol,
+									Ptr<Ipv4Route> route)
+  :  m_l4_packet (packet),
+	 m_addr_src (source),
+	 m_addr_dest (destination),
+	 m_protocol (protocol),
+	 m_route (route)
+
+{
+	NS_LOG_FUNCTION (this);
+}
+
+GsamFilterCache::~GsamFilterCache()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+TypeId
+GsamFilterCache::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return GsamFilterCache::GetTypeId();
+}
+
+void
+GsamFilterCache::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamFilterCache::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Ptr<Packet>
+GsamFilterCache::GetPacket (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_l4_packet)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_l4_packet;
+}
+
+Ipv4Address
+GsamFilterCache::GetPacketSourceAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_addr_src;
+}
+
+Ipv4Address
+GsamFilterCache::GetPacketDestinationAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_addr_dest;
+}
+
+uint8_t
+GsamFilterCache::GetIpProtocolId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_protocol)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_protocol;
+}
+
+Ptr<Ipv4Route>
+GsamFilterCache::GetRoute (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_route;
+}
+
+/********************************************************
+ *        GsamFilter
  ********************************************************/
 
 NS_OBJECT_ENSURE_REGISTERED (GsamFilter);
@@ -5478,7 +5591,7 @@ NS_OBJECT_ENSURE_REGISTERED (GsamFilter);
 TypeId
 GsamFilter::GetTypeId (void)
 {
-	static TypeId tid = TypeId ("ns3::IpSecFilter")
+	static TypeId tid = TypeId ("ns3::GsamFilter")
     		.SetParent<Object> ()
 			.SetGroupName ("Internet")
 			.AddConstructor<GsamFilter> ()
@@ -5666,7 +5779,10 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 {
 	NS_LOG_FUNCTION (this);
 	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
-	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy();
+	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(	source,
+																											destination,
+																											protocol,
+																											packet);
 	if (0 == policy)
 	{
 		if (IpSec::IP_ID_IGMP == protocol)
@@ -5677,7 +5793,8 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 			{
 				//secure group
 				//do gsam
-				this->DoGsam(group_address, ipv4header, outgoing_and_retval_packet);
+				Ptr<GsamFilterCache> cache = Create<GsamFilterCache>(packet, source, destination, protocol, route);
+				this->DoGsam(group_address, cache);
 				retval = IpSec::DISCARD;
 			}
 			else
@@ -5723,11 +5840,9 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 					//sa entry found
 					//ok
 					//retval remain IpSec::PROTECT
-					ipv4header.SetProtocol(simpleah.GetNextHeader());
-					ipv4header.SetPayloadSize(outgoing_and_retval_packet->GetSize());
 				}
 			}
-			else if (IpSec::IP_ID_ESP == ipv4header.GetProtocol())
+			else if (IpSec::IP_ID_ESP == protocol)
 			{
 				NS_ASSERT (false);
 			}
@@ -5741,20 +5856,18 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 			NS_ASSERT (false);
 		}
 	}
-	outgoing_and_retval_packet->AddHeader(ipv4header);
+
 	return retval;
 }
 
 void
-GsamFilter::DoGsam (Ipv4Address group_address, const Ipv4Header& ipv4header, const Ptr<Packet> packet)
+GsamFilter::DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache)
 {
 	NS_LOG_FUNCTION (this);
 	Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
 	Ptr<GsamL4Protocol> gsam = this->GetGsam();
 	Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
-	Ptr<Packet> stored_packet = packet->Copy();
-	stored_packet->AddHeader(ipv4header);
-	this->m_map_sessions_to_packets.insert(std::pair<Ptr<GsamSession>, Ptr<Packet> >(session, stored_packet));
+	this->m_map_sessions_to_packets.insert(std::pair<Ptr<GsamSession>, Ptr<GsamFilterCache> >(session, cache));
 	gsam->Send_IKE_SA_INIT(session);
 }
 
@@ -5762,12 +5875,14 @@ void
 GsamFilter::GsamCallBack (Ptr<GsamSession> session)
 {
 	NS_LOG_FUNCTION (this);
-	if (this->m_map_sessions_to_packets.end() != this->m_map_sessions_to_packets.find(session))
+	std::map<Ptr<GsamSession>, Ptr<GsamFilterCache> >::const_iterator const_it =  this->m_map_sessions_to_packets.find(session);
+	if (this->m_map_sessions_to_packets.end() != const_it)
 	{
-		Ptr<Packet> stored_packet = this->m_map_sessions_to_packets.find(session)->second;
-		Ipv4Header ipv4header;
-		stored_packet->RemoveHeader(ipv4header);
-		Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(ipv4header, stored_packet);
+		Ptr<GsamFilterCache> cache = const_it->second;
+		Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(	cache->GetPacketSourceAddress(),
+																												cache->GetPacketDestinationAddress(),
+																												cache->GetIpProtocolId(),
+																												cache->GetPacket());
 		if (0 == policy)
 		{
 			NS_ASSERT (false);
@@ -5782,9 +5897,10 @@ GsamFilter::GsamCallBack (Ptr<GsamSession> session)
 			{
 				//ok
 				Ptr<Spi> outbound_spi = outbound_spis.front();
-				simpleah = SimpleAuthenticationHeader(ipv4header.GetProtocol(), stored_packet->GetSize(), outbound_spi->ToUint32(), 0);
-				stored_packet->AddHeader(simpleah);
-				this->m_downTarget(stored_packet, ipv4header.GetSource(), ipv4header.GetDestination(), IpSec::IP_ID_AH, 0);
+				simpleah = SimpleAuthenticationHeader(cache->GetIpProtocolId(), cache->GetPacket()->GetSize(), outbound_spi->ToUint32(), cache->GetRoute());
+				Ptr<Packet> packet_to_send = cache->GetPacket()->Copy();
+				packet_to_send->AddHeader(simpleah);
+				this->m_downTarget(packet_to_send, cache->GetPacketSourceAddress(), cache->GetPacketDestinationAddress(), IpSec::IP_ID_AH, cache->GetRoute());
 			}
 			else
 			{
