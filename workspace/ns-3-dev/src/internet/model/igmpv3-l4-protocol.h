@@ -342,6 +342,9 @@ private:
 
 	//gsam
 	Ptr<GsamL4Protocol> m_gsam;
+
+	//Igmpv3 Manager
+	Ptr<Igmpv3Manager> m_igmp_manager;
 };
 
 } /* namespace ns3 */

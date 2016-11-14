@@ -119,12 +119,15 @@ Igmpv3L4Protocol::Initialization (void)
 {
 	NS_LOG_FUNCTION (this);
 
+	//obsolete, GsamConfig will do the job
 	//place holder, just set the first node as the querier.
 	//But in fact, That who plays the querier decided by negotiation between routers
 //	if (0 == m_node->GetId())
 //	{
 //		this->m_role = Igmpv3L4Protocol::QUERIER;
 //	}
+
+	this->m_igmp_manager = Create<Igmpv3Manager>();
 }
 
 uint16_t

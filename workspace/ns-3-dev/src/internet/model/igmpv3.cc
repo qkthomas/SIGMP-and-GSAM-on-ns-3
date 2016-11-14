@@ -105,25 +105,25 @@ IGMPv3SocketState::SetAssociatedInterfaceState (Ptr<IGMPv3InterfaceState> associ
 }
 
 Ptr<IGMPv3InterfaceState>
-IGMPv3SocketState::GetAssociatedInterfaceState (void)
+IGMPv3SocketState::GetAssociatedInterfaceState (void) const
 {
 	return this->m_associated_if_state;
 }
 
 Ipv4Address
-IGMPv3SocketState::GetGroupAddress (void)
+IGMPv3SocketState::GetGroupAddress (void) const
 {
 	return this->m_multicast_address;
 }
 
 ns3::FILTER_MODE
-IGMPv3SocketState::GetFilterMode (void)
+IGMPv3SocketState::GetFilterMode (void) const
 {
 	return this->m_filter_mode;
 }
 
 std::list<Ipv4Address> const &
-IGMPv3SocketState::GetSrcList (void)
+IGMPv3SocketState::GetSrcList (void) const
 {
 	return this->m_lst_source_list;
 }
@@ -132,6 +132,16 @@ void
 IGMPv3SocketState::SetSrcList (std::list<Ipv4Address> const & src_list)
 {
 	this->m_lst_source_list = src_list;
+}
+
+Ptr<Socket>
+IGMPv3SocketState::GetSockt (void) const
+{
+	if (0 == this->m_socket)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_socket;
 }
 
 bool
@@ -205,6 +215,85 @@ IGMPv3SocketState::StateChange (ns3::FILTER_MODE filter_mode, std::list<Ipv4Addr
 }
 
 /********************************************************
+ *        IGMPv3SocketStateManager
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IGMPv3SocketStateManager);
+
+TypeId
+IGMPv3SocketStateManager::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IGMPv3SocketStateManager")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<IGMPv3SocketStateManager> ()
+			;
+	return tid;
+}
+
+IGMPv3SocketStateManager::IGMPv3SocketStateManager ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IGMPv3SocketStateManager::~IGMPv3SocketStateManager()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_socket_states.clear();
+}
+
+TypeId
+IGMPv3SocketStateManager::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IGMPv3SocketStateManager::GetTypeId();
+}
+
+void
+IGMPv3SocketStateManager::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IGMPv3SocketStateManager::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Ptr<IGMPv3SocketState>
+IGMPv3SocketStateManager::GetSocketState (Ptr<Socket> socket, Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IGMPv3SocketState> retval = 0;
+	for (std::list<Ptr<IGMPv3SocketState> >::const_iterator const_it = this->m_lst_socket_states.begin();
+			const_it != this->m_lst_socket_states.end();
+			const_it++)
+	{
+		Ptr<IGMPv3SocketState> value_const_it = (*const_it);
+		if ((value_const_it->GetSockt() == socket) &&
+				(value_const_it->GetAssociatedInterfaceState()->GetInterface() == interface) &&
+				(value_const_it->GetGroupAddress() == multicast_address))
+		{
+			retval = value_const_it;
+			break;
+		}
+	}
+	//return value can be 0
+	return retval;
+}
+
+void
+IGMPv3SocketStateManager::Sort (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (false == this->m_lst_socket_states.empty())
+	{
+		this->m_lst_socket_states.sort();
+	}
+}
+
+/********************************************************
  *        IGMPv3InterfaceState
  ********************************************************/
 
@@ -245,25 +334,25 @@ IGMPv3InterfaceState::~IGMPv3InterfaceState (void)
 }
 
 Ptr<Ipv4InterfaceMulticast>
-IGMPv3InterfaceState::GetInterface (void)
+IGMPv3InterfaceState::GetInterface (void) const
 {
 	return this->m_interface;
 }
 
 Ipv4Address
-IGMPv3InterfaceState::GetGroupAddress (void)
+IGMPv3InterfaceState::GetGroupAddress (void) const
 {
 	return this->m_multicast_address;
 }
 
 std::list<Ipv4Address> const &
-IGMPv3InterfaceState::GetSrcList (void)
+IGMPv3InterfaceState::GetSrcList (void) const
 {
 	return this->m_lst_source_list;
 }
 
 std::list<Ipv4Address>::size_type
-IGMPv3InterfaceState::GetSrcNum (void)
+IGMPv3InterfaceState::GetSrcNum (void) const
 {
 	return this->m_lst_source_list.size();
 }
@@ -275,7 +364,7 @@ IGMPv3InterfaceState::SetSrcList (std::list<Ipv4Address> const & src_list)
 }
 
 ns3::FILTER_MODE
-IGMPv3InterfaceState::GetFilterMode (void)
+IGMPv3InterfaceState::GetFilterMode (void) const
 {
 	return this->m_filter_mode;
 }
@@ -401,7 +490,7 @@ IGMPv3InterfaceState::UnSubscribeIGMP (Ptr<IGMPv3SocketState> socket_state)
 //}
 
 bool
-IGMPv3InterfaceState::IsFilterModeChanged (IGMPv3InterfaceState if_state)
+IGMPv3InterfaceState::IsFilterModeChanged (IGMPv3InterfaceState if_state) const
 {
 	if (this->m_filter_mode == if_state.m_filter_mode)
 	{
@@ -413,7 +502,7 @@ IGMPv3InterfaceState::IsFilterModeChanged (IGMPv3InterfaceState if_state)
 	}
 }
 bool
-IGMPv3InterfaceState::IsFilterModeChanged (Ptr<IGMPv3InterfaceState> if_state)
+IGMPv3InterfaceState::IsFilterModeChanged (Ptr<IGMPv3InterfaceState> if_state) const
 {
 	if (this->m_filter_mode == (*if_state).m_filter_mode)
 	{
@@ -425,7 +514,7 @@ IGMPv3InterfaceState::IsFilterModeChanged (Ptr<IGMPv3InterfaceState> if_state)
 	}
 }
 bool
-IGMPv3InterfaceState::IsFilterModeChanged (void)	//comparing to old_state;
+IGMPv3InterfaceState::IsFilterModeChanged (void) const	//comparing to old_state;
 {
 	return this->IsFilterModeChanged (this->GetOldInterfaceState());
 }
@@ -475,7 +564,7 @@ IGMPv3InterfaceState::IsSrcLstChanged (void)
 }
 
 bool
-IGMPv3InterfaceState::HasPendingRecords (void)
+IGMPv3InterfaceState::HasPendingRecords (void) const
 {
 	//allow records block records should always be paired
 	if ((false == this->m_que_pending_allow_src_chg_records.empty()) &&
@@ -1043,15 +1132,15 @@ IGMPv3InterfaceState::AssociateSocketStateInterfaceState (Ptr<IGMPv3SocketState>
 }
 
 bool
-IGMPv3InterfaceState::IsSocketStateExist (Ptr<IGMPv3SocketState> socket_state)
+IGMPv3InterfaceState::IsSocketStateExist (Ptr<IGMPv3SocketState> socket_state) const
 {
 
-	for (std::list<Ptr<IGMPv3SocketState> >::iterator it = this->m_lst_associated_socket_state.begin();
-			it != this->m_lst_associated_socket_state.end();
-			it++)
+	for (std::list<Ptr<IGMPv3SocketState> >::const_iterator const_it = this->m_lst_associated_socket_state.begin();
+			const_it != this->m_lst_associated_socket_state.end();
+			const_it++)
 	{
 		//check whether the incoming socket has already in the list of sockets of interfacestate
-		if (socket_state == (*it))
+		if (socket_state == (*const_it))
 		{
 			//do nothing
 			return true;
@@ -1105,7 +1194,7 @@ IGMPv3InterfaceState::SaveOldInterfaceState (void)
 }
 
 Ptr<IGMPv3InterfaceState>
-IGMPv3InterfaceState::GetOldInterfaceState (void)
+IGMPv3InterfaceState::GetOldInterfaceState (void) const
 {
 	if (0 != this->m_old_if_state)
 	{
@@ -2049,6 +2138,247 @@ IGMPv3MaintenanceState::GetIgmp (void)
 	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
 
 	return igmp;
+}
+
+/********************************************************
+ *        IGMPv3InterfaceStateManager
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (IGMPv3InterfaceStateManager);
+
+TypeId
+IGMPv3InterfaceStateManager::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::IGMPv3InterfaceStateManager")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<IGMPv3InterfaceStateManager> ()
+			;
+	return tid;
+}
+
+IGMPv3InterfaceStateManager::IGMPv3InterfaceStateManager ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IGMPv3InterfaceStateManager::~IGMPv3InterfaceStateManager()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_event_robustness_retransmission.Cancel();
+	this->m_timer_gen_query.Cancel();
+	this->m_lst_if_states.clear();
+	this->m_lst_per_group_interface_timers.clear();
+	this->m_lst_maintenance_states.clear();
+}
+
+TypeId
+IGMPv3InterfaceStateManager::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IGMPv3InterfaceStateManager::GetTypeId();
+}
+
+void
+IGMPv3InterfaceStateManager::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+IGMPv3InterfaceStateManager::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Ptr<IGMPv3InterfaceState>
+IGMPv3InterfaceStateManager::GetIfState (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IGMPv3InterfaceState> retval = 0;
+	for (std::list<Ptr<IGMPv3InterfaceState> >::const_iterator const_it = this->m_lst_if_states.begin();
+			const_it != this->m_lst_if_states.end();
+			const_it++)
+	{
+		Ptr<IGMPv3InterfaceState> value_const_it = (*const_it);
+		if ((value_const_it->GetInterface() == interface) &&
+				(value_const_it->GetGroupAddress() == multicast_address))
+		{
+			retval = value_const_it;
+			break;
+		}
+	}
+	//return value can be 0
+	return retval;
+}
+
+const std::list<Ptr<IGMPv3InterfaceState> >&
+IGMPv3InterfaceStateManager::GetInterfaceStates (void) const
+{
+	return this->m_lst_if_states;
+}
+
+bool
+IGMPv3InterfaceStateManager::HasPendingRecords (void) const
+{
+	for (std::list<Ptr<IGMPv3InterfaceState> >::const_iterator const_it = this->m_lst_if_states.begin();
+		 const_it != this->m_lst_if_states.end();
+		 const_it++)
+	{
+		Ptr<IGMPv3InterfaceState> interfacestate = (*const_it);
+		if (true == interfacestate->HasPendingRecords())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool
+IGMPv3InterfaceStateManager::IsReportStateChangesRunning (void) const
+{
+	return this->m_event_robustness_retransmission.IsRunning();
+}
+
+void
+IGMPv3InterfaceStateManager::Sort (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (false == this->m_lst_socket_states.empty())
+	{
+		this->m_lst_socket_states.sort();
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::IPMulticastListen (Ptr<IGMPv3SocketState> socket_state)
+{
+	Ipv4Address multicast_address = socket_state->GetGroupAddress();
+
+	if (true == this->m_lst_if_states.empty())
+	{
+		Ptr<IGMPv3InterfaceState> interfacestate = Create<IGMPv3InterfaceState>();
+		interfacestate->Initialize(this, multicast_address);
+		interfacestate->AssociateSocketStateInterfaceState (socket_state);
+		interfacestate->ComputeState ();
+		this->m_lst_if_states.push_back(interfacestate);
+
+		return; //Ipv4InterfaceMulticast::ADDED;
+	}
+
+	else
+	{
+		std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_if_states.begin();
+
+		while (it != this->m_lst_if_states.end())
+		{
+			Ptr<IGMPv3InterfaceState> it_interface_state = *it;
+
+			//note: the socket_state->m_associated_interfacestate might be 0 (null)
+			if (socket_state->GetGroupAddress() == it_interface_state->GetGroupAddress())
+			{
+				it_interface_state->AssociateSocketStateInterfaceState (socket_state);
+				it_interface_state->ComputeState ();
+				return;
+			}
+			else
+			{
+				//do nothing
+				it++;
+				continue;
+			}
+		}
+
+		if (it == this->m_lst_if_states.end())
+		{
+			Ptr<IGMPv3InterfaceState> interfacestate = Create<IGMPv3InterfaceState>();
+			interfacestate->Initialize(this, multicast_address);
+			interfacestate->AssociateSocketStateInterfaceState (socket_state);
+			interfacestate->ComputeState ();
+			this->m_lst_if_states.push_back(interfacestate);
+			return;
+		}
+		else
+		{
+			//only when it == this->m_lst_interfacestates.end(), the program would jump out of the while loop
+			NS_ASSERT (false);
+		}
+	}
+}
+
+/********************************************************
+ *        Igmpv3Manager
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (Igmpv3Manager);
+
+TypeId
+Igmpv3Manager::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::Igmpv3Manager")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<Igmpv3Manager> ()
+			;
+	return tid;
+}
+
+Igmpv3Manager::Igmpv3Manager ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Igmpv3Manager::~Igmpv3Manager()
+{
+	NS_LOG_FUNCTION (this);
+	this->m_map_socketstate_managers.clear();
+	this->m_map_ifstate_managers.clear();
+}
+
+TypeId
+Igmpv3Manager::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return IGMPv3InterfaceStateManager::GetTypeId();
+}
+
+void
+Igmpv3Manager::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+Igmpv3Manager::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+Ptr<IGMPv3SocketStateManager>
+Igmpv3Manager::GetSocketStateManager (Ptr<Socket> key) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IGMPv3SocketStateManager> retval = 0;
+	std::map<Ptr<Socket>, Ptr<IGMPv3SocketStateManager> >::const_iterator const_it = this->m_map_socketstate_managers.find(key);
+	if (this->m_map_socketstate_managers.end() != const_it)
+	{
+		retval = const_it->second;
+	}
+	return retval;
+}
+
+Ptr<IGMPv3InterfaceStateManager>
+Igmpv3Manager::GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key) const
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IGMPv3InterfaceStateManager> retval = 0;
+	std::map<Ptr<Ipv4InterfaceMulticast>, Ptr<IGMPv3InterfaceStateManager> >::const_iterator const_it = this->m_map_ifstate_managers.find(key);
+	if (this->m_map_ifstate_managers.end() != const_it)
+	{
+		retval = const_it->second;
+	}
+	return retval;
 }
 
 /********************************************************

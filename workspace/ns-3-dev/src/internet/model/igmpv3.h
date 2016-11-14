@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <list>
 #include <queue>
-#include <set>
+#include <map>
 
 namespace ns3 {
 
@@ -73,11 +73,12 @@ public:
 	~IGMPv3SocketState (void);
 
 	void SetAssociatedInterfaceState (Ptr<IGMPv3InterfaceState> associated_if_state);
-	Ptr<IGMPv3InterfaceState> GetAssociatedInterfaceState (void);
-	Ipv4Address GetGroupAddress (void);
-	ns3::FILTER_MODE GetFilterMode (void);
-	std::list<Ipv4Address> const & GetSrcList (void);
+	Ptr<IGMPv3InterfaceState> GetAssociatedInterfaceState (void) const;
+	Ipv4Address GetGroupAddress (void) const;
+	ns3::FILTER_MODE GetFilterMode (void) const;
+	std::list<Ipv4Address> const & GetSrcList (void) const;
 	void SetSrcList (std::list<Ipv4Address> const &src_list);
+	Ptr<Socket> GetSockt (void) const;
 
 	friend bool operator == (IGMPv3SocketState const& lhs, IGMPv3SocketState const& rhs);
 	friend bool operator < (IGMPv3SocketState const& lhs, IGMPv3SocketState const& rhs);
@@ -85,11 +86,11 @@ public:
 	void StateChange (ns3::FILTER_MODE filter_mode, std::list<Ipv4Address> const &src_list);
 };
 
-class IGMPv3SocketStateList : public Object {
+class IGMPv3SocketStateManager : public Object {
 public:	//Object override
 	static TypeId GetTypeId (void);
-	IGMPv3SocketStateList ();
-	virtual ~IGMPv3SocketStateList();
+	IGMPv3SocketStateManager ();
+	virtual ~IGMPv3SocketStateManager();
 	virtual TypeId GetInstanceTypeId (void) const;
 protected:
 	/*
@@ -100,10 +101,12 @@ protected:
 
 private:
 	virtual void DoDispose (void);
+public:	//self-defined const
+	Ptr<IGMPv3SocketState> GetSocketState (Ptr<Socket> socket, Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address) const;
 public:	//self-defined
-	Ptr<IGMPv3InterfaceState> GetSocketState (Ptr<Socket> socket, Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address);
+	void Sort (void);
 private:
-	std::set<Ptr<IGMPv3InterfaceState> > m_set_socket_states;
+	std::list<Ptr<IGMPv3SocketState> > m_lst_socket_states;
 };
 
 class IGMPv3InterfaceState : public Object {
@@ -136,12 +139,12 @@ public:
 
 	~IGMPv3InterfaceState (void);
 
-	Ptr<Ipv4InterfaceMulticast> GetInterface (void);
-	Ipv4Address GetGroupAddress (void);
-	std::list<Ipv4Address> const & GetSrcList (void);
-	std::list<Ipv4Address>::size_type GetSrcNum (void);
+	Ptr<Ipv4InterfaceMulticast> GetInterface (void) const;
+	Ipv4Address GetGroupAddress (void) const;
+	std::list<Ipv4Address> const & GetSrcList (void) const;
+	std::list<Ipv4Address>::size_type GetSrcNum (void) const;
 	void SetSrcList (std::list<Ipv4Address> const & src_list);
-	ns3::FILTER_MODE GetFilterMode (void);
+	ns3::FILTER_MODE GetFilterMode (void) const;
 
 	friend bool operator == (IGMPv3InterfaceState const& lhs, IGMPv3InterfaceState const& rhs);
 	friend bool operator < (IGMPv3InterfaceState const& lhs, IGMPv3InterfaceState const& rhs);
@@ -153,12 +156,12 @@ public:
 //	bool IsEqual (ns3::FILTER_MODE filter_mode, std::list<Ipv4Address> const &src_list);
 //	bool IsEqual (IGMPv3InterfaceState if_state);
 //	bool IsEqual (Ptr<IGMPv3InterfaceState> if_state);
-	bool IsFilterModeChanged (IGMPv3InterfaceState if_state);
-	bool IsFilterModeChanged (Ptr<IGMPv3InterfaceState> if_state);
+	bool IsFilterModeChanged (IGMPv3InterfaceState if_state) const;
+	bool IsFilterModeChanged (Ptr<IGMPv3InterfaceState> if_state) const;
 	/*
 	 * \breif Comparing to old state
 	 */
-	bool IsFilterModeChanged (void);
+	bool IsFilterModeChanged (void) const;
 	bool IsSrcLstChanged (IGMPv3InterfaceState if_state);
 	bool IsSrcLstChanged (Ptr<IGMPv3InterfaceState> if_state);
 	/*
@@ -169,7 +172,7 @@ public:
 	/*
 	 * \breif Has pending records
 	 */
-	bool HasPendingRecords (void);
+	bool HasPendingRecords (void) const;
 
 	/*
 	 * \breif For reporting current State
@@ -207,10 +210,10 @@ public:
 	void AssociateSocketStateInterfaceState (Ptr<IGMPv3SocketState> socket_state);
 private:
 	void Invoke (Ptr<IGMPv3SocketState> socket_state);
-	bool IsSocketStateExist (Ptr<IGMPv3SocketState> socket_state);
+	bool IsSocketStateExist (Ptr<IGMPv3SocketState> socket_state) const;
 	bool CheckSubscribedAllSocketsIncludeMode (void);
 	Ptr<IGMPv3InterfaceState> SaveOldInterfaceState (void);
-	Ptr<IGMPv3InterfaceState> GetOldInterfaceState (void);
+	Ptr<IGMPv3InterfaceState> GetOldInterfaceState (void) const;
 	Ptr<Igmpv3L4Protocol> GetIgmp (void);
 };
 
@@ -311,6 +314,90 @@ public:
 	Ptr<Ipv4InterfaceMulticast> m_interface;
 	Ipv4Address m_group_address;
 	Timer m_softTimer;
+};
+
+class IGMPv3InterfaceStateManager : public Object {
+public:	//Object override
+	static TypeId GetTypeId (void);
+	IGMPv3InterfaceStateManager ();
+	virtual ~IGMPv3InterfaceStateManager();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+public:	//self-defined const
+	Ptr<IGMPv3InterfaceState> GetIfState (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address) const;
+	const std::list<Ptr<IGMPv3InterfaceState> >& GetInterfaceStates (void) const;
+	bool HasPendingRecords (void) const;
+	bool IsReportStateChangesRunning (void) const;
+public:	//self-defined
+	void Sort (void);
+	void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state);
+	void UnSubscribeIGMP (Ptr<Socket> socket);
+	void AddPendingRecordsToReport (Igmpv3Report &report);
+	void ReportStateChanges (void);
+	void DoReportStateChanges (void);
+	void ReportCurrentStates (void);
+	void ReportCurrentGrpStates (Ipv4Address group_address);
+	void ReportCurrentGrpNSrcStates (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+	void CancelReportStateChanges (void);
+	void RemovePerGroupTimer (Ipv4Address group_address);
+	void HandleGeneralQuery (Time resp_time);
+	void HandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
+	void DoHandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
+	void HandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+	void DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+	void HandleV3Records (std::list<Igmpv3GrpRecord> &records);
+	void NonQHandleGroupSpecificQuery (Ipv4Address group_address);
+	void NonQHandleGroupNSrcSpecificQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
+	void SendQuery (Ipv4Address group_address, bool s_flag);
+	void SendQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list, bool s_flag);
+private:
+	std::list<Ptr<IGMPv3InterfaceState> > m_lst_if_states;
+	//Robustness retransmission
+	EventId m_event_robustness_retransmission;
+
+	//Timers
+	Timer m_timer_gen_query;
+	std::list<Ptr<PerGroupInterfaceTimer> > m_lst_per_group_interface_timers;
+
+	//Router states
+	std::list<Ptr<IGMPv3MaintenanceState> > m_lst_maintenance_states;
+};
+
+class Igmpv3Manager : public Object {
+public:
+	enum IPMCL_STATUS {
+		ADDED = 0,
+		REMAIN = 1,
+		DELETED = 2
+	};
+public:	//Object override
+	static TypeId GetTypeId (void);
+	Igmpv3Manager ();
+	virtual ~Igmpv3Manager();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+public:	//self-defined const
+	Ptr<IGMPv3SocketStateManager> GetSocketStateManager (Ptr<Socket> key) const;
+	Ptr<IGMPv3InterfaceStateManager> GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key) const;
+private:
+	std::map<Ptr<Socket>, Ptr<IGMPv3SocketStateManager> > m_map_socketstate_managers;
+	std::map<Ptr<Ipv4InterfaceMulticast>, Ptr<IGMPv3InterfaceStateManager> > m_map_ifstate_managers;
 };
 
 class Igmpv3Header: public Header {
