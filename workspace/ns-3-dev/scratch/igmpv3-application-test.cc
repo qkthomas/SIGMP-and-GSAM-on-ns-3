@@ -30,7 +30,7 @@ main (int argc, char *argv[])
 	Time::SetResolution (Time::NS);
 
 	NodeContainer nodes;
-	nodes.Create (5);
+	nodes.Create (GsamConfig::GetSingleton()->GetNumberOfNodes());
 
 	//Mistaken for stars topology for a lan without a switch. Use CSMA instead
 	//PointToPointHelper pointToPoint;
@@ -72,6 +72,8 @@ main (int argc, char *argv[])
 	devices.Add(csma.Install(nodes));
 
 	Ipv4InterfaceContainerMulticast interfaces = address.Assign (devices);
+
+	GsamConfig::GetSingleton()->SetupIgmpAndGsam(interfaces, GsamConfig::GetSingleton()->GetNumberOfNqs());
 
 	if (nodes.GetN() > 0)
 	{

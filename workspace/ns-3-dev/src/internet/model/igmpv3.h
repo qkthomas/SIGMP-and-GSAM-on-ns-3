@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <list>
 #include <queue>
+#include <set>
 
 namespace ns3 {
 
@@ -82,6 +83,27 @@ public:
 	friend bool operator < (IGMPv3SocketState const& lhs, IGMPv3SocketState const& rhs);
 	void UnSubscribeIGMP (void);
 	void StateChange (ns3::FILTER_MODE filter_mode, std::list<Ipv4Address> const &src_list);
+};
+
+class IGMPv3SocketStateList : public Object {
+public:	//Object override
+	static TypeId GetTypeId (void);
+	IGMPv3SocketStateList ();
+	virtual ~IGMPv3SocketStateList();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+public:	//self-defined
+	Ptr<IGMPv3InterfaceState> GetSocketState (Ptr<Socket> socket, Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address);
+private:
+	std::set<Ptr<IGMPv3InterfaceState> > m_set_socket_states;
 };
 
 class IGMPv3InterfaceState : public Object {

@@ -37,7 +37,7 @@ main (int argc, char *argv[])
 	Time::SetResolution (Time::NS);
 
 	NodeContainer nodes;
-	nodes.Create (5);
+	nodes.Create (GsamConfig::GetSingleton()->GetNumberOfNodes());
 
 	//Mistaken for stars topology for a lan without a switch. Use CSMA instead
 	//PointToPointHelper pointToPoint;

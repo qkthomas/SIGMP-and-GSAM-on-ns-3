@@ -5709,7 +5709,10 @@ GsamFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
 	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
 	Ipv4Header ipv4header;
 	incoming_and_retval_packet->RemoveHeader(ipv4header);
-	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(ipv4header, incoming_and_retval_packet);
+	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(	ipv4header.GetSource(),
+																											ipv4header.GetDestination(),
+																											ipv4header.GetProtocol(),
+																											incoming_and_retval_packet);
 	if (0 == policy)
 	{
 		//no policy found
@@ -5890,14 +5893,14 @@ GsamFilter::GsamCallBack (Ptr<GsamSession> session)
 		else
 		{
 			Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
-			std::list<Ptr<Spi> >& outbound_spis;
+			std::list<Ptr<Spi> > outbound_spis;
 			outbound_sad->GetSpis(outbound_spis);
 			SimpleAuthenticationHeader simpleah;
 			if (1 == outbound_spis.size())
 			{
 				//ok
 				Ptr<Spi> outbound_spi = outbound_spis.front();
-				simpleah = SimpleAuthenticationHeader(cache->GetIpProtocolId(), cache->GetPacket()->GetSize(), outbound_spi->ToUint32(), cache->GetRoute());
+				simpleah = SimpleAuthenticationHeader(cache->GetIpProtocolId(), cache->GetPacket()->GetSize(), outbound_spi->ToUint32(), 0);
 				Ptr<Packet> packet_to_send = cache->GetPacket()->Copy();
 				packet_to_send->AddHeader(simpleah);
 				this->m_downTarget(packet_to_send, cache->GetPacketSourceAddress(), cache->GetPacketDestinationAddress(), IpSec::IP_ID_AH, cache->GetRoute());

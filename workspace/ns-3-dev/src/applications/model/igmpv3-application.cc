@@ -151,6 +151,7 @@ Igmpv3Application::GenerateNextEvent (void)
 		}
 		else
 		{
+			//only 10 sockets at a time max
 			if (this->m_lst_sockets.size() < 10)
 			{
 				this->GenerateHostJoinEvent();
