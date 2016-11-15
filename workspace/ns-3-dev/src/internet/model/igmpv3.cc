@@ -309,6 +309,7 @@ IGMPv3InterfaceState::GetTypeId (void)
 
 IGMPv3InterfaceState::IGMPv3InterfaceState (void)
   :  m_interface (0),
+	 m_manager (0),
 	 m_multicast_address ("0. 0. 0. 0"),
 	 m_filter_mode (ns3::INCLUDE),
 	 m_old_if_state (0)
@@ -320,6 +321,15 @@ void
 IGMPv3InterfaceState::Initialize (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address)
 {
 	this->m_interface = interface;
+	this->m_multicast_address = multicast_address;
+	this->m_filter_mode = ns3::INCLUDE;
+	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_interface, this->m_multicast_address);
+}
+
+void
+IGMPv3InterfaceState::Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address)
+{
+	this->m_manager = manager;
 	this->m_multicast_address = multicast_address;
 	this->m_filter_mode = ns3::INCLUDE;
 	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_interface, this->m_multicast_address);
@@ -2158,6 +2168,7 @@ IGMPv3InterfaceStateManager::GetTypeId (void)
 }
 
 IGMPv3InterfaceStateManager::IGMPv3InterfaceStateManager ()
+  :  m_interface (0)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -2167,7 +2178,7 @@ IGMPv3InterfaceStateManager::~IGMPv3InterfaceStateManager()
 	NS_LOG_FUNCTION (this);
 	this->m_event_robustness_retransmission.Cancel();
 	this->m_timer_gen_query.Cancel();
-	this->m_lst_if_states.clear();
+	this->m_lst_interfacestates.clear();
 	this->m_lst_per_group_interface_timers.clear();
 	this->m_lst_maintenance_states.clear();
 }
@@ -2191,13 +2202,24 @@ IGMPv3InterfaceStateManager::DoDispose (void)
 	NS_LOG_FUNCTION (this);
 }
 
+Ptr<Ipv4InterfaceMulticast>
+IGMPv3InterfaceStateManager::GetInterface (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_interface)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_interface;
+}
+
 Ptr<IGMPv3InterfaceState>
 IGMPv3InterfaceStateManager::GetIfState (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address) const
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IGMPv3InterfaceState> retval = 0;
-	for (std::list<Ptr<IGMPv3InterfaceState> >::const_iterator const_it = this->m_lst_if_states.begin();
-			const_it != this->m_lst_if_states.end();
+	for (std::list<Ptr<IGMPv3InterfaceState> >::const_iterator const_it = this->m_lst_interfacestates.begin();
+			const_it != this->m_lst_interfacestates.end();
 			const_it++)
 	{
 		Ptr<IGMPv3InterfaceState> value_const_it = (*const_it);
@@ -2215,14 +2237,16 @@ IGMPv3InterfaceStateManager::GetIfState (Ptr<Ipv4InterfaceMulticast> interface, 
 const std::list<Ptr<IGMPv3InterfaceState> >&
 IGMPv3InterfaceStateManager::GetInterfaceStates (void) const
 {
-	return this->m_lst_if_states;
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_interfacestates;
 }
 
 bool
 IGMPv3InterfaceStateManager::HasPendingRecords (void) const
 {
-	for (std::list<Ptr<IGMPv3InterfaceState> >::const_iterator const_it = this->m_lst_if_states.begin();
-		 const_it != this->m_lst_if_states.end();
+	NS_LOG_FUNCTION (this);
+	for (std::list<Ptr<IGMPv3InterfaceState> >::const_iterator const_it = this->m_lst_interfacestates.begin();
+		 const_it != this->m_lst_interfacestates.end();
 		 const_it++)
 	{
 		Ptr<IGMPv3InterfaceState> interfacestate = (*const_it);
@@ -2238,40 +2262,50 @@ IGMPv3InterfaceStateManager::HasPendingRecords (void) const
 bool
 IGMPv3InterfaceStateManager::IsReportStateChangesRunning (void) const
 {
+	NS_LOG_FUNCTION (this);
 	return this->m_event_robustness_retransmission.IsRunning();
+}
+
+Ptr<IGMPv3InterfaceState>
+IGMPv3InterfaceStateManager::CreateIfState (Ipv4Address multicast_address)
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IGMPv3InterfaceState> retval = Create<IGMPv3InterfaceState>();
+	retval->Initialize(this, multicast_address);
+	this->m_lst_interfacestates.push_back(retval);
+	return retval;
 }
 
 void
 IGMPv3InterfaceStateManager::Sort (void)
 {
 	NS_LOG_FUNCTION (this);
-	if (false == this->m_lst_socket_states.empty())
+	if (false == this->m_lst_interfacestates.empty())
 	{
-		this->m_lst_socket_states.sort();
+		this->m_lst_interfacestates.sort();
 	}
 }
 
 void
 IGMPv3InterfaceStateManager::IPMulticastListen (Ptr<IGMPv3SocketState> socket_state)
 {
+	NS_LOG_FUNCTION (this);
 	Ipv4Address multicast_address = socket_state->GetGroupAddress();
 
-	if (true == this->m_lst_if_states.empty())
+	if (true == this->m_lst_interfacestates.empty())
 	{
-		Ptr<IGMPv3InterfaceState> interfacestate = Create<IGMPv3InterfaceState>();
-		interfacestate->Initialize(this, multicast_address);
+		Ptr<IGMPv3InterfaceState> interfacestate = this->CreateIfState(multicast_address);
 		interfacestate->AssociateSocketStateInterfaceState (socket_state);
 		interfacestate->ComputeState ();
-		this->m_lst_if_states.push_back(interfacestate);
 
 		return; //Ipv4InterfaceMulticast::ADDED;
 	}
 
 	else
 	{
-		std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_if_states.begin();
+		std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_interfacestates.begin();
 
-		while (it != this->m_lst_if_states.end())
+		while (it != this->m_lst_interfacestates.end())
 		{
 			Ptr<IGMPv3InterfaceState> it_interface_state = *it;
 
@@ -2290,13 +2324,11 @@ IGMPv3InterfaceStateManager::IPMulticastListen (Ptr<IGMPv3SocketState> socket_st
 			}
 		}
 
-		if (it == this->m_lst_if_states.end())
+		if (it == this->m_lst_interfacestates.end())
 		{
-			Ptr<IGMPv3InterfaceState> interfacestate = Create<IGMPv3InterfaceState>();
-			interfacestate->Initialize(this, multicast_address);
+			Ptr<IGMPv3InterfaceState> interfacestate = this->CreateIfState(multicast_address);
 			interfacestate->AssociateSocketStateInterfaceState (socket_state);
 			interfacestate->ComputeState ();
-			this->m_lst_if_states.push_back(interfacestate);
 			return;
 		}
 		else
@@ -2305,6 +2337,515 @@ IGMPv3InterfaceStateManager::IPMulticastListen (Ptr<IGMPv3SocketState> socket_st
 			NS_ASSERT (false);
 		}
 	}
+}
+
+void
+IGMPv3InterfaceStateManager::UnSubscribeIGMP (Ptr<Socket> socket)
+{
+	NS_LOG_FUNCTION (this);
+	//place holders
+}
+
+void
+IGMPv3InterfaceStateManager::AddPendingRecordsToReport (Igmpv3Report &report)
+{
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_interfacestates.begin();
+		 it != this->m_lst_interfacestates.end();
+		 it++)
+	{
+		(*it)->AddPendingRecordsToReport(report);
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::ReportStateChanges (void)
+{
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes" << Simulator::Now() << std::endl;
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	if (true == this->m_event_robustness_retransmission.IsRunning())
+	{
+		//the previous scheduled robustness report sending event should cancled before that this method is invoked
+		this->CancelReportStateChanges();
+		igmp->SendStateChangesReport(this);
+	}
+
+	if (true == this->HasPendingRecords())
+	{
+		Time delay = igmp->GetUnsolicitedReportInterval();
+
+		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoReportStateChanges, this);
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::DoReportStateChanges (void)
+{
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes " << Simulator::Now() << std::endl;
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	igmp->SendStateChangesReport(this);
+
+	if (true == this->HasPendingRecords())
+	{
+		Time delay = igmp->GetUnsolicitedReportInterval();
+
+		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoReportStateChanges, this);
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::ReportCurrentStates (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report current state " << Simulator::Now() << std::endl;
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	Ptr<Packet> packet = Create<Packet>();
+
+	std::list<Igmpv3GrpRecord> lst_grp_records;
+
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator ifstate_it = this->m_lst_interfacestates.begin();
+			ifstate_it != this->m_lst_interfacestates.end();
+			ifstate_it++)
+	{
+		Ptr<IGMPv3InterfaceState> if_state = (*ifstate_it);
+
+		Igmpv3GrpRecord record = Igmpv3GrpRecord::GenerateGrpRecord(if_state);
+
+		lst_grp_records.push_back(record);
+	}
+
+	Igmpv3Report report;
+//	report.SetNumGrpRecords(lst_grp_records.size());
+	report.PushBackGrpRecords(lst_grp_records);
+
+	packet->AddHeader(report);
+
+	Igmpv3Header igmpv3;
+	igmpv3.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
+	igmpv3.SetMaxRespCode(igmp->GetMaxRespCode());
+
+	if (Node::ChecksumEnabled ()) {
+		igmpv3.EnableChecksum();
+	}
+
+	packet->AddHeader(igmpv3);
+
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " reporting a general query to the querier" << std::endl;
+
+	igmp->SendReport(this->GetInterface(), packet);
+}
+
+void
+IGMPv3InterfaceStateManager::ReportCurrentGrpStates (Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	Ptr<Packet> packet = Create<Packet>();
+
+	std::list<Igmpv3GrpRecord> lst_grp_records;
+
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator ifstate_it = this->m_lst_interfacestates.begin();
+			ifstate_it != this->m_lst_interfacestates.end();
+			ifstate_it++)
+	{
+		Ptr<IGMPv3InterfaceState> if_state = (*ifstate_it);
+
+		if (group_address == if_state->GetGroupAddress())
+		{
+			Igmpv3GrpRecord record = Igmpv3GrpRecord::GenerateGrpRecord(if_state);
+
+			lst_grp_records.push_back(record);
+
+			//only one state for a group on each interface;
+			break;
+		}
+	}
+
+	Igmpv3Report report;
+	//report.SetNumGrpRecords(lst_grp_records.size());
+	report.PushBackGrpRecords(lst_grp_records);
+
+	packet->AddHeader(report);
+
+	Igmpv3Header igmpv3;
+	igmpv3.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
+	igmpv3.SetMaxRespCode(igmp->GetMaxRespCode());
+
+	if (Node::ChecksumEnabled ()) {
+		igmpv3.EnableChecksum();
+	}
+
+	packet->AddHeader(igmpv3);
+
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " reporting a general query to the querier" << std::endl;
+
+	igmp->SendReport(this->GetInterface(), packet);
+
+	this->RemovePerGroupTimer(group_address);
+}
+
+void
+IGMPv3InterfaceStateManager::ReportCurrentGrpNSrcStates (Ipv4Address group_address, std::list<Ipv4Address> const &src_list)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	Ptr<Packet> packet = Create<Packet>();
+
+	std::list<Igmpv3GrpRecord> lst_grp_records;
+
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator ifstate_it = this->m_lst_interfacestates.begin();
+			ifstate_it != this->m_lst_interfacestates.end();
+			ifstate_it++)
+	{
+		Ptr<IGMPv3InterfaceState> if_state = (*ifstate_it);
+
+		if (group_address == if_state->GetGroupAddress())
+		{
+			Igmpv3GrpRecord record = Igmpv3GrpRecord::GenerateGrpRecord(if_state, src_list);
+
+			if (0 == record.GetNumSrcs())
+			{
+				//INCLUDE mode + empty source list = no response to be sent.
+				return;
+			}
+			lst_grp_records.push_back(record);
+
+			//only one state for a group on each interface;
+			break;
+		}
+	}
+
+	Igmpv3Report report;
+	//report.SetNumGrpRecords(lst_grp_records.size());
+	report.PushBackGrpRecords(lst_grp_records);
+
+	packet->AddHeader(report);
+
+	Igmpv3Header igmpv3;
+	igmpv3.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
+	igmpv3.SetMaxRespCode(igmp->GetMaxRespCode());
+
+	if (Node::ChecksumEnabled ()) {
+		igmpv3.EnableChecksum();
+	}
+
+	packet->AddHeader(igmpv3);
+
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " reporting a general query to the querier" << std::endl;
+
+	igmp->SendReport(this->GetInterface(), packet);
+
+	this->RemovePerGroupTimer(group_address);
+}
+
+void
+IGMPv3InterfaceStateManager::CancelReportStateChanges ()
+{
+	if (true == this->m_event_robustness_retransmission.IsRunning())
+	{
+		Simulator::Cancel(this->m_event_robustness_retransmission);
+	}
+	else
+	{
+		//No running event to cancel
+		NS_ASSERT (false);
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::RemovePerGroupTimer (Ipv4Address group_address)
+{
+	//remove timer from m_lst_per_group_interface_timers
+	for (	std::list<Ptr<PerGroupInterfaceTimer> >::iterator it = this->m_lst_per_group_interface_timers.begin();
+			it != this->m_lst_per_group_interface_timers.end();
+			it++)
+	{
+		Ptr<PerGroupInterfaceTimer> timer = (*it);
+
+		if (timer->m_group_address == group_address)
+		{
+			this->m_lst_per_group_interface_timers.erase(it);
+			//there should be only one timer for a particular group at a time.
+			break;
+		}
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::HandleGeneralQuery (Time resp_time)
+{
+	if (false == this->m_timer_gen_query.IsRunning())
+	{
+		std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId()  << "'s has no per-interface-timer" << std::endl;
+		std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId()  << " creating a new timer for handling incoming General Query" << std::endl;
+		this->m_timer_gen_query.SetFunction(&IGMPv3InterfaceStateManager::ReportCurrentStates, this);
+		std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId()  << " scheduling report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+		this->m_timer_gen_query.Schedule(resp_time);
+	}
+	else
+	{
+		if (resp_time < this->m_timer_gen_query.GetDelayLeft())
+		{
+			this->m_timer_gen_query.Cancel();
+
+			std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId()  << "'s has a per-interface-timer, but delay time is smaller than resp time" << std::endl;
+			std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId()  << " creating a new timer for handling incoming General Query" << std::endl;
+			this->m_timer_gen_query.SetFunction(&IGMPv3InterfaceStateManager::ReportCurrentStates, this);
+			std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId()  << " scheduling report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+			this->m_timer_gen_query.Schedule(resp_time);
+		}
+		else
+		{
+			//do nothing
+		}
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::HandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address)
+{
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator ifstate_it = this->m_lst_interfacestates.begin();
+			ifstate_it != this->m_lst_interfacestates.end();
+			ifstate_it++)
+	{
+		Ptr<IGMPv3InterfaceState> if_state = (*ifstate_it);
+
+		if (group_address == if_state->GetGroupAddress())
+		{
+			this->DoHandleGroupSpecificQuery(resp_time, group_address);
+		}
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::DoHandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address)
+{
+	for (std::list<Ptr<PerGroupInterfaceTimer> >::iterator it = this->m_lst_per_group_interface_timers.begin();
+		 it != this->m_lst_per_group_interface_timers.end();
+		 it++)
+	{
+		Ptr<PerGroupInterfaceTimer> timer = (*it);
+		if (timer->m_group_address == group_address)
+		{
+			Time delay;
+			if (resp_time < timer->m_softTimer.GetDelayLeft())
+			{
+				delay = resp_time;
+			}
+			else
+			{
+				delay = timer->m_softTimer.GetDelayLeft();
+			}
+
+			std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " there is a timer exist for group specific query with delaytime left smaller current resp time." << std::endl;
+			std::cout << "Interface: " << this << ", Group Address: " << group_address << std::endl;
+			std::cout << "Canceling previous report." << std::endl;
+			timer->m_softTimer.Cancel();
+
+			timer->m_softTimer.SetFunction(&IGMPv3InterfaceStateManager::ReportCurrentGrpStates, this);
+			timer->m_softTimer.SetArguments(group_address);
+			std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " scheduling new report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+			timer->m_softTimer.Schedule(delay);
+			return;
+		}
+	}
+
+	std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " creating a new timer for handling incoming Group Specific Query" << std::endl;
+	std::cout << "Interface: " << this << ", Group Address: " << group_address << std::endl;
+	Ptr<PerGroupInterfaceTimer> new_timer = Create<PerGroupInterfaceTimer>();
+	new_timer->m_interface = this->GetInterface();
+	new_timer->m_group_address = group_address;
+	new_timer->m_softTimer.SetFunction(&IGMPv3InterfaceStateManager::ReportCurrentGrpStates, this);
+	new_timer->m_softTimer.SetArguments(group_address);
+	std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " scheduling report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+	new_timer->m_softTimer.Schedule(resp_time);
+	this->m_lst_per_group_interface_timers.push_back(new_timer);
+}
+
+void
+IGMPv3InterfaceStateManager::HandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list)
+{
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator ifstate_it = this->m_lst_interfacestates.begin();
+			ifstate_it != this->m_lst_interfacestates.end();
+			ifstate_it++)
+	{
+		Ptr<IGMPv3InterfaceState> if_state = (*ifstate_it);
+
+		if (group_address == if_state->GetGroupAddress())
+		{
+			this->DoHandleGroupSpecificQuery(resp_time, group_address);
+		}
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list)
+{
+	for (std::list<Ptr<PerGroupInterfaceTimer> >::iterator it = this->m_lst_per_group_interface_timers.begin();
+		 it != this->m_lst_per_group_interface_timers.end();
+		 it++)
+	{
+		Ptr<PerGroupInterfaceTimer> timer = (*it);
+		if (timer->m_group_address == group_address)
+		{
+			Time delay;
+			if (resp_time < timer->m_softTimer.GetDelayLeft())
+			{
+				delay = resp_time;
+			}
+			else
+			{
+				delay = timer->m_softTimer.GetDelayLeft();
+			}
+
+			std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " there is a timer exist for group specific query with delaytime left smaller current resp time." << std::endl;
+			std::cout << "Interface: " << this << ", Group Address: " << group_address << std::endl;
+			std::cout << "Canceling previous report." << std::endl;
+			timer->m_softTimer.Cancel();
+
+			timer->m_softTimer.SetFunction(&IGMPv3InterfaceStateManager::ReportCurrentGrpNSrcStates, this);
+			timer->m_softTimer.SetArguments(group_address, src_list);
+			std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " scheduling new report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+			timer->m_softTimer.Schedule(delay);
+			return;
+		}
+	}
+
+	std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " creating a new timer for handling incoming Group Specific Query" << std::endl;
+	std::cout << "Interface: " << this << ", Group Address: " << group_address << std::endl;
+	Ptr<PerGroupInterfaceTimer> new_timer = Create<PerGroupInterfaceTimer>();
+	new_timer->m_interface = this->GetInterface();
+	new_timer->m_group_address = group_address;
+	new_timer->m_softTimer.SetFunction(&IGMPv3InterfaceStateManager::ReportCurrentGrpNSrcStates, this);
+	new_timer->m_softTimer.SetArguments(group_address, src_list);
+	std::cout << "Node id: " << this->m_interface->GetDevice()->GetNode()->GetId() << " scheduling report, delay time: " << resp_time.GetSeconds() << " seconds" << std::endl;
+	new_timer->m_softTimer.Schedule(resp_time);
+	this->m_lst_per_group_interface_timers.push_back(new_timer);
+}
+
+void
+IGMPv3InterfaceStateManager::HandleV3Records (std::list<Igmpv3GrpRecord> &records)
+{
+	for (std::list<Igmpv3GrpRecord>::const_iterator record_it = records.begin();
+		 record_it != records.end();
+		 record_it++)
+	{
+		for (std::list<Ptr<IGMPv3MaintenanceState> >::iterator state_it = this->m_lst_maintenance_states.begin();
+			 state_it != this->m_lst_maintenance_states.end();
+			 state_it++)
+		{
+			Igmpv3GrpRecord record = (*record_it);
+			Ptr<IGMPv3MaintenanceState> maintenance_state = (*state_it);
+
+			if (record.GetMulticastAddress() == maintenance_state->GetMulticastAddress())
+			{
+				maintenance_state->HandleGrpRecord(record);
+			}
+		}
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::NonQHandleGroupSpecificQuery (Ipv4Address group_address)
+{
+	for (std::list<Ptr<IGMPv3MaintenanceState> >::iterator state_it = this->m_lst_maintenance_states.begin();
+			state_it != this->m_lst_maintenance_states.end();
+			state_it++)
+	{
+		Ptr<IGMPv3MaintenanceState> maintenance_state = (*state_it);
+
+		if (group_address == maintenance_state->GetMulticastAddress())
+		{
+			maintenance_state->HandleQuery();
+		}
+
+	}
+}
+void
+IGMPv3InterfaceStateManager::NonQHandleGroupNSrcSpecificQuery (Ipv4Address group_address,
+														  std::list<Ipv4Address> const &src_list)
+{
+	for (std::list<Ptr<IGMPv3MaintenanceState> >::iterator state_it = this->m_lst_maintenance_states.begin();
+			state_it != this->m_lst_maintenance_states.end();
+			state_it++)
+	{
+		Ptr<IGMPv3MaintenanceState> maintenance_state = (*state_it);
+
+		if (group_address == maintenance_state->GetMulticastAddress())
+		{
+			maintenance_state->HandleQuery(src_list);
+		}
+
+	}
+
+}
+
+void
+IGMPv3InterfaceStateManager::SendQuery (Ipv4Address group_address, bool s_flag)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	Igmpv3Query query;
+
+	query.SetGroupAddress(group_address);
+	query.SetSFlag(s_flag);
+	query.SetQQIC(igmp->GetQQIC());
+	query.SetQRV(igmp->GetQRV());
+
+	Ptr<Packet> packet = Create<Packet>();
+
+	packet->AddHeader(query);
+
+	igmp->SendQuery(group_address, this->GetInterface(), packet);
+}
+
+void
+IGMPv3InterfaceStateManager::SendQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list, bool s_flag)
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	Igmpv3Query query;
+
+	query.SetGroupAddress(group_address);
+	query.SetSFlag(s_flag);
+	query.SetQQIC(igmp->GetQQIC());
+	query.SetQRV(igmp->GetQRV());
+	query.PushBackSrcAddresses(src_list);
+
+	Ptr<Packet> packet = Create<Packet>();
+
+	packet->AddHeader(query);
+
+	igmp->SendQuery(group_address, this->GetInterface(), packet);
+
 }
 
 /********************************************************

@@ -472,7 +472,7 @@ Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr
 	}
 	else
 	{
-		NS_LOG_WARN ("drop icmp repoty");
+		NS_LOG_WARN ("drop igmp report");
 	}
 }
 
@@ -584,6 +584,29 @@ Igmpv3L4Protocol::SendStateChangesReport (Ptr<Ipv4InterfaceMulticast> incomingIn
 				this->SendReport(incomingInterface, packet);
 			}
 		}
+	}
+}
+
+void
+Igmpv3L4Protocol::SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager)
+{
+	Igmpv3Report report;
+	ifstate_manager->AddPendingRecordsToReport(report);
+	if (0 < report.GetNumGrpRecords())
+	{
+		Ptr<Packet> packet = Create<Packet>();
+		packet->AddHeader(report);
+
+		Igmpv3Header header;
+		header.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
+		if (true == ifstate_manager->GetInterface()->GetDevice()->GetNode()->ChecksumEnabled())
+		{
+			header.EnableChecksum();
+		}
+
+		packet->AddHeader(header);
+
+		this->SendReport(ifstate_manager->GetInterface(), packet);
 	}
 }
 
@@ -923,7 +946,7 @@ Igmpv3L4Protocol::DoSendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulti
 	}
 	else
 	{
-		NS_LOG_WARN ("drop icmp query");
+		NS_LOG_WARN ("drop igmp query");
 	}
 }
 

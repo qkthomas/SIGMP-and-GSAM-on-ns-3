@@ -234,6 +234,7 @@ public:
 	void SendDefaultGeneralQuery (void);
 	void SendCurrentStateReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<PerInterfaceTimer> pintimer);
 	void SendStateChangesReport (Ptr<Ipv4InterfaceMulticast> incomingInterface);
+	void SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager);
 	void HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void HandleV1MemReport (void);

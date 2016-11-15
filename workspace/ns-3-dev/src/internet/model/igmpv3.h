@@ -45,6 +45,7 @@ class Igmpv3Report;
 class Igmpv3GrpRecord;
 class IGMPv3MaintenanceState;
 class Igmpv3L4Protocol;
+class IGMPv3InterfaceStateManager;
 
 enum FILTER_MODE {
 	INCLUDE = 0,
@@ -112,6 +113,7 @@ private:
 class IGMPv3InterfaceState : public Object {
 private:
 	Ptr<Ipv4InterfaceMulticast> m_interface;
+	Ptr<IGMPv3InterfaceStateManager> m_manager;
 	Ipv4Address m_multicast_address;
 	ns3::FILTER_MODE m_filter_mode;
 	std::list<Ipv4Address> m_lst_source_list;
@@ -136,6 +138,7 @@ public:
 
 	IGMPv3InterfaceState (void);
 	void Initialize (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address);
+	void Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address);
 
 	~IGMPv3InterfaceState (void);
 
@@ -332,11 +335,13 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//self-defined const
+	Ptr<Ipv4InterfaceMulticast> GetInterface (void) const;
 	Ptr<IGMPv3InterfaceState> GetIfState (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address) const;
 	const std::list<Ptr<IGMPv3InterfaceState> >& GetInterfaceStates (void) const;
 	bool HasPendingRecords (void) const;
 	bool IsReportStateChangesRunning (void) const;
 public:	//self-defined
+	Ptr<IGMPv3InterfaceState> CreateIfState (Ipv4Address multicast_address);
 	void Sort (void);
 	void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state);
 	void UnSubscribeIGMP (Ptr<Socket> socket);
@@ -359,7 +364,8 @@ public:	//self-defined
 	void SendQuery (Ipv4Address group_address, bool s_flag);
 	void SendQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list, bool s_flag);
 private:
-	std::list<Ptr<IGMPv3InterfaceState> > m_lst_if_states;
+	Ptr<Ipv4InterfaceMulticast> m_interface;
+	std::list<Ptr<IGMPv3InterfaceState> > m_lst_interfacestates;
 	//Robustness retransmission
 	EventId m_event_robustness_retransmission;
 
