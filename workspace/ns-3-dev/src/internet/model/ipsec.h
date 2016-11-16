@@ -106,6 +106,7 @@ public:	//const
 	Ipv4Address GetSecureGroupAddressRangeStart (void) const;
 	Ipv4Address GetSecureGroupAddressRangeEnd (void) const;
 	bool IsGroupAddressSecureGroup (Ipv4Address group_address) const;
+	Time GetDefaultGroupTimerDelayInSeconds (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member

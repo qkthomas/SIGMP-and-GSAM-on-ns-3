@@ -10,3 +10,4 @@ retransmission-disable:false
 gm-join-event-number:1
 sec-grp-address-range-start:230.0.0.0
 sec-grp-address-range-end:235.0.0.0
+default-group-timer-delay:60

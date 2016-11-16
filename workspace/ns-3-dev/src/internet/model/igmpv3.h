@@ -262,7 +262,7 @@ public:
 	void GetCurrentSrcLstTimerEqualToZero (std::list<Ipv4Address> &retval) const;
 	ns3::FILTER_MODE GetFilterMode (void);
 	void AddSrcRecord (Ptr<IGMPv3MaintenanceSrcRecord> src_record);
-	void HandleGrpRecord (Igmpv3GrpRecord &record);
+	void HandleGrpRecord (const Igmpv3GrpRecord &record);
 	void HandleQuery (void);
 	void HandleQuery (std::list<Ipv4Address> const &src_lst);
 	void DeleteSrcRecord (Ipv4Address src);
@@ -358,7 +358,7 @@ public:	//self-defined
 	void DoHandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
 	void HandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
 	void DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
-	void HandleV3Records (std::list<Igmpv3GrpRecord> &records);
+	void HandleV3Records (const std::list<Igmpv3GrpRecord> &records);
 	void NonQHandleGroupSpecificQuery (Ipv4Address group_address);
 	void NonQHandleGroupNSrcSpecificQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
 	void SendQuery (Ipv4Address group_address, bool s_flag);

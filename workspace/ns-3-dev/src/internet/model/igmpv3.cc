@@ -1541,7 +1541,7 @@ IGMPv3MaintenanceState::GetLastMemberQueryCount (void)
 }
 
 void
-IGMPv3MaintenanceState::HandleGrpRecord (Igmpv3GrpRecord &record)
+IGMPv3MaintenanceState::HandleGrpRecord (const Igmpv3GrpRecord &record)
 {
 
 	if (this->GetFilterMode() == ns3::INCLUDE)
@@ -2744,23 +2744,32 @@ IGMPv3InterfaceStateManager::DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv
 }
 
 void
-IGMPv3InterfaceStateManager::HandleV3Records (std::list<Igmpv3GrpRecord> &records)
+IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &records)
 {
 	for (std::list<Igmpv3GrpRecord>::const_iterator record_it = records.begin();
 		 record_it != records.end();
 		 record_it++)
 	{
-		for (std::list<Ptr<IGMPv3MaintenanceState> >::iterator state_it = this->m_lst_maintenance_states.begin();
+		const Igmpv3GrpRecord record = (*record_it);
+		std::list<Ptr<IGMPv3MaintenanceState> >::iterator state_it;
+		for (state_it = this->m_lst_maintenance_states.begin();
 			 state_it != this->m_lst_maintenance_states.end();
 			 state_it++)
 		{
-			Igmpv3GrpRecord record = (*record_it);
 			Ptr<IGMPv3MaintenanceState> maintenance_state = (*state_it);
 
 			if (record.GetMulticastAddress() == maintenance_state->GetMulticastAddress())
 			{
 				maintenance_state->HandleGrpRecord(record);
 			}
+		}
+		if (state_it == this->m_lst_maintenance_states.end())
+		{
+			//no maintenance_state matched
+			Ptr<IGMPv3MaintenanceState> maintenance_state = Create<IGMPv3MaintenanceState>();
+			maintenance_state->Initialize(this->GetInterface(), record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
+			this->m_lst_maintenance_states.push_back(maintenance_state);
+			maintenance_state->HandleGrpRecord(record);
 		}
 	}
 }

@@ -888,6 +888,32 @@ GsamConfig::IsGroupAddressSecureGroup (Ipv4Address group_address) const
 	return retval;
 }
 
+Time
+GsamConfig::GetDefaultGroupTimerDelayInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	double seconds_double = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("default-group-timer-delay");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> seconds_double)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	Time retval(seconds_double);
+	return retval;
+}
+
 void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {

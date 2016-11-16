@@ -460,6 +460,9 @@ Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr
 	NS_ASSERT (ipv4 != 0 && ipv4->GetRoutingProtocol () != 0);
 	Ipv4Header header;
 	header.SetProtocol (PROT_NUMBER);
+	header.SetDestination(this->m_RptAddress);
+	//get first address of interface
+	header.SetSource(incomingInterface->GetAddress(0).GetLocal());
 	Socket::SocketErrno errno_;
 	Ptr<Ipv4Route> route;
 	Ptr<NetDevice> oif = incomingInterface->GetDevice();
@@ -468,7 +471,7 @@ Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr
 	{
 		NS_LOG_LOGIC ("Route exists");
 		//Ipv4Address source = route->GetSource ();
-		SendMessage (packet, this->m_RptAddress, route);
+		SendMessage (packet, header.GetDestination(), route);
 	}
 	else
 	{

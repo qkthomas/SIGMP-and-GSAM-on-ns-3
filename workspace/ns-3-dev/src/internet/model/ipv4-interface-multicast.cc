@@ -33,6 +33,7 @@
 #include "igmpv3-l4-protocol.h"
 #include "ns3/nstime.h"
 #include "ns3/packet.h"
+#include "ns3/ipsec.h"
 
 //addby Lin Chen, solving cyclic inclusion
 //#include "ns3/igmpv3.h"
@@ -944,18 +945,27 @@ Ipv4InterfaceMulticast::HandleV3Records (std::list<Igmpv3GrpRecord> &records)
 		 record_it != records.end();
 		 record_it++)
 	{
-		for (std::list<Ptr<IGMPv3MaintenanceState> >::iterator state_it = this->m_lst_maintenance_states.begin();
+		Igmpv3GrpRecord record = (*record_it);
+		std::list<Ptr<IGMPv3MaintenanceState> >::iterator state_it;
+		for (state_it = this->m_lst_maintenance_states.begin();
 			 state_it != this->m_lst_maintenance_states.end();
 			 state_it++)
 		{
-			Igmpv3GrpRecord record = (*record_it);
 			Ptr<IGMPv3MaintenanceState> maintenance_state = (*state_it);
 
 			if (record.GetMulticastAddress() == maintenance_state->GetMulticastAddress())
 			{
 				maintenance_state->HandleGrpRecord(record);
+				break;
 			}
-
+		}
+		if (state_it == this->m_lst_maintenance_states.end())
+		{
+			//no maintenance_state matched
+			Ptr<IGMPv3MaintenanceState> maintenance_state = Create<IGMPv3MaintenanceState>();
+			maintenance_state->Initialize(this, record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
+			this->m_lst_maintenance_states.push_back(maintenance_state);
+			maintenance_state->HandleGrpRecord(record);
 		}
 	}
 
