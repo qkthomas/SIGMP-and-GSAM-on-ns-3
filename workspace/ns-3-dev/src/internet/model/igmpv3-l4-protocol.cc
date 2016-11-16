@@ -137,6 +137,19 @@ Igmpv3L4Protocol::GetStaticProtocolNumber (void)
 	return PROT_NUMBER;
 }
 
+Ptr<Igmpv3L4Protocol>
+Igmpv3L4Protocol::GetIgmp (Ptr<Node> node)
+{
+	Ptr<Ipv4Multicast> ipv4 = node->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+	if (0 == igmp)
+	{
+		NS_ASSERT (false);
+	}
+	return igmp;
+}
+
 int
 Igmpv3L4Protocol::GetProtocolNumber (void) const
 {
@@ -449,33 +462,40 @@ Igmpv3L4Protocol::SendDefaultGeneralQuery (void)
 
 	std::cout << "Node: " << m_node->GetId() << " sending a default general query" << std::endl;
 
-	this->SendMessage (packet, this->m_GenQueAddress, 0);
+	Ipv4Header ipv4header;
+	ipv4header.SetSource("0.0.0.0");
+	ipv4header.SetProtocol(this->PROT_NUMBER);
+	ipv4header.SetDestination(this->m_GenQueAddress);
+
+	this->SendMessage (packet, ipv4header, 0);
 
 }
 
 void
-Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet)
+Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet, bool secure_group_report)
 {
 	Ptr<Ipv4Multicast> ipv4 = m_node->GetObject<Ipv4Multicast> ();
 	NS_ASSERT (ipv4 != 0 && ipv4->GetRoutingProtocol () != 0);
-	Ipv4Header header;
-	header.SetProtocol (PROT_NUMBER);
-	header.SetDestination(this->m_RptAddress);
+	Ipv4Header ipv4header;
+	ipv4header.SetProtocol (PROT_NUMBER);
+	ipv4header.SetDestination(this->m_RptAddress);
 	//get first address of interface
-	header.SetSource(incomingInterface->GetAddress(0).GetLocal());
+	ipv4header.SetSource(incomingInterface->GetAddress(0).GetLocal());
 	Socket::SocketErrno errno_;
 	Ptr<Ipv4Route> route;
 	Ptr<NetDevice> oif = incomingInterface->GetDevice();
-	route = ipv4->GetRoutingProtocol ()->RouteOutput (packet, header, oif, errno_);
+	route = ipv4->GetRoutingProtocol ()->RouteOutput (packet, ipv4header, oif, errno_);
+
 	if (route != 0)
 	{
 		NS_LOG_LOGIC ("Route exists");
 		//Ipv4Address source = route->GetSource ();
-		SendMessage (packet, header.GetDestination(), route);
+		this->SendMessage (packet, ipv4header, route);
 	}
 	else
 	{
 		NS_LOG_WARN ("drop igmp report");
+		NS_ASSERT (false);
 	}
 }
 
@@ -614,9 +634,9 @@ Igmpv3L4Protocol::SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifsta
 }
 
 void
-Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Address dest, Ptr<Ipv4Route> route)
+Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Header ipv4header, Ptr<Ipv4Route> route)
 {
-	NS_LOG_FUNCTION (this << packet << dest << route);
+	NS_LOG_FUNCTION (this << packet << ipv4header << route);
 	//Ptr<Ipv4Multicast> ipv4 = m_node->GetObject<Ipv4Multicast> ();
 	//NS_ASSERT (ipv4 != 0 && ipv4->GetRoutingProtocol () != 0);
 	//  Ipv4Header header;
@@ -640,19 +660,19 @@ Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Address dest, Ptr<Ipv4Rou
 	if (0 == route) {
 		//for general query
 		NS_LOG_LOGIC ("Route exists");
-		Ipv4Address source = "0.0.0.0";	//place holder
 
 		//ttl == 1, igmp packet
 		SocketIpTtlTag ttltag;
 		ttltag.SetTtl (1);
 		packet->AddPacketTag(ttltag);
 
-		m_downTarget (packet, source, dest, PROT_NUMBER, route);
+		m_downTarget (packet, ipv4header.GetSource(), ipv4header.GetDestination(), ipv4header.GetProtocol(), route);
 	}
 	else
 	{
 		//todo for report, group specific and group and sources specific query
 		Ipv4Address source = route->GetSource();
+		Ipv4Address dest = route->GetDestination();
 
 		//ttl == 1, igmp packet
 		SocketIpTtlTag ttltag;
@@ -945,7 +965,7 @@ Igmpv3L4Protocol::DoSendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulti
 	{
 		NS_LOG_LOGIC ("Route exists");
 		//Ipv4Address source = route->GetSource ();
-		SendMessage (packet, group_address, route);
+		SendMessage (packet, header, route);
 	}
 	else
 	{

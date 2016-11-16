@@ -91,6 +91,7 @@ class IGMPv3SocketStateManager : public Object {
 public:	//Object override
 	static TypeId GetTypeId (void);
 	IGMPv3SocketStateManager ();
+	explicit IGMPv3SocketStateManager (Ptr<Socket> socket);
 	virtual ~IGMPv3SocketStateManager();
 	virtual TypeId GetInstanceTypeId (void) const;
 protected:
@@ -107,6 +108,7 @@ public:	//self-defined const
 public:	//self-defined
 	void Sort (void);
 private:
+	Ptr<Socket> m_socket;
 	std::list<Ptr<IGMPv3SocketState> > m_lst_socket_states;
 };
 
@@ -323,6 +325,7 @@ class IGMPv3InterfaceStateManager : public Object {
 public:	//Object override
 	static TypeId GetTypeId (void);
 	IGMPv3InterfaceStateManager ();
+	explicit IGMPv3InterfaceStateManager (Ptr<Ipv4InterfaceMulticast> interface);
 	virtual ~IGMPv3InterfaceStateManager();
 	virtual TypeId GetInstanceTypeId (void) const;
 protected:

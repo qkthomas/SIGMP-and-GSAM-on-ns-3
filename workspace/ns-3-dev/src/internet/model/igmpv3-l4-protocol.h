@@ -192,6 +192,12 @@ public:
 	 */
 	static uint16_t GetStaticProtocolNumber (void);
 
+	/*
+	 *
+	 * Get Installed Igmp protocol of a node
+	 */
+	static Ptr<Igmpv3L4Protocol> GetIgmp (Ptr<Node> node);
+
 	/**
 	 * Get the protocol number
 	 * \returns the protocol number
@@ -258,7 +264,7 @@ public:
 	/*
 	 * \breif Send IGMPv3 Report
 	 */
-	void SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet);
+	void SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet, bool secure_group_report = false);
 
 	Time GetUnsolicitedReportInterval (void);
 	uint8_t GetRobustnessValue (void);
@@ -302,7 +308,7 @@ private:
 	 * \param type the IGMPv3 type
 	 * \param code the IGMPv3 code
 	 */
-	void SendMessage (Ptr<Packet> packet, Ipv4Address dest, Ptr<Ipv4Route> route);
+	void SendMessage (Ptr<Packet> packet, Ipv4Header ipv4header, Ptr<Ipv4Route> route);
 	/**
 	 * \brief Send a generic IGMPv3 packet
 	 *

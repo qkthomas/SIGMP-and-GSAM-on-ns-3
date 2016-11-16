@@ -232,6 +232,13 @@ IGMPv3SocketStateManager::GetTypeId (void)
 }
 
 IGMPv3SocketStateManager::IGMPv3SocketStateManager ()
+  :  m_socket (0)
+{
+	NS_LOG_FUNCTION (this);
+}
+
+IGMPv3SocketStateManager::IGMPv3SocketStateManager (Ptr<Socket> socket)
+  :  m_socket (socket)
 {
 	NS_LOG_FUNCTION (this);
 }
@@ -330,6 +337,7 @@ void
 IGMPv3InterfaceState::Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address)
 {
 	this->m_manager = manager;
+	this->m_interface = manager->GetInterface();
 	this->m_multicast_address = multicast_address;
 	this->m_filter_mode = ns3::INCLUDE;
 	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_interface, this->m_multicast_address);
@@ -2173,6 +2181,12 @@ IGMPv3InterfaceStateManager::IGMPv3InterfaceStateManager ()
 	NS_LOG_FUNCTION (this);
 }
 
+IGMPv3InterfaceStateManager::IGMPv3InterfaceStateManager (Ptr<Ipv4InterfaceMulticast> interface)
+  :  m_interface (interface)
+{
+	NS_LOG_FUNCTION (this);
+}
+
 IGMPv3InterfaceStateManager::~IGMPv3InterfaceStateManager()
 {
 	NS_LOG_FUNCTION (this);
@@ -2915,6 +2929,10 @@ Igmpv3Manager::GetSocketStateManager (Ptr<Socket> key) const
 	{
 		retval = const_it->second;
 	}
+	else
+	{
+		Ptr<IGMPv3SocketStateManager> manager = Create<IGMPv3SocketStateManager>();
+	}
 	return retval;
 }
 
@@ -2927,6 +2945,9 @@ Igmpv3Manager::GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key) const
 	if (this->m_map_ifstate_managers.end() != const_it)
 	{
 		retval = const_it->second;
+	}
+	else
+	{
 	}
 	return retval;
 }
