@@ -197,32 +197,6 @@ public:
   //Ipv4InterfaceMulticast::IPMCL_STATUS
   void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state);
 
-  std::list<Ptr<IGMPv3InterfaceState> > GetInterfaceStates (void);
-
-  void UnSubscribeIGMP (Ptr<Socket> socket);
-
-  void AddPendingRecordsToReport (Igmpv3Report &report);
-  bool HasPendingRecords (void);
-
-  void ReportStateChanges (void);
-  void DoReportStateChanges (void);
-  void ReportCurrentStates (void);
-  void ReportCurrentGrpStates (Ipv4Address group_address);
-  void ReportCurrentGrpNSrcStates (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
-  void CancelReportStateChanges (void);
-  void RemovePerGroupTimer (Ipv4Address group_address);
-  bool IsReportStateChangesRunning (void);
-  void HandleGeneralQuery (Time resp_time);
-  void HandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
-  void DoHandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
-  void HandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
-  void DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
-  void HandleV3Records (std::list<Igmpv3GrpRecord> &records);
-  void NonQHandleGroupSpecificQuery (Ipv4Address group_address);
-  void NonQHandleGroupNSrcSpecificQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
-  void SendQuery (Ipv4Address group_address, bool s_flag);
-  void SendQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list, bool s_flag);
-
 protected:
   virtual void DoDispose (void);
 private:
@@ -265,19 +239,6 @@ private:
   Ptr<Node> m_node; //!< The associated node
   Ptr<NetDevice> m_device; //!< The associated NetDevice
   Ptr<ArpCacheMulticast> m_cache; //!< ARP cache
-
-  //added by Lin Chen
-  std::list<Ptr<IGMPv3InterfaceState> > m_lst_interfacestates;
-
-  //Robustness retransmission
-  EventId m_event_robustness_retransmission;
-
-  //Timers
-  Timer m_timer_gen_query;
-  std::list<Ptr<PerGroupInterfaceTimer> > m_lst_per_group_interface_timers;
-
-  //Router states
-  std::list<Ptr<IGMPv3MaintenanceState> > m_lst_maintenance_states;
 };
 
 } // namespace ns3

@@ -439,8 +439,8 @@ Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> inte
 				(true == src_list.empty())
 				))
 		{
-			std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " has no socket state" << Simulator::Now() << std::endl;
-			std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " creating new socket state" << Simulator::Now() << std::endl;
+			std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " has no socket state" << Simulator::Now().GetSeconds() << "seconds" << std::endl;
+			std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " creating new socket state" << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
 			Ptr<IGMPv3SocketState> socketstate = Create<IGMPv3SocketState>();
 			socketstate->Initialize(this, multicast_address, filter_mode, src_list);

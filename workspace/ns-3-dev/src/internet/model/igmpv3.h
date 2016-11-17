@@ -114,7 +114,6 @@ private:
 
 class IGMPv3InterfaceState : public Object {
 private:
-	Ptr<Ipv4InterfaceMulticast> m_interface;
 	Ptr<IGMPv3InterfaceStateManager> m_manager;
 	Ipv4Address m_multicast_address;
 	ns3::FILTER_MODE m_filter_mode;
@@ -139,7 +138,6 @@ public:
 	static TypeId GetTypeId (void);
 
 	IGMPv3InterfaceState (void);
-	void Initialize (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address);
 	void Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address);
 
 	~IGMPv3InterfaceState (void);
@@ -210,7 +208,7 @@ public:
 	/*
 	 * \brief Return a non-existent state defined by rfc 3376
 	 */
-	static Ptr<IGMPv3InterfaceState> GetNonExistentState (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address);
+	static Ptr<IGMPv3InterfaceState> GetNonExistentState (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address);
 
 	void AssociateSocketStateInterfaceState (Ptr<IGMPv3SocketState> socket_state);
 private:
@@ -247,7 +245,7 @@ private:
 
 class IGMPv3MaintenanceState : public Object {
 private:
-	Ptr<Ipv4InterfaceMulticast> m_interface;
+	Ptr<IGMPv3InterfaceStateManager> m_manager;
 	Ipv4Address m_multicast_address;
 	Timer m_groupTimer;
 	ns3::FILTER_MODE m_filter_mode;
@@ -257,7 +255,7 @@ public:
 	static TypeId GetTypeId (void);
 	explicit IGMPv3MaintenanceState (void);
 	~IGMPv3MaintenanceState ();
-	void Initialize (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address group_address, Time delay);
+	void Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address group_address, Time delay);
 	Ipv4Address GetMulticastAddress (void) const;
 	void GetCurrentSrcLst (std::list<Ipv4Address> &retval) const;
 	void GetCurrentSrcLstTimerGreaterThanZero (std::list<Ipv4Address> &retval) const;
@@ -345,6 +343,9 @@ public:	//self-defined const
 	bool IsReportStateChangesRunning (void) const;
 public:	//self-defined
 	Ptr<IGMPv3InterfaceState> CreateIfState (Ipv4Address multicast_address);
+	void PushBackIfState (Ptr<IGMPv3InterfaceState> if_state);
+	void RemoveIfState (Ptr<IGMPv3InterfaceState> if_state);
+	Ptr<IGMPv3MaintenanceState> CreateMaintenanceState (Ipv4Address group_address, Time delay);
 	void Sort (void);
 	void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state);
 	void UnSubscribeIGMP (Ptr<Socket> socket);
@@ -402,8 +403,8 @@ protected:
 private:
 	virtual void DoDispose (void);
 public:	//self-defined const
-	Ptr<IGMPv3SocketStateManager> GetSocketStateManager (Ptr<Socket> key) const;
-	Ptr<IGMPv3InterfaceStateManager> GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key) const;
+	Ptr<IGMPv3SocketStateManager> GetSocketStateManager (Ptr<Socket> key);
+	Ptr<IGMPv3InterfaceStateManager> GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key);
 private:
 	std::map<Ptr<Socket>, Ptr<IGMPv3SocketStateManager> > m_map_socketstate_managers;
 	std::map<Ptr<Ipv4InterfaceMulticast>, Ptr<IGMPv3InterfaceStateManager> > m_map_ifstate_managers;

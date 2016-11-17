@@ -205,6 +205,11 @@ public:
 	virtual int GetProtocolNumber (void) const;
 
 	/**
+	 * Get igmpv3 manager
+	 */
+	Ptr<Igmpv3Manager> GetManager (void) const;
+
+	/**
 	 * \brief Receive method.
 	 * \param p the packet
 	 * \param header the IPv4 header
@@ -336,9 +341,10 @@ private:
 
 	ROLE m_role;
 
+//************m_lst_interface_accessors is intergrated into Igmpv3 Manager**********************
 	//For accessing various States, states are stored in socket or interface
 	//std::list<Ptr<Socket> > m_lst_socket_accessors;
-	std::list<Ptr<Ipv4InterfaceMulticast> > m_lst_interface_accessors;
+//	std::list<Ptr<Ipv4InterfaceMulticast> > m_lst_interface_accessors;
 
 //	*Obsolete*//Timers
 //	std::list<Ptr<PerInterfaceTimer> > m_lst_per_interface_timers;

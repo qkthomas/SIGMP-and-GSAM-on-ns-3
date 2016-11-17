@@ -157,6 +157,17 @@ Igmpv3L4Protocol::GetProtocolNumber (void) const
 	return PROT_NUMBER;
 }
 
+Ptr<Igmpv3Manager>
+Igmpv3L4Protocol::GetManager (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_igmp_manager)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_igmp_manager;
+}
+
 void
 Igmpv3L4Protocol::HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface)
 {
@@ -181,16 +192,18 @@ Igmpv3L4Protocol::HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ip
 
 	Time resp_time = this->GetRandomTime(this->GetMaxRespTime(max_resp_code));
 
+	Ptr<IGMPv3InterfaceStateManager> ifstate_manager = this->GetManager()->GetIfStateManager(incomingInterface);
+
 	if (0 == query_header.GetGroupAddress())
 	{
-		incomingInterface->HandleGeneralQuery(resp_time);
+		ifstate_manager->HandleGeneralQuery(resp_time);
 		//this->HandleGeneralQuery (incomingInterface, resp_time);
 	}
 	else
 	{
 		if (0 == query_header.GetNumSrc())
 		{
-			incomingInterface->HandleGroupSpecificQuery (resp_time, Ipv4Address(query_header.GetGroupAddress()));
+			ifstate_manager->HandleGroupSpecificQuery (resp_time, Ipv4Address(query_header.GetGroupAddress()));
 		}
 		else
 		{
@@ -200,7 +213,7 @@ Igmpv3L4Protocol::HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ip
 			{
 				NS_ASSERT (false);
 			}
-			incomingInterface->HandleGroupNSrcSpecificQuery(resp_time, Ipv4Address(query_header.GetGroupAddress()), src_addresses);
+			ifstate_manager->HandleGroupNSrcSpecificQuery(resp_time, Ipv4Address(query_header.GetGroupAddress()), src_addresses);
 		}
 	}
 }
@@ -212,6 +225,8 @@ Igmpv3L4Protocol::NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Pt
 	Igmpv3Query query_header;
 	packet->RemoveHeader(query_header);
 
+	Ptr<IGMPv3InterfaceStateManager> ifstate_manager = this->GetManager()->GetIfStateManager(incomingInterface);
+
 	if (true == query_header.isSFlagSet())
 	{
 		if (0 == query_header.GetGroupAddress())
@@ -222,7 +237,7 @@ Igmpv3L4Protocol::NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Pt
 		{
 			if (0 == query_header.GetNumSrc())
 			{
-				incomingInterface->NonQHandleGroupSpecificQuery (Ipv4Address(query_header.GetGroupAddress()));
+				ifstate_manager->NonQHandleGroupSpecificQuery (Ipv4Address(query_header.GetGroupAddress()));
 			}
 			else
 			{
@@ -232,7 +247,7 @@ Igmpv3L4Protocol::NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Pt
 				{
 					NS_ASSERT (false);
 				}
-				incomingInterface->NonQHandleGroupNSrcSpecificQuery(Ipv4Address(query_header.GetGroupAddress()), src_addresses);
+				ifstate_manager->NonQHandleGroupNSrcSpecificQuery(Ipv4Address(query_header.GetGroupAddress()), src_addresses);
 			}
 		}
 	}
@@ -272,7 +287,9 @@ Igmpv3L4Protocol::HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMultic
 		NS_ASSERT (false);
 	}
 
-	incomingInterface->HandleV3Records(records);
+	Ptr<IGMPv3InterfaceStateManager> ifstate_manager = this->GetManager()->GetIfStateManager(incomingInterface);
+
+	ifstate_manager->HandleV3Records(records);
 }
 
 //void
@@ -384,12 +401,7 @@ Igmpv3L4Protocol::IPMulticastListen (Ptr<Ipv4InterfaceMulticast> interface,
 									 ns3::FILTER_MODE filter_mode,
 									 std::list<Ipv4Address> &source_list)
 {
-	for (std::list<Ptr<Ipv4InterfaceMulticast> >::iterator it = this->m_lst_interface_accessors.begin();
-		 it != this->m_lst_interface_accessors.end();
-		 it++)
-	{
 
-	}
 }
 
 //void
@@ -580,33 +592,27 @@ Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr
 void
 Igmpv3L4Protocol::SendStateChangesReport (Ptr<Ipv4InterfaceMulticast> incomingInterface)
 {
-	for (std::list<Ptr<Ipv4InterfaceMulticast> >::iterator it = this->m_lst_interface_accessors.begin();
-		 it != this->m_lst_interface_accessors.end();
-		 it++)
+	Igmpv3Report report;
+
+	Ptr<IGMPv3InterfaceStateManager> ifstate_manager = this->GetManager()->GetIfStateManager(incomingInterface);
+
+	ifstate_manager->AddPendingRecordsToReport(report);
+
+	if (0 < report.GetNumGrpRecords())
 	{
-		if ((*it) == incomingInterface)
+		Ptr<Packet> packet = Create<Packet>();
+		packet->AddHeader(report);
+
+		Igmpv3Header header;
+		header.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
+		if (true == incomingInterface->GetDevice()->GetNode()->ChecksumEnabled())
 		{
-			Igmpv3Report report;
-
-			incomingInterface->AddPendingRecordsToReport(report);
-
-			if (0 < report.GetNumGrpRecords())
-			{
-				Ptr<Packet> packet = Create<Packet>();
-				packet->AddHeader(report);
-
-				Igmpv3Header header;
-				header.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
-				if (true == incomingInterface->GetDevice()->GetNode()->ChecksumEnabled())
-				{
-					header.EnableChecksum();
-				}
-
-				packet->AddHeader(header);
-
-				this->SendReport(incomingInterface, packet);
-			}
+			header.EnableChecksum();
 		}
+
+		packet->AddHeader(header);
+
+		this->SendReport(incomingInterface, packet);
 	}
 }
 

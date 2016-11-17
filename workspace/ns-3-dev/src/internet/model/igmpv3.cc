@@ -315,8 +315,7 @@ IGMPv3InterfaceState::GetTypeId (void)
 }
 
 IGMPv3InterfaceState::IGMPv3InterfaceState (void)
-  :  m_interface (0),
-	 m_manager (0),
+  :  m_manager (0),
 	 m_multicast_address ("0. 0. 0. 0"),
 	 m_filter_mode (ns3::INCLUDE),
 	 m_old_if_state (0)
@@ -325,27 +324,17 @@ IGMPv3InterfaceState::IGMPv3InterfaceState (void)
 }
 
 void
-IGMPv3InterfaceState::Initialize (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address)
-{
-	this->m_interface = interface;
-	this->m_multicast_address = multicast_address;
-	this->m_filter_mode = ns3::INCLUDE;
-	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_interface, this->m_multicast_address);
-}
-
-void
 IGMPv3InterfaceState::Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address)
 {
 	this->m_manager = manager;
-	this->m_interface = manager->GetInterface();
 	this->m_multicast_address = multicast_address;
 	this->m_filter_mode = ns3::INCLUDE;
-	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_interface, this->m_multicast_address);
+	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_manager, this->m_multicast_address);
 }
 
 IGMPv3InterfaceState::~IGMPv3InterfaceState (void)
 {
-	this->m_interface = 0;
+	this->m_manager = 0;
 	this->m_lst_source_list.clear();
 	this->m_lst_associated_socket_state.clear();
 	this->m_old_if_state = 0;
@@ -354,7 +343,7 @@ IGMPv3InterfaceState::~IGMPv3InterfaceState (void)
 Ptr<Ipv4InterfaceMulticast>
 IGMPv3InterfaceState::GetInterface (void) const
 {
-	return this->m_interface;
+	return this->m_manager->GetInterface();
 }
 
 Ipv4Address
@@ -390,7 +379,7 @@ IGMPv3InterfaceState::GetFilterMode (void) const
 bool
 operator == (IGMPv3InterfaceState const& lhs, IGMPv3InterfaceState const& rhs)
 {
-	if ((lhs.m_interface == rhs.m_interface) && (lhs.m_multicast_address == rhs.m_multicast_address))
+	if ((lhs.m_manager == rhs.m_manager) && (lhs.m_multicast_address == rhs.m_multicast_address))
 	{
 		return true;
 	}
@@ -708,7 +697,7 @@ IGMPv3InterfaceState::ReportFilterModeChange (void)
    	 * Variable] - 1 more times, at intervals chosen at random from the
    	 * range (0, [Unsolicited Report Interval]).
 	 */
-	this->m_interface->ReportStateChanges();
+	this->m_manager->ReportStateChanges();
 
 //	*******Obsolete**********
 //	if (true == this->m_event_pending_report.IsRunning())
@@ -840,7 +829,7 @@ IGMPv3InterfaceState::ReportSrcLstChange (void)
    	 * For implementation, [Robustness Variable] records will be pushed into 3 queues (allow, block, filter mode change) of an interface state.
    	 * And then the interface will collect records, one for each queue, from all interface state it has and make them an report and send the out the report.
 	 */
-	this->m_interface->ReportStateChanges();
+	this->m_manager->ReportStateChanges();
 }
 
 //void
@@ -999,7 +988,7 @@ IGMPv3InterfaceState::GenerateRecord (ns3::FILTER_MODE old_filter_mode, std::lis
 }
 
 Ptr<IGMPv3InterfaceState>
-IGMPv3InterfaceState::GetNonExistentState (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address)
+IGMPv3InterfaceState::GetNonExistentState (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address)
 {
 	/*
 	 * If no interface
@@ -1012,7 +1001,7 @@ IGMPv3InterfaceState::GetNonExistentState (Ptr<Ipv4InterfaceMulticast> interface
 	Ptr<IGMPv3InterfaceState> if_state = Create<IGMPv3InterfaceState>();
 	if_state->m_filter_mode = ns3::INCLUDE;
 	if_state->m_multicast_address = multicast_address;
-	if_state->m_interface = interface;
+	if_state->m_manager = manager;
 
 	return if_state;
 }
@@ -1201,7 +1190,7 @@ IGMPv3InterfaceState::SaveOldInterfaceState (void)
 {
 	Ptr<IGMPv3InterfaceState> old_if_state = Create<IGMPv3InterfaceState>();
 	old_if_state->m_filter_mode = this->m_filter_mode;
-	old_if_state->m_interface = this->m_interface;
+	old_if_state->m_manager = this->m_manager;
 	old_if_state->m_lst_source_list = this->m_lst_source_list;
 	old_if_state->m_multicast_address = this->m_multicast_address;
 	//old state's m_old_if_state has to be 0;
@@ -1220,14 +1209,14 @@ IGMPv3InterfaceState::GetOldInterfaceState (void) const
 	}
 	else
 	{
-		return IGMPv3InterfaceState::GetNonExistentState(this->m_interface, this->m_multicast_address);
+		return IGMPv3InterfaceState::GetNonExistentState(this->m_manager, this->m_multicast_address);
 	}
 }
 
 Ptr<Igmpv3L4Protocol>
 IGMPv3InterfaceState::GetIgmp (void)
 {
-	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4Multicast> ipv4 = this->m_manager->GetInterface()->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
 	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
 
@@ -1360,21 +1349,25 @@ IGMPv3MaintenanceState::GetTypeId (void)
 }
 
 IGMPv3MaintenanceState::IGMPv3MaintenanceState ()
-  :  m_multicast_address (Ipv4Address ("0.0.0.0")),
-	 m_filter_mode (ns3::INCLUDE)
+  :  m_manager (0),
+	 m_multicast_address (Ipv4Address ("0.0.0.0")),
+	 m_filter_mode (ns3::INCLUDE),
+	 m_uint_retransmission_state (0)
 {
 
 }
 IGMPv3MaintenanceState::~IGMPv3MaintenanceState ()
 {
-
+	m_lst_src_records.clear();
+	m_groupTimer.Cancel();
+	this->m_manager = 0;
 }
 
 void
-IGMPv3MaintenanceState::Initialize (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address group_address, Time delay)
+IGMPv3MaintenanceState::Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address group_address, Time delay)
 {
 	this->m_filter_mode = ns3::INCLUDE;
-	this->m_interface = interface;
+	this->m_manager = manager;
 	this->m_multicast_address = group_address;
 
 	this->m_groupTimer.SetFunction(&IGMPv3MaintenanceState::TimerExpire, this);
@@ -1922,11 +1915,11 @@ IGMPv3MaintenanceState::DoSendGroupNSrcSpecificQuery (Ipv4Address group_address,
 	if ((false == src_lst_greater_LMQT.empty()) &&
 		(false == src_lst_smaller_equal_LMQT.empty()))
 	{
-		this->m_interface->SendQuery(this->GetMulticastAddress(),
+		this->m_manager->SendQuery(this->GetMulticastAddress(),
 									 src_lst_greater_LMQT,
 									 true);
 
-		this->m_interface->SendQuery(this->GetMulticastAddress(),
+		this->m_manager->SendQuery(this->GetMulticastAddress(),
 									 src_lst_smaller_equal_LMQT,
 									 false);
 
@@ -1952,11 +1945,11 @@ IGMPv3MaintenanceState::SendQuery (Ipv4Address group_address)
 {
 	if (this->m_groupTimer.GetDelayLeft() > this->GetLastMemberQueryTimeLMQT())
 	{
-		this->m_interface->SendQuery(group_address, true);
+		this->m_manager->SendQuery(group_address, true);
 	}
 	else
 	{
-		this->m_interface->SendQuery(group_address, false);
+		this->m_manager->SendQuery(group_address, false);
 	}
 
 	this->LowerGrpTimer(this->GetLastMemberQueryTimeLMQT());
@@ -1976,11 +1969,11 @@ IGMPv3MaintenanceState::DoSendGroupSpecificQuery (Ipv4Address group_address)
 	{
 		if (this->m_groupTimer.GetDelayLeft() > this->GetLastMemberQueryTimeLMQT())
 		{
-			this->m_interface->SendQuery(group_address, true);
+			this->m_manager->SendQuery(group_address, true);
 		}
 		else
 		{
-			this->m_interface->SendQuery(group_address, false);
+			this->m_manager->SendQuery(group_address, false);
 		}
 
 		this->LowerGrpTimer(this->GetLastMemberQueryTimeLMQT());
@@ -2151,7 +2144,7 @@ IGMPv3MaintenanceState::GetSrcRetransWTimerLowerOrEqualToLMQT (std::list<Ipv4Add
 Ptr<Igmpv3L4Protocol>
 IGMPv3MaintenanceState::GetIgmp (void)
 {
-	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4Multicast> ipv4 = this->m_manager->GetInterface()->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
 	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
 
@@ -2291,6 +2284,30 @@ IGMPv3InterfaceStateManager::CreateIfState (Ipv4Address multicast_address)
 }
 
 void
+IGMPv3InterfaceStateManager::PushBackIfState (Ptr<IGMPv3InterfaceState> if_state)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_interfacestates.push_back(if_state);
+}
+
+void
+IGMPv3InterfaceStateManager::RemoveIfState (Ptr<IGMPv3InterfaceState> if_state)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_interfacestates.remove(if_state);
+}
+
+Ptr<IGMPv3MaintenanceState>
+IGMPv3InterfaceStateManager::CreateMaintenanceState (Ipv4Address group_address, Time delay)
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IGMPv3MaintenanceState> retval = Create<IGMPv3MaintenanceState>();
+	retval->Initialize(this, group_address, delay);
+	this->m_lst_maintenance_states.push_back(retval);
+	return retval;
+}
+
+void
 IGMPv3InterfaceStateManager::Sort (void)
 {
 	NS_LOG_FUNCTION (this);
@@ -2374,7 +2391,7 @@ IGMPv3InterfaceStateManager::AddPendingRecordsToReport (Igmpv3Report &report)
 void
 IGMPv3InterfaceStateManager::ReportStateChanges (void)
 {
-	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes" << Simulator::Now() << std::endl;
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes" << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
 	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
@@ -2398,7 +2415,7 @@ IGMPv3InterfaceStateManager::ReportStateChanges (void)
 void
 IGMPv3InterfaceStateManager::DoReportStateChanges (void)
 {
-	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes " << Simulator::Now() << std::endl;
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
 	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
@@ -2419,7 +2436,7 @@ IGMPv3InterfaceStateManager::ReportCurrentStates (void)
 {
 	NS_LOG_FUNCTION (this);
 
-	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report current state " << Simulator::Now() << std::endl;
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report current state " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
 	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
@@ -2781,7 +2798,7 @@ IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &
 		{
 			//no maintenance_state matched
 			Ptr<IGMPv3MaintenanceState> maintenance_state = Create<IGMPv3MaintenanceState>();
-			maintenance_state->Initialize(this->GetInterface(), record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
+			maintenance_state->Initialize(this, record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
 			this->m_lst_maintenance_states.push_back(maintenance_state);
 			maintenance_state->HandleGrpRecord(record);
 		}
@@ -2920,7 +2937,7 @@ Igmpv3Manager::DoDispose (void)
 }
 
 Ptr<IGMPv3SocketStateManager>
-Igmpv3Manager::GetSocketStateManager (Ptr<Socket> key) const
+Igmpv3Manager::GetSocketStateManager (Ptr<Socket> key)
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IGMPv3SocketStateManager> retval = 0;
@@ -2931,13 +2948,14 @@ Igmpv3Manager::GetSocketStateManager (Ptr<Socket> key) const
 	}
 	else
 	{
-		Ptr<IGMPv3SocketStateManager> manager = Create<IGMPv3SocketStateManager>();
+		retval = Create<IGMPv3SocketStateManager>(key);
+		this->m_map_socketstate_managers.insert(std::pair<Ptr<Socket>, Ptr<IGMPv3SocketStateManager> >(key, retval));
 	}
 	return retval;
 }
 
 Ptr<IGMPv3InterfaceStateManager>
-Igmpv3Manager::GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key) const
+Igmpv3Manager::GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key)
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IGMPv3InterfaceStateManager> retval = 0;
@@ -2948,6 +2966,8 @@ Igmpv3Manager::GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key) const
 	}
 	else
 	{
+		retval = Create<IGMPv3InterfaceStateManager>(key);
+		this->m_map_ifstate_managers.insert(std::pair<Ptr<Ipv4InterfaceMulticast>, Ptr<IGMPv3InterfaceStateManager> >(key, retval));
 	}
 	return retval;
 }
