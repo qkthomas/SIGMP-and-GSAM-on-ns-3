@@ -106,17 +106,13 @@ public:
   void IPMulticastListen (Ptr<Ipv4InterfaceMulticast> m_interface,
 		  	  	  	  	  Ipv4Address multicast_address,
 		  	  	  	  	  ns3::FILTER_MODE filter_mode,
-		  	  	  	  	  std::list<Ipv4Address> &src_list);
+		  	  	  	  	  const std::list<Ipv4Address> &src_list);
 
   /*
    * delete igmp record in the interfaces this socket has invoke IPMulticastListen
    */
   void UnSubscribeIGMP (void);
 
-  /*
-   * added by Lin Chen
-   */
-  std::list<Ptr<IGMPv3SocketState> > GetSocketState (void);
 
 private:
   virtual void DoDispose (void);

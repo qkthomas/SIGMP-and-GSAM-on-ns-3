@@ -46,6 +46,7 @@ class Igmpv3GrpRecord;
 class IGMPv3MaintenanceState;
 class Igmpv3L4Protocol;
 class IGMPv3InterfaceStateManager;
+class IGMPv3SocketStateManager;
 
 enum FILTER_MODE {
 	INCLUDE = 0,
@@ -55,6 +56,7 @@ enum FILTER_MODE {
 class IGMPv3SocketState : public Object {
 private:
 	Ptr<Socket> m_socket;
+	Ptr<IGMPv3SocketStateManager> m_manager;
 	//Ptr<Ipv4InterfaceMulticast> m_interface;
 	Ptr<IGMPv3InterfaceState> m_associated_if_state;
 	Ipv4Address m_multicast_address;
@@ -66,8 +68,12 @@ public:
 
 	IGMPv3SocketState ();
 
-	void Initialize (Ptr<Socket> socket,
+	void Initialize (	Ptr<Socket> socket,
 					   Ipv4Address multicast_address,
+					   ns3::FILTER_MODE filter_mode,
+					   std::list<Ipv4Address> const &lst_source_list);
+	void Initialize (	Ptr<IGMPv3SocketStateManager> manager,
+			   	   	   Ipv4Address multicast_address,
 					   ns3::FILTER_MODE filter_mode,
 					   std::list<Ipv4Address> const &lst_source_list);
 
@@ -105,8 +111,15 @@ private:
 	virtual void DoDispose (void);
 public:	//self-defined const
 	Ptr<IGMPv3SocketState> GetSocketState (Ptr<Socket> socket, Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address multicast_address) const;
+	const std::list<Ptr<IGMPv3SocketState> >& GetSocketStates (void) const;
+	Ptr<Socket> GetSocket (void) const;
 public:	//self-defined
+	Ptr<IGMPv3SocketState> CreateSocketState (	Ipv4Address multicast_address,
+												ns3::FILTER_MODE filter_mode,
+												const std::list<Ipv4Address> &src_list);
+	void UnSubscribeIGMP (void);
 	void Sort (void);
+	void Remove (Ptr<IGMPv3SocketState> socket_state);
 private:
 	Ptr<Socket> m_socket;
 	std::list<Ptr<IGMPv3SocketState> > m_lst_socket_states;

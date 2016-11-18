@@ -12,6 +12,7 @@
 #include "ns3/uinteger.h"
 #include "ns3/boolean.h"
 #include "ns3/log.h"
+#include "ns3/igmpv3-l4-protocol.h"
 
 namespace ns3 {
 
@@ -428,11 +429,14 @@ void
 Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> interface,
 												Ipv4Address multicast_address,
 												ns3::FILTER_MODE filter_mode,
-												std::list<Ipv4Address> &src_list)
+												const std::list<Ipv4Address> &src_list)
 {
 	std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " IPMulticastListen on interface " << interface << " group address: " << multicast_address << std::endl;
 
-	if (true == this->m_lst_socketstates.empty())
+	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+	Ptr<IGMPv3SocketStateManager> socketstate_manager = igmp->GetManager()->GetSocketStateManager(this);
+
+	if (true == socketstate_manager->GetSocketStates().empty())
 	{
 		if (!(
 				(filter_mode == ns3::INCLUDE) &&
@@ -442,9 +446,7 @@ Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> inte
 			std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " has no socket state" << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 			std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " creating new socket state" << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
-			Ptr<IGMPv3SocketState> socketstate = Create<IGMPv3SocketState>();
-			socketstate->Initialize(this, multicast_address, filter_mode, src_list);
-			this->m_lst_socketstates.push_back(socketstate);
+			Ptr<IGMPv3SocketState> socketstate = socketstate_manager->CreateSocketState(multicast_address, filter_mode, src_list);
 
 			//Ipv4InterfaceMulticast::IPMCL_STATUS if_mcl_status;
 			interface->IPMulticastListen(socketstate);
@@ -458,85 +460,65 @@ Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> inte
 	}
 	else
 	{
-		std::list<Ptr<IGMPv3SocketState> >::iterator it = this->m_lst_socketstates.begin();
 
-		while (it != this->m_lst_socketstates.end())
+		Ptr<IGMPv3SocketState> matched_socket_state = socketstate_manager->GetSocketState(this, interface, multicast_address);
+
+		if (0 != matched_socket_state)
 		{
-			Ptr<IGMPv3SocketState> it_socket_state = *it;
+			std::cout << "Node: " << this->m_node->GetId() << " socket: " << this << " has a match for socket state." << std::endl;
+			std::cout << "Node: " << this->m_node->GetId() << " IpAddress: " << multicast_address << std:: endl;
+			std::cout << "Node: " << this->m_node->GetId() << " Interface: " << interface << std::endl;
 
-			if (it_socket_state->GetGroupAddress() == multicast_address &&
-					it_socket_state->GetAssociatedInterfaceState()->GetInterface() == interface)
+			if (filter_mode == ns3::INCLUDE)
 			{
-				std::cout << "Node: " << this->m_node->GetId() << " socket: " << this << " has a match for socket state." << std::endl;
-				std::cout << "Node: " << this->m_node->GetId() << " IpAddress: " << multicast_address << std:: endl;
-				std::cout << "Node: " << this->m_node->GetId() << " Interface: " << interface << std::endl;
-
-				if (filter_mode == ns3::INCLUDE)
+				if (true == src_list.empty())
 				{
-					if (true == src_list.empty())
-					{
-						it_socket_state->UnSubscribeIGMP();
-						it = this->m_lst_socketstates.erase(it);
-						return;//skip the codes down below
-					}
-					//according to rfc 3376, filter mode is EXCLUDE *or* the requested source list is non-empty
-					else
-					{
-						it_socket_state->StateChange (filter_mode, src_list);
-						return;
-					}
-
+					matched_socket_state->UnSubscribeIGMP();
+					socketstate_manager->Remove(matched_socket_state);
+					return;//skip the codes down below
 				}
 				//according to rfc 3376, filter mode is EXCLUDE *or* the requested source list is non-empty
-				else if (filter_mode == ns3::EXCLUDE)
-				{
-					//the entry is changed to contain the requested filter mode and source list
-					it_socket_state->StateChange (filter_mode, src_list);
-					return;
-				}
 				else
 				{
-					NS_ASSERT (false);
+					matched_socket_state->StateChange (filter_mode, src_list);
+					return;
 				}
 
+			}
+			//according to rfc 3376, filter mode is EXCLUDE *or* the requested source list is non-empty
+			else if (filter_mode == ns3::EXCLUDE)
+			{
+				//the entry is changed to contain the requested filter mode and source list
+				matched_socket_state->StateChange (filter_mode, src_list);
+				return;
 			}
 			else
 			{
-
+				NS_ASSERT (false);
 			}
-
-			it++;
 		}
-
-		//rfc 3376, no such entry is present *and* (filter mode is EXCLUDE *or* the requested source list is non-empty)
-		if ((ns3::EXCLUDE == filter_mode) || (false == src_list.empty()))
+		else
 		{
-			//a new entry is created
-			Ptr<IGMPv3SocketState> socketstate = Create<IGMPv3SocketState>();
-			socketstate->Initialize(this, multicast_address, filter_mode, src_list);
-			this->m_lst_socketstates.push_back(socketstate);
+			//rfc 3376, no such entry is present *and* (filter mode is EXCLUDE *or* the requested source list is non-empty)
+			if ((ns3::EXCLUDE == filter_mode) || (false == src_list.empty()))
+			{
+				//a new entry is created
+				Ptr<IGMPv3SocketState> socketstate = socketstate_manager->CreateSocketState(multicast_address, filter_mode, src_list);
 
-			return; //Ipv4RawSocketImplMulticast::ADDED;
+				return; //Ipv4RawSocketImplMulticast::ADDED;
+			}
 		}
-
 	}
 }
 
-std::list<Ptr<IGMPv3SocketState> >
-Ipv4RawSocketImplMulticast::GetSocketState (void)
-{
-	return this->m_lst_socketstates;
-}
 
 void
 Ipv4RawSocketImplMulticast::UnSubscribeIGMP (void)
 {
-//	for (std::list<Ptr<IGMPv3SocketState> >::iterator it = this->m_lst_socketstates.begin();
-//			it != this->m_lst_socketstates.end();
-//			it++)
-//	{
-//		it->m_interface->UnSubscribeIGMP(this);
-//	}
+	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+	Ptr<IGMPv3SocketStateManager> socketstate_manager = igmp->GetManager()->GetSocketStateManager(this);
+
+	socketstate_manager->UnSubscribeIGMP();
 }
 
 } // namespace ns3

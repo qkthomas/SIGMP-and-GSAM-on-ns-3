@@ -58,6 +58,7 @@ IGMPv3SocketState::GetTypeId (void)
 
 IGMPv3SocketState::IGMPv3SocketState ()
 :  m_socket (0),
+   m_manager (0),
    m_associated_if_state (0),
    m_multicast_address ("0.0.0.0"),
    m_filter_mode (ns3::INCLUDE)
@@ -83,6 +84,25 @@ IGMPv3SocketState::Initialize (Ptr<Socket> socket,
 	}
 }
 
+void
+IGMPv3SocketState::Initialize (	Ptr<IGMPv3SocketStateManager> manager,
+		   	   	   Ipv4Address multicast_address,
+				   ns3::FILTER_MODE filter_mode,
+				   std::list<Ipv4Address> const &lst_source_list)
+{
+	this->m_manager = manager;
+	this->m_socket = manager->GetSocket();
+	this->m_multicast_address = multicast_address;
+	this->m_filter_mode = filter_mode;
+
+	for (std::list<Ipv4Address>::const_iterator it = lst_source_list.begin();
+			it != lst_source_list.end();
+			it++)
+	{
+		this->m_lst_source_list.push_back(*it);
+	}
+}
+
 IGMPv3SocketState::~IGMPv3SocketState (void)
 {
 	if (this->m_associated_if_state != 0)
@@ -95,6 +115,7 @@ IGMPv3SocketState::~IGMPv3SocketState (void)
 		//this->m_associated_if_state->UnSubscribeIGMP has been invoked
 	}
 	this->m_socket = 0;
+	this->m_manager = 0;
 	this->m_lst_source_list.clear();
 }
 
@@ -290,6 +311,43 @@ IGMPv3SocketStateManager::GetSocketState (Ptr<Socket> socket, Ptr<Ipv4InterfaceM
 	return retval;
 }
 
+const std::list<Ptr<IGMPv3SocketState> >&
+IGMPv3SocketStateManager::GetSocketStates (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_lst_socket_states;
+}
+
+Ptr<IGMPv3SocketState>
+IGMPv3SocketStateManager::CreateSocketState (	Ipv4Address multicast_address,
+											ns3::FILTER_MODE filter_mode,
+											const std::list<Ipv4Address> &src_list)
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<IGMPv3SocketState> retval = Create<IGMPv3SocketState>();
+	retval->Initialize(this, multicast_address, filter_mode, src_list);
+	this->m_lst_socket_states.push_back(retval);
+	return retval;
+}
+
+void
+IGMPv3SocketStateManager::UnSubscribeIGMP (void)
+{
+	NS_LOG_FUNCTION (this);
+	//place holder
+}
+
+Ptr<Socket>
+IGMPv3SocketStateManager::GetSocket (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_socket)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_socket;
+}
+
 void
 IGMPv3SocketStateManager::Sort (void)
 {
@@ -298,6 +356,13 @@ IGMPv3SocketStateManager::Sort (void)
 	{
 		this->m_lst_socket_states.sort();
 	}
+}
+
+void
+IGMPv3SocketStateManager::Remove (Ptr<IGMPv3SocketState> socket_state)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_lst_socket_states.remove(socket_state);
 }
 
 /********************************************************
@@ -2797,9 +2862,7 @@ IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &
 		if (state_it == this->m_lst_maintenance_states.end())
 		{
 			//no maintenance_state matched
-			Ptr<IGMPv3MaintenanceState> maintenance_state = Create<IGMPv3MaintenanceState>();
-			maintenance_state->Initialize(this, record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
-			this->m_lst_maintenance_states.push_back(maintenance_state);
+			Ptr<IGMPv3MaintenanceState> maintenance_state = this->CreateMaintenanceState(record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
 			maintenance_state->HandleGrpRecord(record);
 		}
 	}
