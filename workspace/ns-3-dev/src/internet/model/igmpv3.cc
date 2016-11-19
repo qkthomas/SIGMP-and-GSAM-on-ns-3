@@ -335,6 +335,12 @@ IGMPv3SocketStateManager::UnSubscribeIGMP (void)
 {
 	NS_LOG_FUNCTION (this);
 	//place holder
+	for (std::list<Ptr<IGMPv3SocketState> >::iterator it = this->m_lst_socket_states.begin();
+			it != this->m_lst_socket_states.end();
+			it++)
+	{
+		(*it)->UnSubscribeIGMP();
+	}
 }
 
 Ptr<Socket>
@@ -1400,6 +1406,13 @@ IGMPv3MaintenanceSrcRecord::IsTimerRunning (void)
 	return this->m_srcTimer.IsRunning();
 }
 
+void
+IGMPv3MaintenanceSrcRecord::StopEverything (void)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_srcTimer.Cancel();
+}
+
 /********************************************************
  *        IGMPv3MaintenanceState
  ********************************************************/
@@ -1426,6 +1439,7 @@ IGMPv3MaintenanceState::~IGMPv3MaintenanceState ()
 	m_lst_src_records.clear();
 	m_groupTimer.Cancel();
 	this->m_manager = 0;
+	this->m_event_retranmission.Cancel();
 }
 
 void
@@ -1961,7 +1975,7 @@ IGMPv3MaintenanceState::SendQuery (Ipv4Address group_address, std::list<Ipv4Addr
 	this->SetSrcRecordsRetransmissionStates(src_lst, this->GetLastMemberQueryCount());
 	this->LowerSrcTimer(src_lst, this->GetLastMemberQueryTimeLMQT());
 
-	EventId event_retranmission = Simulator::ScheduleNow(&IGMPv3MaintenanceState::DoSendGroupNSrcSpecificQuery,
+	this->m_event_retranmission = Simulator::ScheduleNow(&IGMPv3MaintenanceState::DoSendGroupNSrcSpecificQuery,
 													  this,
 													  group_address,
 													  src_lst);
@@ -1991,7 +2005,7 @@ IGMPv3MaintenanceState::DoSendGroupNSrcSpecificQuery (Ipv4Address group_address,
 		this->DecreaseSrcRecordsRetransmissionStates(src_lst_greater_LMQT);
 		this->DecreaseSrcRecordsRetransmissionStates(src_lst_smaller_equal_LMQT);
 
-		EventId event_retranmission = Simulator::Schedule(this->GetLastMemberQueryInterval(),
+		this->m_event_retranmission = Simulator::Schedule(this->GetLastMemberQueryInterval(),
 														  &IGMPv3MaintenanceState::DoSendGroupNSrcSpecificQuery,
 														  this,
 														  group_address,
@@ -2021,7 +2035,7 @@ IGMPv3MaintenanceState::SendQuery (Ipv4Address group_address)
 
 	this->m_uint_retransmission_state = this->GetLastMemberQueryCount() - 1;
 
-	EventId event_retranmission = Simulator::Schedule(this->GetLastMemberQueryInterval(),
+	this->m_event_retranmission = Simulator::Schedule(this->GetLastMemberQueryInterval(),
 													  &IGMPv3MaintenanceState::DoSendGroupSpecificQuery,
 													  this,
 													  group_address);
@@ -2214,6 +2228,23 @@ IGMPv3MaintenanceState::GetIgmp (void)
 	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
 
 	return igmp;
+}
+
+void
+IGMPv3MaintenanceState::StopEverything (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_groupTimer.Cancel();
+
+	this->m_event_retranmission.Cancel();
+
+	for (std::list<Ptr<IGMPv3MaintenanceSrcRecord> >::iterator it = this->m_lst_src_records.begin();
+			it != this->m_lst_src_records.end();
+			it++)
+	{
+		(*it)->StopEverything();
+	}
 }
 
 /********************************************************
@@ -2948,7 +2979,37 @@ IGMPv3InterfaceStateManager::SendQuery (Ipv4Address group_address, std::list<Ipv
 	packet->AddHeader(query);
 
 	igmp->SendQuery(group_address, this->GetInterface(), packet);
+}
 
+void
+IGMPv3InterfaceStateManager::StopEverything (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_event_robustness_retransmission.Cancel();
+	this->m_timer_gen_query.Cancel();
+
+	for (std::list<Ptr<PerGroupInterfaceTimer> >::iterator it = this->m_lst_per_group_interface_timers.begin();
+			it != this->m_lst_per_group_interface_timers.end();
+			it++)
+	{
+		Ptr<PerGroupInterfaceTimer> timer = (*it);
+		timer->m_softTimer.Cancel();
+	}
+
+	for (std::list<Ptr<IGMPv3MaintenanceState> >::iterator it = this->m_lst_maintenance_states.begin();
+			it != this->m_lst_maintenance_states.end();
+			it++)
+	{
+		(*it)->StopEverything();
+	}
+
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_interfacestates.begin();
+			it != this->m_lst_interfacestates.end();
+			it++)
+	{
+		(*it)->st
+	}
 }
 
 /********************************************************
@@ -3033,6 +3094,18 @@ Igmpv3Manager::GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key)
 		this->m_map_ifstate_managers.insert(std::pair<Ptr<Ipv4InterfaceMulticast>, Ptr<IGMPv3InterfaceStateManager> >(key, retval));
 	}
 	return retval;
+}
+
+void
+Igmpv3Manager::StopEverything (void)
+{
+	NS_LOG_FUNCTION (this);
+	for (std::map<Ptr<Ipv4InterfaceMulticast>, Ptr<IGMPv3InterfaceStateManager> >::iterator it = this->m_map_ifstate_managers.begin();
+			it != this->m_map_ifstate_managers.end();
+			it++)
+	{
+		it->second->StopEverything();
+	}
 }
 
 /********************************************************

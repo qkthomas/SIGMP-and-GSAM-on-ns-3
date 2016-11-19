@@ -252,6 +252,7 @@ public:
 	void UpdateTimer (Time delay);
 	Time GetDelayLeft (void) const;
 	bool IsTimerRunning (void);
+	void StopEverything (void);
 private:
 	void TimerExpire (void);
 };
@@ -264,6 +265,7 @@ private:
 	ns3::FILTER_MODE m_filter_mode;
 	std::list<Ptr<IGMPv3MaintenanceSrcRecord> > m_lst_src_records;
 	uint8_t m_uint_retransmission_state;
+	EventId m_event_retranmission;
 public:
 	static TypeId GetTypeId (void);
 	explicit IGMPv3MaintenanceState (void);
@@ -279,6 +281,8 @@ public:
 	void HandleQuery (void);
 	void HandleQuery (std::list<Ipv4Address> const &src_lst);
 	void DeleteSrcRecord (Ipv4Address src);
+public:	//utilies
+	void StopEverything (void);
 private:
 	void SetFilterMode (ns3::FILTER_MODE filter_mode);
 	Time GetGroupMembershipIntervalGMI (void);
@@ -380,6 +384,7 @@ public:	//self-defined
 	void NonQHandleGroupNSrcSpecificQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
 	void SendQuery (Ipv4Address group_address, bool s_flag);
 	void SendQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list, bool s_flag);
+	void StopEverything (void);
 private:
 	Ptr<Ipv4InterfaceMulticast> m_interface;
 	std::list<Ptr<IGMPv3InterfaceState> > m_lst_interfacestates;
@@ -418,6 +423,8 @@ private:
 public:	//self-defined const
 	Ptr<IGMPv3SocketStateManager> GetSocketStateManager (Ptr<Socket> key);
 	Ptr<IGMPv3InterfaceStateManager> GetIfStateManager (Ptr<Ipv4InterfaceMulticast> key);
+public:	//non-const
+	void StopEverything (void);
 private:
 	std::map<Ptr<Socket>, Ptr<IGMPv3SocketStateManager> > m_map_socketstate_managers;
 	std::map<Ptr<Ipv4InterfaceMulticast>, Ptr<IGMPv3InterfaceStateManager> > m_map_ifstate_managers;
