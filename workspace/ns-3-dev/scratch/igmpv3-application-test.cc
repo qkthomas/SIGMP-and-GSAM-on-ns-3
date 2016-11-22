@@ -22,7 +22,7 @@ main (int argc, char *argv[])
 
 	cmd.Parse (argc, argv);
 
-	int simulation_seconds = 60000;
+	int simulation_seconds = 5000;
 
 	//std::cout << "Input simulation time (Seconds): ";
 	//std::cin >> simulation_seconds;

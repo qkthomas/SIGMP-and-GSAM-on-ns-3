@@ -90,6 +90,7 @@ public:	//
 	Ipv4Address GetAnUnusedSecGrpAddress (void);
 	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs = 2);
 public:	//const
+	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;
 	Ipv4Address GetQAddress (void) const;
 	Time GetDefaultRetransmitTimeout (void) const;
@@ -107,6 +108,13 @@ public:	//const
 	Ipv4Address GetSecureGroupAddressRangeEnd (void) const;
 	bool IsGroupAddressSecureGroup (Ipv4Address group_address) const;
 	Time GetDefaultGroupTimerDelayInSeconds (void) const;
+	//Igmp Configs
+	Time GetUnsolicitedReportIntervalInSeconds (void) const;
+	uint8_t GetRobustnessValue (void) const;
+	uint8_t GetMaxRespCode (void) const;
+	uint8_t GetQQIC (void) const;
+	uint8_t GetQRV (void) const;
+	bool GetDefaultSFlag (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member

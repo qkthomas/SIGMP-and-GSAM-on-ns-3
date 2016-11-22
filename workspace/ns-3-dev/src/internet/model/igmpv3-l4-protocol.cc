@@ -43,10 +43,10 @@ Igmpv3L4Protocol::GetTypeId (void)
 
 Igmpv3L4Protocol::Igmpv3L4Protocol()
 : m_node (0),
-  m_default_s_flag (false),		//assumed default
-  m_default_qqic (125),			//125sec, cisco default
-  m_default_qrv (2),			//cisco default
-  m_default_max_resp_code (100),	//10sec, cisco default
+//  m_default_s_flag (false),		//assumed default
+//  m_default_qqic (125),			//125sec, cisco default
+//  m_default_qrv (2),			//cisco default
+//  m_default_max_resp_code (100),	//10sec, cisco default
   m_GenQueAddress ("224.0.0.1"),
   m_RptAddress ("224.0.0.22"),
   m_role (Igmpv3L4Protocol::UNITIALIZED),
@@ -454,9 +454,9 @@ Igmpv3L4Protocol::SendDefaultGeneralQuery (void)
 
 	Igmpv3Query query;
 	query.SetGroupAddress(0);
-	query.SetSFlag(this->m_default_s_flag);
-	query.SetQRV(this->m_default_qrv);
-	query.SetQQIC(this->m_default_qqic);
+	query.SetSFlag(GsamConfig::GetSingleton()->GetDefaultSFlag());
+	query.SetQRV(this->GetQRV());
+	query.SetQQIC(this->GetQQIC());
 	std::list<Ipv4Address> empty_lst__addresses;
 	query.PushBackSrcAddresses(empty_lst__addresses);
 
@@ -464,7 +464,7 @@ Igmpv3L4Protocol::SendDefaultGeneralQuery (void)
 
 	Igmpv3Header header;
 	header.SetType(Igmpv3Header::MEMBERSHIP_QUERY);
-	header.SetMaxRespCode(this->m_default_max_resp_code);
+	header.SetMaxRespCode(this->GetMaxRespCode());
 	if (Node::ChecksumEnabled ())
 	{
 		header.EnableChecksum ();
@@ -484,13 +484,77 @@ Igmpv3L4Protocol::SendDefaultGeneralQuery (void)
 }
 
 void
-Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet, bool secure_group_report)
+Igmpv3L4Protocol::SendSecureGroupSpecificQuery (Ipv4Address group_address)
+{
+	Ptr<Packet> packet = Create<Packet> ();
+
+	Igmpv3Query query;
+	query.SetGroupAddress(group_address.Get());
+	query.SetSFlag(GsamConfig::GetSingleton()->GetDefaultSFlag());
+	query.SetQRV(this->GetQRV());
+	query.SetQQIC(this->GetQQIC());
+	std::list<Ipv4Address> empty_lst__addresses;
+	query.PushBackSrcAddresses(empty_lst__addresses);
+
+	packet->AddHeader(query);
+
+	Igmpv3Header header;
+	header.SetType(Igmpv3Header::MEMBERSHIP_QUERY);
+	header.SetMaxRespCode(this->GetMaxRespCode());
+	if (Node::ChecksumEnabled ())
+	{
+		header.EnableChecksum ();
+	}
+
+	packet->AddHeader(header);
+
+	std::cout << "Node: " << m_node->GetId() << " sending a secure group specific query" << std::endl;
+
+	Ipv4Header ipv4header;
+	ipv4header.SetSource("0.0.0.0");
+	ipv4header.SetProtocol(this->PROT_NUMBER);
+	ipv4header.SetDestination(this->m_GenQueAddress);
+
+	this->SendMessage (packet, ipv4header, 0);
+
+}
+
+void
+Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet)
 {
 	Ptr<Ipv4Multicast> ipv4 = m_node->GetObject<Ipv4Multicast> ();
 	NS_ASSERT (ipv4 != 0 && ipv4->GetRoutingProtocol () != 0);
 	Ipv4Header ipv4header;
 	ipv4header.SetProtocol (PROT_NUMBER);
 	ipv4header.SetDestination(this->m_RptAddress);
+	//get first address of interface
+	ipv4header.SetSource(incomingInterface->GetAddress(0).GetLocal());
+	Socket::SocketErrno errno_;
+	Ptr<Ipv4Route> route;
+	Ptr<NetDevice> oif = incomingInterface->GetDevice();
+	route = ipv4->GetRoutingProtocol ()->RouteOutput (packet, ipv4header, oif, errno_);
+
+	if (route != 0)
+	{
+		NS_LOG_LOGIC ("Route exists");
+		//Ipv4Address source = route->GetSource ();
+		this->SendMessage (packet, ipv4header, route);
+	}
+	else
+	{
+		NS_LOG_WARN ("drop igmp report");
+		NS_ASSERT (false);
+	}
+}
+
+void
+Igmpv3L4Protocol::SendSecureReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet, Ipv4Address group_address)
+{
+	Ptr<Ipv4Multicast> ipv4 = m_node->GetObject<Ipv4Multicast> ();
+	NS_ASSERT (ipv4 != 0 && ipv4->GetRoutingProtocol () != 0);
+	Ipv4Header ipv4header;
+	ipv4header.SetProtocol (PROT_NUMBER);
+	ipv4header.SetDestination(group_address);
 	//get first address of interface
 	ipv4header.SetSource(incomingInterface->GetAddress(0).GetLocal());
 	Socket::SocketErrno errno_;
@@ -590,33 +654,6 @@ Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr
 //}
 
 void
-Igmpv3L4Protocol::SendStateChangesReport (Ptr<Ipv4InterfaceMulticast> incomingInterface)
-{
-	Igmpv3Report report;
-
-	Ptr<IGMPv3InterfaceStateManager> ifstate_manager = this->GetManager()->GetIfStateManager(incomingInterface);
-
-	ifstate_manager->AddPendingRecordsToReport(report);
-
-	if (0 < report.GetNumGrpRecords())
-	{
-		Ptr<Packet> packet = Create<Packet>();
-		packet->AddHeader(report);
-
-		Igmpv3Header header;
-		header.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
-		if (true == incomingInterface->GetDevice()->GetNode()->ChecksumEnabled())
-		{
-			header.EnableChecksum();
-		}
-
-		packet->AddHeader(header);
-
-		this->SendReport(incomingInterface, packet);
-	}
-}
-
-void
 Igmpv3L4Protocol::SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager)
 {
 	Igmpv3Report report;
@@ -636,6 +673,29 @@ Igmpv3L4Protocol::SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifsta
 		packet->AddHeader(header);
 
 		this->SendReport(ifstate_manager->GetInterface(), packet);
+	}
+}
+
+void
+Igmpv3L4Protocol::SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager, Ipv4Address secure_group_address)
+{
+	Igmpv3Report report;
+	ifstate_manager->AddPendingRecordsToReport(report, secure_group_address);
+	if (0 < report.GetNumGrpRecords())
+	{
+		Ptr<Packet> packet = Create<Packet>();
+		packet->AddHeader(report);
+
+		Igmpv3Header header;
+		header.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
+		if (true == ifstate_manager->GetInterface()->GetDevice()->GetNode()->ChecksumEnabled())
+		{
+			header.EnableChecksum();
+		}
+
+		packet->AddHeader(header);
+
+		this->SendSecureReport(ifstate_manager->GetInterface(), packet, secure_group_address);
 	}
 }
 
@@ -801,10 +861,10 @@ Igmpv3L4Protocol::GetDownTarget6 (void) const
 }
 
 Time
-Igmpv3L4Protocol::GetUnsolicitedReportInterval (void)
+Igmpv3L4Protocol::GetStateChangeReportRetransmissionInterval (void)
 {
 	//default one
-	Time default_interval = Seconds (1.0);
+	Time default_interval = GsamConfig::GetSingleton()->GetUnsolicitedReportIntervalInSeconds();
 
 	return this->GetRandomTime(default_interval);
 }
@@ -812,13 +872,13 @@ Igmpv3L4Protocol::GetUnsolicitedReportInterval (void)
 uint8_t
 Igmpv3L4Protocol::GetRobustnessValue (void)
 {
-	return this->m_default_qrv;
+	return GsamConfig::GetSingleton()->GetRobustnessValue();
 }
 
 uint8_t
 Igmpv3L4Protocol::GetMaxRespCode (void)
 {
-	return this->m_default_max_resp_code;
+	return GsamConfig::GetSingleton()->GetMaxRespCode();
 }
 
 Time
@@ -868,7 +928,7 @@ Igmpv3L4Protocol::GetQueryInterval (void)
 Time
 Igmpv3L4Protocol::GetQueryReponseInterval (void)
 {
-	return this->GetMaxRespTime(this->m_default_max_resp_code);
+	return this->GetMaxRespTime(this->GetMaxRespCode());
 }
 
 Time
@@ -876,7 +936,7 @@ Igmpv3L4Protocol::GetGroupMembershipIntervalGMI (void)
 {
 	Time query_interval =  this->GetQueryInterval();
 
-	uint8_t robutness = this->m_default_qrv;
+	uint8_t robutness = this->GetQRV();
 
 	Time query_response_interval = this->GetQueryReponseInterval();
 
@@ -900,7 +960,7 @@ Igmpv3L4Protocol::GetOtherQuerierPresentInterval (void)
 {
 	Time query_interval =  this->GetQueryInterval();
 
-	uint8_t robutness = this->m_default_qrv;
+	uint8_t robutness = this->GetQRV();
 
 	Time query_response_interval = this->GetQueryReponseInterval();
 
@@ -924,13 +984,13 @@ Igmpv3L4Protocol::GetLastMemberQueryCount (void)
 uint8_t
 Igmpv3L4Protocol::GetQQIC (void)
 {
-	return this->m_default_qqic;
+	return GsamConfig::GetSingleton()->GetQQIC();
 }
 
 uint8_t
 Igmpv3L4Protocol::GetQRV (void)
 {
-	return this->m_default_qrv;
+	return GsamConfig::GetSingleton()->GetQRV();
 }
 
 uint8_t

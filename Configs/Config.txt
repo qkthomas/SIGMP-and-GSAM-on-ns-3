@@ -11,3 +11,9 @@ gm-join-event-number:1
 sec-grp-address-range-start:230.0.0.0
 sec-grp-address-range-end:235.0.0.0
 default-group-timer-delay:60
+unsolicited-report-interval:1
+robustness-value:2
+max-resp-code:100
+qqic:125
+qrv:2
+default-s-flag:false

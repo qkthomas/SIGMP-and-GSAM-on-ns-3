@@ -429,7 +429,8 @@ void
 Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> interface,
 												Ipv4Address multicast_address,
 												ns3::FILTER_MODE filter_mode,
-												const std::list<Ipv4Address> &src_list)
+												const std::list<Ipv4Address> &src_list,
+												bool is_secure_group)
 {
 	std::cout << "Node: " << this->m_node->GetId() << " raw socket: " << this << " IPMulticastListen on interface " << interface << " group address: " << multicast_address << std::endl;
 
@@ -499,12 +500,14 @@ Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> inte
 		}
 		else
 		{
-			//rfc 3376, no such entry is present *and* (filter mode is EXCLUDE *or* the requested source list is non-empty)
+			//rfc 3376:
+			//If the requested filter mode is EXCLUDE *or* the requested source list is non-empty
 			if ((ns3::EXCLUDE == filter_mode) || (false == src_list.empty()))
 			{
 				//a new entry is created
 				Ptr<IGMPv3SocketState> socketstate = socketstate_manager->CreateSocketState(multicast_address, filter_mode, src_list);
 
+				interface->IPMulticastListen(socketstate);
 				return; //Ipv4RawSocketImplMulticast::ADDED;
 			}
 		}

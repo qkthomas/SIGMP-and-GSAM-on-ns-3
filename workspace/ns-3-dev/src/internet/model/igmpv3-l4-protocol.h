@@ -243,9 +243,9 @@ public:
 	Igmpv3L4Protocol::ROLE GetRole (void);
 	void Initialization (void);
 	void SendDefaultGeneralQuery (void);
-	void SendCurrentStateReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<PerInterfaceTimer> pintimer);
-	void SendStateChangesReport (Ptr<Ipv4InterfaceMulticast> incomingInterface);
+	void SendSecureGroupSpecificQuery (Ipv4Address group_address);
 	void SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager);
+	void SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager, Ipv4Address secure_group_address);
 	void HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void HandleV1MemReport (void);
@@ -269,9 +269,10 @@ public:
 	/*
 	 * \breif Send IGMPv3 Report
 	 */
-	void SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet, bool secure_group_report = false);
+	void SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet);
+	void SendSecureReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr<Packet> packet, Ipv4Address group_address);
 
-	Time GetUnsolicitedReportInterval (void);
+	Time GetStateChangeReportRetransmissionInterval (void);
 	uint8_t GetRobustnessValue (void);
 	uint8_t GetMaxRespCode (void);
 	Time GetRandomTime (Time max);
@@ -332,10 +333,11 @@ private:
 	IpL4ProtocolMulticast::DownTargetCallback m_downTarget; //!< callback to Ipv4::Send
 
 	//IGMPv3 Parameters Setting
-	bool m_default_s_flag;				//assumed default
-	uint8_t m_default_qqic;				//125sec, cisco default
-	uint8_t m_default_qrv;				//cisco default
-	uint8_t m_default_max_resp_code;	//10sec, cisco default
+//moved to GsamConfig
+//	bool m_default_s_flag;				//assumed default
+//	uint8_t m_default_qqic;				//125sec, cisco default
+//	uint8_t m_default_qrv;				//cisco default
+//	uint8_t m_default_max_resp_code;	//10sec, cisco default
 	Ipv4Address m_GenQueAddress;	//!< Address to send for general query
 	Ipv4Address m_RptAddress;		//!< Address to send for group report
 

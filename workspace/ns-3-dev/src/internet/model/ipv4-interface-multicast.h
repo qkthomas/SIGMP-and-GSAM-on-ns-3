@@ -195,7 +195,7 @@ public:
    * added by Lin Chen, IPMulticast invocation, by ipv4 or igmpv3-l4-protocol or raw socket
    */
   //Ipv4InterfaceMulticast::IPMCL_STATUS
-  void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state);
+  void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state, bool is_secure_group = false);
 
 protected:
   virtual void DoDispose (void);

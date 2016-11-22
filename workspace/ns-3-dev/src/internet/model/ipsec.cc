@@ -914,6 +914,168 @@ GsamConfig::GetDefaultGroupTimerDelayInSeconds (void) const
 	return retval;
 }
 
+Time
+GsamConfig::GetUnsolicitedReportIntervalInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	double seconds_double = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("unsolicited-report-interval");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> seconds_double)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	Time retval(seconds_double);
+	return retval;
+}
+
+uint8_t
+GsamConfig::GetRobustnessValue (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("robustness-value");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
+	return (uint8_t)retval;
+}
+
+uint8_t
+GsamConfig::GetMaxRespCode (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("max-resp-code");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
+	return (uint8_t)retval;
+}
+
+uint8_t
+GsamConfig::GetQQIC (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("qqic");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
+	return (uint8_t)retval;
+}
+
+uint8_t
+GsamConfig::GetQRV (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("qrv");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
+	return (uint8_t)retval;
+}
+
+bool
+GsamConfig::GetDefaultSFlag (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("default-s-flag");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if ("true" == value_text)
+		{
+			retval = true;
+		}
+		else if ("false" == value_text)
+		{
+			retval = false;
+		}
+		else
+		{
+			//option found but set to invaild value. Neither false nor true
+			NS_ASSERT (false);
+		}
+
+	}
+	else
+	{
+		//do nothing
+		//retval = false;
+	}
+	return retval;
+}
+
 void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {

@@ -106,7 +106,8 @@ public:
   void IPMulticastListen (Ptr<Ipv4InterfaceMulticast> m_interface,
 		  	  	  	  	  Ipv4Address multicast_address,
 		  	  	  	  	  ns3::FILTER_MODE filter_mode,
-		  	  	  	  	  const std::list<Ipv4Address> &src_list);
+		  	  	  	  	  const std::list<Ipv4Address> &src_list,
+						  bool is_secure_group = false);
 
   /*
    * delete igmp record in the interfaces this socket has invoke IPMulticastListen

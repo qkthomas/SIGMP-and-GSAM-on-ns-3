@@ -129,6 +129,7 @@ class IGMPv3InterfaceState : public Object {
 private:
 	Ptr<IGMPv3InterfaceStateManager> m_manager;
 	Ipv4Address m_multicast_address;
+	bool m_flag_secure_group;
 	ns3::FILTER_MODE m_filter_mode;
 	std::list<Ipv4Address> m_lst_source_list;
 	//std::list<Ptr<Socket> > m_lst_sockets;
@@ -147,11 +148,12 @@ private:
 //	*obsolete*/for check whether the a new state change occur during old state report is still being scheduled.
 //	EventId m_event_robustness_retransmission;
 
+
 public:
 	static TypeId GetTypeId (void);
 
 	IGMPv3InterfaceState (void);
-	void Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address);
+	void Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address, bool is_secure_group = false);
 
 	~IGMPv3InterfaceState (void);
 
@@ -191,6 +193,11 @@ public:
 	bool HasPendingRecords (void) const;
 
 	/*
+	 * \breif flag, secure group
+	 */
+	bool IsSecureGroup (void) const;
+
+	/*
 	 * \breif For reporting current State
 	 */
 	Igmpv3GrpRecord GenerateRecord (void);
@@ -221,7 +228,7 @@ public:
 	/*
 	 * \brief Return a non-existent state defined by rfc 3376
 	 */
-	static Ptr<IGMPv3InterfaceState> GetNonExistentState (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address);
+	static Ptr<IGMPv3InterfaceState> GetNonExistentState (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address, bool is_secure_group = false);
 
 	void AssociateSocketStateInterfaceState (Ptr<IGMPv3SocketState> socket_state);
 private:
@@ -359,16 +366,18 @@ public:	//self-defined const
 	bool HasPendingRecords (void) const;
 	bool IsReportStateChangesRunning (void) const;
 public:	//self-defined
-	Ptr<IGMPv3InterfaceState> CreateIfState (Ipv4Address multicast_address);
+	Ptr<IGMPv3InterfaceState> CreateIfState (Ipv4Address multicast_address, bool is_secure_group = false);
 	void PushBackIfState (Ptr<IGMPv3InterfaceState> if_state);
 	void RemoveIfState (Ptr<IGMPv3InterfaceState> if_state);
 	Ptr<IGMPv3MaintenanceState> CreateMaintenanceState (Ipv4Address group_address, Time delay);
 	void Sort (void);
-	void IPMulticastListen (Ptr<IGMPv3SocketState> socket_state);
 	void UnSubscribeIGMP (Ptr<Socket> socket);
 	void AddPendingRecordsToReport (Igmpv3Report &report);
+	void AddPendingRecordsToReport (Igmpv3Report &report, Ipv4Address secure_group_address);
 	void ReportStateChanges (void);
+	void ReportStateChanges (Ipv4Address secure_group_address);
 	void DoReportStateChanges (void);
+	void DoSecureReportStateChanges (Ipv4Address group_address);
 	void ReportCurrentStates (void);
 	void ReportCurrentGrpStates (Ipv4Address group_address);
 	void ReportCurrentGrpNSrcStates (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);

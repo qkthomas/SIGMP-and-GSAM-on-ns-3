@@ -388,6 +388,7 @@ IGMPv3InterfaceState::GetTypeId (void)
 IGMPv3InterfaceState::IGMPv3InterfaceState (void)
   :  m_manager (0),
 	 m_multicast_address ("0. 0. 0. 0"),
+	 m_flag_secure_group (false),
 	 m_filter_mode (ns3::INCLUDE),
 	 m_old_if_state (0)
 {
@@ -395,12 +396,13 @@ IGMPv3InterfaceState::IGMPv3InterfaceState (void)
 }
 
 void
-IGMPv3InterfaceState::Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address)
+IGMPv3InterfaceState::Initialize (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address, bool is_secure_group)
 {
 	this->m_manager = manager;
 	this->m_multicast_address = multicast_address;
 	this->m_filter_mode = ns3::INCLUDE;
-	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_manager, this->m_multicast_address);
+	this->m_flag_secure_group = is_secure_group;
+	this->m_old_if_state = IGMPv3InterfaceState::GetNonExistentState(this->m_manager, this->m_multicast_address, is_secure_group);
 }
 
 IGMPv3InterfaceState::~IGMPv3InterfaceState (void)
@@ -660,6 +662,12 @@ IGMPv3InterfaceState::HasPendingRecords (void) const
 	}
 }
 
+bool
+IGMPv3InterfaceState::IsSecureGroup (void) const
+{
+	return this->m_flag_secure_group;
+}
+
 // May trigger sending of reports
 void
 IGMPv3InterfaceState::ComputeState (void)
@@ -768,65 +776,14 @@ IGMPv3InterfaceState::ReportFilterModeChange (void)
    	 * Variable] - 1 more times, at intervals chosen at random from the
    	 * range (0, [Unsolicited Report Interval]).
 	 */
-	this->m_manager->ReportStateChanges();
-
-//	*******Obsolete**********
-//	if (true == this->m_event_pending_report.IsRunning())
-//	{
-//		//there is an un-expired sending event
-//		//it means new state change occurred before all pending robustness reports are transmitted
-//		Simulator::Cancel(this->m_event_pending_report);
-//	}
-//	else
-//	{
-//		//there is no pending report
-//	}
-//
-//	std::list<Igmpv3GrpRecord> records;
-//	Igmpv3GrpRecord::GenerateGrpRecords(this->m_old_if_state, this, records);
-//
-//	Igmpv3Report report;
-//	Igmpv3Report pending_report;
-//	if (this->m_lst_pending_reports.size() >= 2)
-//	{
-//		//there should be only pending report
-//		NS_ASSERT (false);
-//	}
-//	else if (this->m_lst_pending_reports.size() == 1)
-//	{
-//		pending_report = this->m_lst_pending_reports.front();
-//		this->m_lst_pending_reports.pop();
-//		std::list<Igmpv3GrpRecord> pending_records;
-//		uint16_t num_pending_records = pending_report.GetGrpRecords(pending_records);
-//
-//		if (num_pending_records != pending_records.size())
-//		{
-//			NS_ASSERT (false);
-//		}
-//
-//		//not finished
-//	}
-//	else
-//	{
-//		report.SetNumGrpRecords(records.size());
-//		report.PushBackGrpRecords(records);
-//	}
-//
-//	Ptr<Packet> packet = Create<Packet>();
-//	packet->AddHeader(report);
-//	this->m_lst_pending_reports.push(report);
-//
-//	Igmpv3Header header;
-//	header.SetType(Igmpv3Header::V3_MEMBERSHIP_REPORT);
-//	if (true == this->m_interface->GetDevice()->GetNode()->ChecksumEnabled())
-//	{
-//		header.EnableChecksum();
-//	}
-//
-//	packet->AddHeader(header);
-
-
-
+	if (false == this->IsSecureGroup())
+	{
+		this->m_manager->ReportStateChanges();
+	}
+	else
+	{
+		this->m_manager->ReportStateChanges(this->m_multicast_address);
+	}
 }
 
 //void
@@ -900,7 +857,14 @@ IGMPv3InterfaceState::ReportSrcLstChange (void)
    	 * For implementation, [Robustness Variable] records will be pushed into 3 queues (allow, block, filter mode change) of an interface state.
    	 * And then the interface will collect records, one for each queue, from all interface state it has and make them an report and send the out the report.
 	 */
-	this->m_manager->ReportStateChanges();
+	if (false == this->IsSecureGroup())
+	{
+		this->m_manager->ReportStateChanges();
+	}
+	else
+	{
+		this->m_manager->ReportStateChanges(this->m_multicast_address);
+	}
 }
 
 //void
@@ -1059,7 +1023,7 @@ IGMPv3InterfaceState::GenerateRecord (ns3::FILTER_MODE old_filter_mode, std::lis
 }
 
 Ptr<IGMPv3InterfaceState>
-IGMPv3InterfaceState::GetNonExistentState (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address)
+IGMPv3InterfaceState::GetNonExistentState (Ptr<IGMPv3InterfaceStateManager> manager, Ipv4Address multicast_address,  bool is_secure_group)
 {
 	/*
 	 * If no interface
@@ -1073,6 +1037,7 @@ IGMPv3InterfaceState::GetNonExistentState (Ptr<IGMPv3InterfaceStateManager> mana
 	if_state->m_filter_mode = ns3::INCLUDE;
 	if_state->m_multicast_address = multicast_address;
 	if_state->m_manager = manager;
+	if_state->m_flag_secure_group = is_secure_group;
 
 	return if_state;
 }
@@ -2370,7 +2335,7 @@ IGMPv3InterfaceStateManager::IsReportStateChangesRunning (void) const
 }
 
 Ptr<IGMPv3InterfaceState>
-IGMPv3InterfaceStateManager::CreateIfState (Ipv4Address multicast_address)
+IGMPv3InterfaceStateManager::CreateIfState (Ipv4Address multicast_address, bool is_secure_group)
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IGMPv3InterfaceState> retval = Create<IGMPv3InterfaceState>();
@@ -2414,59 +2379,6 @@ IGMPv3InterfaceStateManager::Sort (void)
 }
 
 void
-IGMPv3InterfaceStateManager::IPMulticastListen (Ptr<IGMPv3SocketState> socket_state)
-{
-	NS_LOG_FUNCTION (this);
-	Ipv4Address multicast_address = socket_state->GetGroupAddress();
-
-	if (true == this->m_lst_interfacestates.empty())
-	{
-		Ptr<IGMPv3InterfaceState> interfacestate = this->CreateIfState(multicast_address);
-		interfacestate->AssociateSocketStateInterfaceState (socket_state);
-		interfacestate->ComputeState ();
-
-		return; //Ipv4InterfaceMulticast::ADDED;
-	}
-
-	else
-	{
-		std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_interfacestates.begin();
-
-		while (it != this->m_lst_interfacestates.end())
-		{
-			Ptr<IGMPv3InterfaceState> it_interface_state = *it;
-
-			//note: the socket_state->m_associated_interfacestate might be 0 (null)
-			if (socket_state->GetGroupAddress() == it_interface_state->GetGroupAddress())
-			{
-				it_interface_state->AssociateSocketStateInterfaceState (socket_state);
-				it_interface_state->ComputeState ();
-				return;
-			}
-			else
-			{
-				//do nothing
-				it++;
-				continue;
-			}
-		}
-
-		if (it == this->m_lst_interfacestates.end())
-		{
-			Ptr<IGMPv3InterfaceState> interfacestate = this->CreateIfState(multicast_address);
-			interfacestate->AssociateSocketStateInterfaceState (socket_state);
-			interfacestate->ComputeState ();
-			return;
-		}
-		else
-		{
-			//only when it == this->m_lst_interfacestates.end(), the program would jump out of the while loop
-			NS_ASSERT (false);
-		}
-	}
-}
-
-void
 IGMPv3InterfaceStateManager::UnSubscribeIGMP (Ptr<Socket> socket)
 {
 	NS_LOG_FUNCTION (this);
@@ -2480,7 +2392,24 @@ IGMPv3InterfaceStateManager::AddPendingRecordsToReport (Igmpv3Report &report)
 		 it != this->m_lst_interfacestates.end();
 		 it++)
 	{
-		(*it)->AddPendingRecordsToReport(report);
+		if (false == (*it)->IsSecureGroup())
+		{
+			(*it)->AddPendingRecordsToReport(report);
+		}
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::AddPendingRecordsToReport (Igmpv3Report &report, Ipv4Address secure_group_address)
+{
+	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_interfacestates.begin();
+		 it != this->m_lst_interfacestates.end();
+		 it++)
+	{
+		if ((*it)->GetGroupAddress() == secure_group_address)
+		{
+			(*it)->AddPendingRecordsToReport(report);
+		}
 	}
 }
 
@@ -2502,9 +2431,33 @@ IGMPv3InterfaceStateManager::ReportStateChanges (void)
 
 	if (true == this->HasPendingRecords())
 	{
-		Time delay = igmp->GetUnsolicitedReportInterval();
+		Time delay = igmp->GetStateChangeReportRetransmissionInterval();
 
 		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoReportStateChanges, this);
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::ReportStateChanges (Ipv4Address secure_group_address)
+{
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes" << Simulator::Now().GetSeconds() << "seconds" << std::endl;
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	if (true == this->m_event_robustness_retransmission.IsRunning())
+	{
+		//the previous scheduled robustness report sending event should cancled before that this method is invoked
+		this->CancelReportStateChanges();
+		igmp->SendStateChangesReport(this, secure_group_address);
+	}
+
+	if (true == this->HasPendingRecords())
+	{
+		Time delay = igmp->GetStateChangeReportRetransmissionInterval();
+
+		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoSecureReportStateChanges, this, secure_group_address);
 	}
 }
 
@@ -2521,9 +2474,28 @@ IGMPv3InterfaceStateManager::DoReportStateChanges (void)
 
 	if (true == this->HasPendingRecords())
 	{
-		Time delay = igmp->GetUnsolicitedReportInterval();
+		Time delay = igmp->GetStateChangeReportRetransmissionInterval();
 
 		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoReportStateChanges, this);
+	}
+}
+
+void
+IGMPv3InterfaceStateManager::DoSecureReportStateChanges (Ipv4Address group_address)
+{
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " secure report state changes " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
+
+	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
+	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
+	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
+
+	igmp->SendStateChangesReport(this, group_address);
+
+	if (true == this->HasPendingRecords())
+	{
+		Time delay = igmp->GetStateChangeReportRetransmissionInterval();
+
+		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoSecureReportStateChanges, this, group_address);
 	}
 }
 
@@ -3002,13 +2974,6 @@ IGMPv3InterfaceStateManager::StopEverything (void)
 			it++)
 	{
 		(*it)->StopEverything();
-	}
-
-	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator it = this->m_lst_interfacestates.begin();
-			it != this->m_lst_interfacestates.end();
-			it++)
-	{
-		(*it)->st
 	}
 }
 

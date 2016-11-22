@@ -380,7 +380,7 @@ Ipv4InterfaceMulticast::RemoveAddress(Ipv4Address address)
 
 //Ipv4InterfaceMulticast::IPMCL_STATUS
 void
-Ipv4InterfaceMulticast::IPMulticastListen (Ptr<IGMPv3SocketState> socket_state)
+Ipv4InterfaceMulticast::IPMulticastListen (Ptr<IGMPv3SocketState> socket_state, bool is_secure_group)
 {
 	Ipv4Address multicast_address = socket_state->GetGroupAddress();
 
@@ -388,7 +388,7 @@ Ipv4InterfaceMulticast::IPMulticastListen (Ptr<IGMPv3SocketState> socket_state)
 
 	if (true == ifstate_manager->GetInterfaceStates().empty())
 	{
-		Ptr<IGMPv3InterfaceState> interfacestate = ifstate_manager->CreateIfState(multicast_address);
+		Ptr<IGMPv3InterfaceState> interfacestate = ifstate_manager->CreateIfState(multicast_address, is_secure_group);
 		interfacestate->AssociateSocketStateInterfaceState (socket_state);
 		interfacestate->ComputeState ();
 
@@ -407,7 +407,7 @@ Ipv4InterfaceMulticast::IPMulticastListen (Ptr<IGMPv3SocketState> socket_state)
 		}
 		else
 		{
-			Ptr<IGMPv3InterfaceState> interfacestate = ifstate_manager->CreateIfState(multicast_address);
+			Ptr<IGMPv3InterfaceState> interfacestate = ifstate_manager->CreateIfState(multicast_address, is_secure_group);
 			interfacestate->AssociateSocketStateInterfaceState (socket_state);
 			interfacestate->ComputeState ();
 			return;
