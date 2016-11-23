@@ -43,6 +43,8 @@
 //added by Lin Chen
 #include "ip-l4-protocol-multicast.h"
 #include "igmpv3-l4-protocol.h"
+#include "ipsec.h"
+#include "gsam-l4-protocol.h"
 
 namespace ns3 {
 
@@ -577,6 +579,27 @@ Ipv4L3ProtocolMulticast::Receive ( Ptr<NetDevice> device, Ptr<const Packet> p, u
         }
     }
 
+  //***************start: 	modified by Lin Chen*********************************
+  Ptr<GsamFilter> gsam_filter = GsamL4Protocol::GetGsam(this->m_node)->GetGsamFilter();
+  IpSec::PROCESS_CHOICE process_choice = gsam_filter->ProcessIncomingPacket(packet);
+  if (IpSec::DISCARD == process_choice)
+  {
+	  return;
+  }
+  else if (IpSec::BYPASS == process_choice)
+  {
+	  //bypass
+	  //do nothing
+  }
+  else if (IpSec::PROTECT)
+  {
+	  //protect
+	  //do nothing
+	  //same as by pass
+	  //things should have already been done in GsamFilter
+  }
+  //***************end:		modified by Lin Chen*********************************
+
   Ipv4Header ipHeader;
   if (Node::ChecksumEnabled ())
     {
@@ -742,6 +765,26 @@ Ipv4L3ProtocolMulticast::Send (Ptr<Packet> packet,
     {
       tos = ipTosTag.GetTos ();
     }
+
+  //***************start: 	modified by Lin Chen*********************************
+  Ptr<GsamFilter> gsam_filter = GsamL4Protocol::GetGsam(this->m_node)->GetGsamFilter();
+  std::pair<IpSec::PROCESS_CHOICE, uint8_t> process_result = gsam_filter->ProcessOutgoingPacket(packet, source, destination, protocol, route);
+  if (IpSec::DISCARD == process_result.first)
+  {
+	  return;
+  }
+  else if (IpSec::BYPASS == process_result.first)
+  {
+	  //bypass
+	  //do nothing
+  }
+  else if (IpSec::PROTECT == process_result.first)
+  {
+	  //protect
+	  //change protocol number
+	  protocol = process_result.second;
+  }
+  //***************end:		modified by Lin Chen*********************************
 
   // Handle a few cases, modified by Lin Chen:
   // 1) packet is destined to limited broadcast address

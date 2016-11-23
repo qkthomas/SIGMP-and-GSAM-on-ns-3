@@ -591,6 +591,15 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 	}
 
 	gsa_push_session->SelfRemoval();
+	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+	if (0 == igmp)
+	{
+		NS_ASSERT (false);
+	}
+	if (0 != gsa_push_session->GetGmSession())
+	{
+		igmp->SendSecureGroupSpecificQuery(gsa_push_session->GetGmSession()->GetGroupAddress());
+	}
 }
 
 void
@@ -1124,7 +1133,7 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 			//schedule retransmission
 			session->GetRetransmitTimer().SetFunction(&GsamL4Protocol::DoSendMessage, this);
 			session->GetRetransmitTimer().SetArguments(session, session_retransmit);
-			session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeout());
+			session->GetRetransmitTimer().Schedule(GsamConfig::GetSingleton()->GetDefaultRetransmitTimeoutInSeconds());
 			//decrement retransmission count
 			session->DecrementNumberRetransmission();
 		}
@@ -1134,7 +1143,7 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 		}
 	}
 	//scheudle timeout
-	session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeout());
+	session->SceduleTimeout(GsamConfig::GetSingleton()->GetDefaultSessionTimeoutSeconds());
 }
 
 void
@@ -3051,6 +3060,12 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 			GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
 			gsa_push_session->InstallGsaPair();
 			gsa_push_session->SelfRemoval();
+			Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+			if (0 == igmp)
+			{
+				NS_ASSERT (false);
+			}
+			igmp->SendSecureGroupSpecificQuery(gsa_push_session->GetGmSession()->GetGroupAddress());
 		}
 	}
 	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
@@ -3306,6 +3321,12 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 			GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
 			gsa_push_session->InstallGsaPair();
 			gsa_push_session->SelfRemoval();
+			Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+			if (0 == igmp)
+			{
+				NS_ASSERT (false);
+			}
+			igmp->SendSecureGroupSpecificQuery(gsa_push_session->GetGmSession()->GetGroupAddress());
 		}
 	}
 	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
@@ -3676,6 +3697,20 @@ GsamL4Protocol::GetNode (void) const
 {
 	NS_LOG_FUNCTION (this);
 	return this->m_node;
+}
+
+Ptr<GsamFilter>
+GsamL4Protocol::GetGsamFilter (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_gsam_filter;
+}
+
+Ptr<GsamL4Protocol>
+GsamL4Protocol::GetGsam (Ptr<Node> node)
+{
+	Ptr<GsamL4Protocol> retval = Igmpv3L4Protocol::GetIgmp(node)->GetGsam();
+	return retval;
 }
 
 } /* namespace ns3 */

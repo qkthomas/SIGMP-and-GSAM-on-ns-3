@@ -2339,7 +2339,7 @@ IGMPv3InterfaceStateManager::CreateIfState (Ipv4Address multicast_address, bool 
 {
 	NS_LOG_FUNCTION (this);
 	Ptr<IGMPv3InterfaceState> retval = Create<IGMPv3InterfaceState>();
-	retval->Initialize(this, multicast_address);
+	retval->Initialize(this, multicast_address, is_secure_group);
 	this->m_lst_interfacestates.push_back(retval);
 	return retval;
 }

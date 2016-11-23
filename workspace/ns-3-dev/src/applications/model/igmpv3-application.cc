@@ -10,6 +10,7 @@
 #include "ns3/simulator.h"
 #include "ns3/nstime.h"
 #include "ns3/ipv4-l3-protocol-multicast.h"
+#include "ns3/ipsec.h"
 
 namespace ns3 {
 
@@ -212,11 +213,13 @@ Igmpv3Application::GenerateHostJoinEvent (void)
 
 	std::list<Ipv4Address> src_list;
 
+	Ipv4Address group_address = GsamConfig::GetSingleton()->GetAnUnusedSecGrpAddress();
+
 	rawsocket->IPMulticastListen(ipv4l3->GetInterface(ipv4l3->GetInterfaceForDevice(device)),
-								 this->GetRandomMulticastAddress(),
+								 group_address,
 								 ns3::EXCLUDE,
-								 src_list
-								);
+								 src_list,
+								GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(group_address));
 }
 
 void

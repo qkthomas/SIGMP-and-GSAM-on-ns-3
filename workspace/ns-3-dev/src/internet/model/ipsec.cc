@@ -299,6 +299,7 @@ GsamConfig::~GsamConfig()
 	this->m_set_used_sec_grp_addresses.clear();
 	this->m_map_settings.clear();
 	this->m_map_u32_ipv4addr_to_node_id.clear();
+	this->m_set_used_unsec_grp_addresses.clear();
 }
 
 TypeId
@@ -520,7 +521,7 @@ GsamConfig::GetQAddress (void) const
 
 
 Time
-GsamConfig::GetDefaultSessionTimeout (void) const
+GsamConfig::GetDefaultSessionTimeoutSeconds (void) const
 {
 	NS_LOG_FUNCTION (this);
 	double value = 0;
@@ -541,11 +542,11 @@ GsamConfig::GetDefaultSessionTimeout (void) const
 	{
 		NS_ASSERT (false);
 	}
-	return Time(value);
+	return Seconds(value);
 }
 
 Time
-GsamConfig::GetDefaultRetransmitTimeout (void) const
+GsamConfig::GetDefaultRetransmitTimeoutInSeconds (void) const
 {
 	NS_LOG_FUNCTION (this);
 	double value = 0;
@@ -573,7 +574,7 @@ GsamConfig::GetDefaultRetransmitTimeout (void) const
 			NS_ASSERT (false);
 		}
 	}
-	return Time(value);
+	return Seconds(value);
 }
 
 Ipv4Address
@@ -596,12 +597,40 @@ GsamConfig::GetAnUnusedSecGrpAddress (void)
 }
 
 Ipv4Address
+GsamConfig::GetAnUnusedUnsecGrpAddress (void)
+{
+	NS_LOG_FUNCTION (this);
+	//The multicast addresses are in the range 224.0.0.0 through 239.255.255.255
+	uint32_t u32_addr = Ipv4Address ("224.0.0.0").Get() + (rand() % (Ipv4Address ("224.0.0.0").Get() - Ipv4Address ("239.255.255.255").Get()));
+	while ((this->m_set_used_unsec_grp_addresses.end() != this->m_set_used_unsec_grp_addresses.find(u32_addr)) ||
+			(true == this->IsGroupAddressSecureGroup(Ipv4Address (u32_addr))) ||
+			(u32_addr == this->GetDestinationAddressForIgmpv3UnsecuredQuery().Get()) ||
+			(u32_addr == this->GetDestinationAddressForIgmpv3UnsecuredReport().Get()))
+	{
+		u32_addr = Ipv4Address ("224.0.0.0").Get() + (rand() % (Ipv4Address ("224.0.0.0").Get() - Ipv4Address ("239.255.255.255").Get()));
+	}
+	this->m_set_used_unsec_grp_addresses.insert(u32_addr);
+	return Ipv4Address (u32_addr);
+}
+
+Ipv4Address
 GsamConfig::GetAUsedSecGrpAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
 	uint8_t set_size = this->m_set_used_sec_grp_addresses.size();
 	uint8_t index = rand() % set_size;
 	std::set<uint32_t>::const_iterator const_it = this->m_set_used_sec_grp_addresses.begin();
+	std::advance(const_it, index);
+	return Ipv4Address(*const_it);
+}
+
+Ipv4Address
+GsamConfig::GetAUsedUnsecGrpAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint8_t set_size = this->m_set_used_unsec_grp_addresses.size();
+	uint8_t index = rand() % set_size;
+	std::set<uint32_t>::const_iterator const_it = this->m_set_used_unsec_grp_addresses.begin();
 	std::advance(const_it, index);
 	return Ipv4Address(*const_it);
 }
@@ -721,7 +750,7 @@ GsamConfig::GetNqJoinTimeInSeconds (void) const
 	{
 		NS_ASSERT (false);
 	}
-	Time retval(seconds_double);
+	Time retval = Seconds(seconds_double);
 	return retval;
 }
 
@@ -747,7 +776,7 @@ GsamConfig::GetGmJoinTimeInSeconds (void) const
 	{
 		NS_ASSERT (false);
 	}
-	Time retval(seconds_double);
+	Time retval = Seconds(seconds_double);
 	return retval;
 }
 
@@ -910,7 +939,7 @@ GsamConfig::GetDefaultGroupTimerDelayInSeconds (void) const
 	{
 		NS_ASSERT (false);
 	}
-	Time retval(seconds_double);
+	Time retval = Seconds(seconds_double);
 	return retval;
 }
 
@@ -936,7 +965,7 @@ GsamConfig::GetUnsolicitedReportIntervalInSeconds (void) const
 	{
 		NS_ASSERT (false);
 	}
-	Time retval(seconds_double);
+	Time retval = Seconds(seconds_double);
 	return retval;
 }
 
@@ -1072,6 +1101,69 @@ GsamConfig::GetDefaultSFlag (void) const
 	{
 		//do nothing
 		//retval = false;
+	}
+	return retval;
+}
+
+uint16_t
+GsamConfig::GetJoinSecureGroupProbability (void) const
+{
+	NS_LOG_FUNCTION (this);
+	uint16_t retval = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("join-secure-group-probability");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> retval)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
+Ipv4Address
+GsamConfig::GetDestinationAddressForIgmpv3UnsecuredQuery (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Ipv4Address retval;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("destination-for-igmpv3-unsecure-query");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		retval = Ipv4Address(value_text.c_str());
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
+	}
+	return retval;
+}
+
+Ipv4Address
+GsamConfig::GetDestinationAddressForIgmpv3UnsecuredReport (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Ipv4Address retval;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("destination-for-igmpv3-unsecure-report");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		retval = Ipv4Address(value_text.c_str());
+	}
+	else
+	{
+		//do nothing
+		//retval = 0;
 	}
 	return retval;
 }
@@ -5898,77 +5990,81 @@ GsamFilter::SetDownTarget (IpL4ProtocolMulticast::DownTargetCallback callback)
 }
 
 IpSec::PROCESS_CHOICE
-GsamFilter::ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet)
+GsamFilter::ProcessIncomingPacket (	Ptr<Packet> incoming_and_retval_packet)
 {
 	NS_LOG_FUNCTION (this);
 	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
 	Ipv4Header ipv4header;
 	incoming_and_retval_packet->RemoveHeader(ipv4header);
-	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(	ipv4header.GetSource(),
-																											ipv4header.GetDestination(),
-																											ipv4header.GetProtocol(),
-																											incoming_and_retval_packet);
-	if (0 == policy)
+	if ((true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(ipv4header.GetDestination()) &&
+			(IpSec::IP_ID_AH == ipv4header.GetProtocol() || IpSec::IP_ID_ESP == ipv4header.GetProtocol())))
 	{
-		//no policy found
-		//discard because it's incoming packet
-		retval = this->m_default_process_choice;
-	}
-	else
-	{
-		//policy found
-		retval = policy->GetProcessChoice();
-		if (retval == IpSec::BYPASS)
+		Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(	ipv4header.GetSource(),
+																												ipv4header.GetDestination(),
+																												ipv4header.GetProtocol(),
+																												incoming_and_retval_packet);
+		if (0 == policy)
 		{
-
+			//no policy found
+			//discard because it's incoming packet
+			retval = this->m_default_process_choice;
 		}
-		else if (retval == IpSec::DISCARD)
+		else
 		{
-
-		}
-		else if (retval == IpSec::PROTECT)
-		{
-			if (IpSec::IP_ID_AH == ipv4header.GetProtocol())
+			//policy found
+			retval = policy->GetProcessChoice();
+			if (retval == IpSec::BYPASS)
 			{
-				SimpleAuthenticationHeader simpleah;
-				incoming_and_retval_packet->RemoveHeader(simpleah);
-				//sa entry with matched spi
-				uint32_t header_spi = simpleah.GetSpi();
-				Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
-				Ptr<IpSecSAEntry> sa_entry = inbound_sad->GetIpsecSAEntry(header_spi);
-				if (0 == sa_entry)
+
+			}
+			else if (retval == IpSec::DISCARD)
+			{
+
+			}
+			else if (retval == IpSec::PROTECT)
+			{
+				if (IpSec::IP_ID_AH == ipv4header.GetProtocol())
 				{
-					//sa entry not found
-					retval = IpSec::DISCARD;
+					SimpleAuthenticationHeader simpleah;
+					incoming_and_retval_packet->RemoveHeader(simpleah);
+					//sa entry with matched spi
+					uint32_t header_spi = simpleah.GetSpi();
+					Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
+					Ptr<IpSecSAEntry> sa_entry = inbound_sad->GetIpsecSAEntry(header_spi);
+					if (0 == sa_entry)
+					{
+						//sa entry not found
+						retval = IpSec::DISCARD;
+					}
+					else
+					{
+						//sa entry found
+						//ok
+						//retval remain IpSec::PROTECT
+						ipv4header.SetProtocol(simpleah.GetNextHeader());
+						ipv4header.SetPayloadSize(incoming_and_retval_packet->GetSize());
+					}
+				}
+				else if (IpSec::IP_ID_ESP == ipv4header.GetProtocol())
+				{
+					NS_ASSERT (false);
 				}
 				else
 				{
-					//sa entry found
-					//ok
-					//retval remain IpSec::PROTECT
-					ipv4header.SetProtocol(simpleah.GetNextHeader());
-					ipv4header.SetPayloadSize(incoming_and_retval_packet->GetSize());
+					NS_ASSERT (false);
 				}
-			}
-			else if (IpSec::IP_ID_ESP == ipv4header.GetProtocol())
-			{
-				NS_ASSERT (false);
 			}
 			else
 			{
 				NS_ASSERT (false);
 			}
 		}
-		else
-		{
-			NS_ASSERT (false);
-		}
 	}
 	incoming_and_retval_packet->AddHeader(ipv4header);
 	return retval;
 }
 
-IpSec::PROCESS_CHOICE
+std::pair<IpSec::PROCESS_CHOICE, uint8_t>
 GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 									Ipv4Address source,
 									Ipv4Address destination,
@@ -5976,83 +6072,114 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 									Ptr<Ipv4Route> route)
 {
 	NS_LOG_FUNCTION (this);
-	IpSec::PROCESS_CHOICE retval = IpSec::BYPASS;
-	Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(	source,
-																											destination,
-																											protocol,
-																											packet);
-	if (0 == policy)
+	std::pair<IpSec::PROCESS_CHOICE, uint8_t> retval;
+	retval.first = IpSec::BYPASS;
+	retval.second = protocol;
+	if (true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(destination))
 	{
-		if (IpSec::IP_ID_IGMP == protocol)
+		Ptr<IpSecPolicyEntry> policy = this->GetDatabase()->GetPolicyDatabase()->GetFallInRangeMatchedPolicy(	source,
+																												destination,
+																												protocol,
+																												packet);
+		if (0 == policy)
 		{
-			//no policy found
-			Ipv4Address group_address = destination;
-			if (true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(group_address))
+			if (IpSec::IP_ID_IGMP == protocol)
 			{
-				//secure group
-				//do gsam
-				Ptr<GsamFilterCache> cache = Create<GsamFilterCache>(packet, source, destination, protocol, route);
-				this->DoGsam(group_address, cache);
-				retval = IpSec::DISCARD;
+				//no policy found
+				Ipv4Address group_address = destination;
+				if (true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(group_address))
+				{
+					//secure group
+					//do gsam
+					Ptr<GsamFilterCache> cache = Create<GsamFilterCache>(packet, source, destination, protocol, route);
+					this->DoGsam(group_address, cache);
+					retval.first = IpSec::DISCARD;
+				}
+				else
+				{
+					//non secure group
+					retval.first = IpSec::BYPASS;
+				}
 			}
 			else
 			{
-				//non secure group
-				retval = IpSec::BYPASS;
+				retval.first = this->m_default_process_choice;
 			}
 		}
 		else
 		{
-			retval = this->m_default_process_choice;
+			//policy found
+			retval.first = policy->GetProcessChoice();
+			if (retval.first == IpSec::BYPASS)
+			{
+
+			}
+			else if (retval.first == IpSec::DISCARD)
+			{
+
+			}
+			else if (retval.first == IpSec::PROTECT)
+			{
+				if (IpSec::IP_ID_AH == protocol)
+				{
+					SimpleAuthenticationHeader simpleah;
+					packet->RemoveHeader(simpleah);
+					//sa entry with matched spi
+					uint32_t header_spi = simpleah.GetSpi();
+					Ptr<IpSecSADatabase> outbound_sad = policy->GetOutboundSAD();
+					Ptr<IpSecSAEntry> sa_entry = outbound_sad->GetIpsecSAEntry(header_spi);
+					if (0 == sa_entry)
+					{
+						//sa entry not found
+						retval.first = IpSec::DISCARD;
+					}
+					else
+					{
+						//sa entry found
+						//ok
+						//retval remain IpSec::PROTECT
+					}
+					packet->AddHeader(simpleah);
+				}
+				else if (IpSec::IP_ID_ESP == protocol)
+				{
+					NS_ASSERT (false);
+				}
+				else if (IpSec::IP_ID_IGMP == protocol)
+				{
+					if (IpSec::IP_ID_AH == policy->GetProtocolNum())
+					{
+						std::list<Ptr<Spi> > outbound_spis;
+						policy->GetOutboundSAD()->GetSpis(outbound_spis);
+						std::size_t outbount_spis_size = outbound_spis.size();
+						if (1 != outbount_spis_size)
+						{
+							NS_ASSERT (false);
+						}
+						uint32_t spi = outbound_spis.front()->ToUint32();
+						SimpleAuthenticationHeader simpleah (IpSec::IP_ID_IGMP, packet->GetSize(), spi, 0);
+						packet->AddHeader(simpleah);
+						retval.second = IpSec::IP_ID_AH;
+					}
+					else
+					{
+						NS_ASSERT (false);
+					}
+				}
+				else
+				{
+					NS_ASSERT (false);
+				}
+			}
+			else
+			{
+				NS_ASSERT (false);
+			}
 		}
 	}
 	else
 	{
-		//policy found
-		retval = policy->GetProcessChoice();
-		if (retval == IpSec::BYPASS)
-		{
-
-		}
-		else if (retval == IpSec::DISCARD)
-		{
-
-		}
-		else if (retval == IpSec::PROTECT)
-		{
-			if (IpSec::IP_ID_AH == protocol)
-			{
-				SimpleAuthenticationHeader simpleah;
-				packet->RemoveHeader(simpleah);
-				//sa entry with matched spi
-				uint32_t header_spi = simpleah.GetSpi();
-				Ptr<IpSecSADatabase> inbound_sad = policy->GetInboundSAD();
-				Ptr<IpSecSAEntry> sa_entry = inbound_sad->GetIpsecSAEntry(header_spi);
-				if (0 == sa_entry)
-				{
-					//sa entry not found
-					retval = IpSec::DISCARD;
-				}
-				else
-				{
-					//sa entry found
-					//ok
-					//retval remain IpSec::PROTECT
-				}
-			}
-			else if (IpSec::IP_ID_ESP == protocol)
-			{
-				NS_ASSERT (false);
-			}
-			else
-			{
-				NS_ASSERT (false);
-			}
-		}
-		else
-		{
-			NS_ASSERT (false);
-		}
+		retval.first = IpSec::BYPASS;
 	}
 
 	return retval;

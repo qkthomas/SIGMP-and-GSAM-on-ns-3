@@ -552,6 +552,7 @@ Igmpv3L4Protocol::SendSecureReport (Ptr<Ipv4InterfaceMulticast> incomingInterfac
 {
 	Ptr<Ipv4Multicast> ipv4 = m_node->GetObject<Ipv4Multicast> ();
 	NS_ASSERT (ipv4 != 0 && ipv4->GetRoutingProtocol () != 0);
+
 	Ipv4Header ipv4header;
 	ipv4header.SetProtocol (PROT_NUMBER);
 	ipv4header.SetDestination(group_address);

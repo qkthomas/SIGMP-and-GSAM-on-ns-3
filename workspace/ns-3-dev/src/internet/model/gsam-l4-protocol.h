@@ -199,6 +199,8 @@ private:	//database operation
 							const std::list<IkeTrafficSelector>& tsr_selectors);
 public:	//utilities
 	const Ptr<Node> GetNode (void) const;
+	Ptr<GsamFilter> GetGsamFilter (void) const;
+	static Ptr<GsamL4Protocol> GetGsam (Ptr<Node> node);
 private:	//fields
 	Ptr<Node> m_node; //!< the node this protocol is associated with
 	Ptr<Socket> m_socket;

@@ -88,14 +88,16 @@ public:	//log method
 	static void LogMsg (const std::string& msg);
 public:	//
 	Ipv4Address GetAnUnusedSecGrpAddress (void);
+	Ipv4Address GetAnUnusedUnsecGrpAddress (void);
 	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs = 2);
 public:	//const
 	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;
 	Ipv4Address GetQAddress (void) const;
-	Time GetDefaultRetransmitTimeout (void) const;
-	Time GetDefaultSessionTimeout (void) const;
+	Time GetDefaultRetransmitTimeoutInSeconds (void) const;
+	Time GetDefaultSessionTimeoutSeconds (void) const;
 	Ipv4Address GetAUsedSecGrpAddress (void) const;
+	Ipv4Address GetAUsedUnsecGrpAddress (void) const;
 	uint16_t GetNumberOfNodes (void) const;
 	uint16_t GetNumberOfNqs (void) const;
 	bool IsNodeIsNq (uint32_t node_id) const;
@@ -115,6 +117,9 @@ public:	//const
 	uint8_t GetQQIC (void) const;
 	uint8_t GetQRV (void) const;
 	bool GetDefaultSFlag (void) const;
+	uint16_t GetJoinSecureGroupProbability (void) const;
+	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredQuery (void) const;
+	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredReport (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
@@ -124,6 +129,7 @@ private:
 	std::map<std::string, std::string> m_map_settings;
 	Ipv4Address m_q_unicast_address;
 	std::set<uint32_t> m_set_used_sec_grp_addresses;
+	std::set<uint32_t> m_set_used_unsec_grp_addresses;
 	std::map<uint32_t, uint32_t> m_map_u32_ipv4addr_to_node_id;
 };
 
@@ -840,8 +846,8 @@ public:	//self-defined const
 public:	//self-defined non-const
 	void SetGsam (Ptr<GsamL4Protocol> gsam);
 	void SetDownTarget (IpL4ProtocolMulticast::DownTargetCallback cb);
-	IpSec::PROCESS_CHOICE ProcessIncomingPacket (Ptr<Packet> incoming_and_retval_packet);
-	IpSec::PROCESS_CHOICE ProcessOutgoingPacket (	Ptr<Packet> packet,
+	IpSec::PROCESS_CHOICE ProcessIncomingPacket (	Ptr<Packet> incoming_and_retval_packet);
+	std::pair<IpSec::PROCESS_CHOICE, uint8_t> ProcessOutgoingPacket (	Ptr<Packet> packet,
 													Ipv4Address source,
 													Ipv4Address destination,
 													uint8_t protocol,

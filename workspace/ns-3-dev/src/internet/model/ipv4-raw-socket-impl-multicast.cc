@@ -450,7 +450,7 @@ Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> inte
 			Ptr<IGMPv3SocketState> socketstate = socketstate_manager->CreateSocketState(multicast_address, filter_mode, src_list);
 
 			//Ipv4InterfaceMulticast::IPMCL_STATUS if_mcl_status;
-			interface->IPMulticastListen(socketstate);
+			interface->IPMulticastListen(socketstate, is_secure_group);
 		}
 		else
 		{
@@ -507,7 +507,7 @@ Ipv4RawSocketImplMulticast::IPMulticastListen (	Ptr<Ipv4InterfaceMulticast> inte
 				//a new entry is created
 				Ptr<IGMPv3SocketState> socketstate = socketstate_manager->CreateSocketState(multicast_address, filter_mode, src_list);
 
-				interface->IPMulticastListen(socketstate);
+				interface->IPMulticastListen(socketstate, is_secure_group);
 				return; //Ipv4RawSocketImplMulticast::ADDED;
 			}
 		}
