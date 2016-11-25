@@ -2550,7 +2550,14 @@ GsaPushSession::IsAllReplied (void) const
 			std::size_t size_nq_sessions_replied = this->m_set_ptr_nq_sessions_acked_notified.size();
 			if (0 == size_nq_sessions_replied)
 			{
-				NS_ASSERT (false);
+				if (0 == GsamConfig::GetSingleton()->GetNumberOfNqs())
+				{
+					//ok
+				}
+				else
+				{
+					NS_ASSERT (false);
+				}
 			}
 		}
 

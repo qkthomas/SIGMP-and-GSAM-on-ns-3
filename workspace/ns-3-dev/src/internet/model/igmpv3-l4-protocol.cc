@@ -537,13 +537,19 @@ Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr
 	if (route != 0)
 	{
 		NS_LOG_LOGIC ("Route exists");
-		//Ipv4Address source = route->GetSource ();
 		this->SendMessage (packet, ipv4header, route);
 	}
 	else
 	{
-		NS_LOG_WARN ("drop igmp report");
-		NS_ASSERT (false);
+		NS_LOG_WARN ("no route for igmp report");
+		NS_ASSERT_MSG (oif, "Try to send on link-local multicast address, and no interface index is given!");
+
+		Ptr<Ipv4Route> new_route = Create<Ipv4Route> ();
+		new_route->SetDestination (ipv4header.GetDestination());
+		new_route->SetGateway (Ipv4Address::GetZero ());
+		new_route->SetOutputDevice (oif);
+		new_route->SetSource (ipv4header.GetSource());
+		this->SendMessage (packet, ipv4header, route);
 	}
 }
 
@@ -571,8 +577,15 @@ Igmpv3L4Protocol::SendSecureReport (Ptr<Ipv4InterfaceMulticast> incomingInterfac
 	}
 	else
 	{
-		NS_LOG_WARN ("drop igmp report");
-		NS_ASSERT (false);
+		NS_LOG_WARN ("no route for igmp report");
+		NS_ASSERT_MSG (oif, "Try to send on link-local multicast address, and no interface index is given!");
+
+		Ptr<Ipv4Route> new_route = Create<Ipv4Route> ();
+		new_route->SetDestination (ipv4header.GetDestination());
+		new_route->SetGateway (Ipv4Address::GetZero ());
+		new_route->SetOutputDevice (oif);
+		new_route->SetSource (ipv4header.GetSource());
+		this->SendMessage (packet, ipv4header, route);
 	}
 }
 
@@ -726,7 +739,7 @@ Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Header ipv4header, Ptr<Ip
 
 	if (0 == route) {
 		//for general query
-		NS_LOG_LOGIC ("Route exists");
+		NS_LOG_LOGIC ("Route not exists");
 
 		//ttl == 1, igmp packet
 		SocketIpTtlTag ttltag;
@@ -1020,23 +1033,31 @@ Igmpv3L4Protocol::DoSendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulti
 {
 	Ptr<Ipv4Multicast> ipv4 = m_node->GetObject<Ipv4Multicast> ();
 	NS_ASSERT (ipv4 != 0 && ipv4->GetRoutingProtocol () != 0);
-	Ipv4Header header;
-	header.SetProtocol (PROT_NUMBER);
-	header.SetSource(incomingInterface->GetAddress(0).GetLocal());
-	header.SetDestination(group_address);
+	Ipv4Header ipv4header;
+	ipv4header.SetProtocol (PROT_NUMBER);
+	ipv4header.SetSource(incomingInterface->GetAddress(0).GetLocal());
+	ipv4header.SetDestination(group_address);
 	Socket::SocketErrno errno_;
 	Ptr<Ipv4Route> route;
 	Ptr<NetDevice> oif = incomingInterface->GetDevice();
-	route = ipv4->GetRoutingProtocol ()->RouteOutput (packet, header, oif, errno_);
+	route = ipv4->GetRoutingProtocol ()->RouteOutput (packet, ipv4header, oif, errno_);
 	if (route != 0)
 	{
 		NS_LOG_LOGIC ("Route exists");
 		//Ipv4Address source = route->GetSource ();
-		SendMessage (packet, header, route);
+		SendMessage (packet, ipv4header, route);
 	}
 	else
 	{
-		NS_LOG_WARN ("drop igmp query");
+		NS_LOG_WARN ("no route for igmp query");
+		NS_ASSERT_MSG (oif, "Try to send on link-local multicast address, and no interface index is given!");
+
+		Ptr<Ipv4Route> new_route = Create<Ipv4Route> ();
+		new_route->SetDestination (ipv4header.GetDestination());
+		new_route->SetGateway (Ipv4Address::GetZero ());
+		new_route->SetOutputDevice (oif);
+		new_route->SetSource (ipv4header.GetSource());
+		this->SendMessage (packet, ipv4header, route);
 	}
 }
 
