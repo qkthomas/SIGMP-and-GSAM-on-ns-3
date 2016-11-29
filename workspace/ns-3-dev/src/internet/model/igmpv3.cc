@@ -2440,7 +2440,7 @@ IGMPv3InterfaceStateManager::ReportStateChanges (void)
 void
 IGMPv3InterfaceStateManager::ReportStateChanges (Ipv4Address secure_group_address)
 {
-	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes" << Simulator::Now().GetSeconds() << "seconds" << std::endl;
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes, secure group address: " << secure_group_address << ", " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
 	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
@@ -2464,7 +2464,7 @@ IGMPv3InterfaceStateManager::ReportStateChanges (Ipv4Address secure_group_addres
 void
 IGMPv3InterfaceStateManager::DoReportStateChanges (void)
 {
-	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " report state changes " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " do report state changes " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
 	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
@@ -2483,7 +2483,7 @@ IGMPv3InterfaceStateManager::DoReportStateChanges (void)
 void
 IGMPv3InterfaceStateManager::DoSecureReportStateChanges (Ipv4Address group_address)
 {
-	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " secure report state changes " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
+	std::cout << "Node: " << this->m_interface->GetDevice()->GetNode()->GetId() << " Interface: " << this << " do secure report state changes, group address: " << group_address << ", " << Simulator::Now().GetSeconds() << "seconds" << std::endl;
 
 	Ptr<Ipv4Multicast> ipv4 = this->m_interface->GetDevice()->GetNode()->GetObject<Ipv4Multicast> ();
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
@@ -2723,6 +2723,15 @@ IGMPv3InterfaceStateManager::HandleGeneralQuery (Time resp_time)
 void
 IGMPv3InterfaceStateManager::HandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address)
 {
+	if (true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(group_address))
+	{
+		std::cout << "If State Manager: " << this << " handling a secure group query" << std::endl;
+	}
+	else
+	{
+		std::cout << "If State Manager: " << this << " handling a non-secure group query" << std::endl;
+	}
+
 	for (std::list<Ptr<IGMPv3InterfaceState> >::iterator ifstate_it = this->m_lst_interfacestates.begin();
 			ifstate_it != this->m_lst_interfacestates.end();
 			ifstate_it++)
@@ -2856,6 +2865,15 @@ IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &
 			 state_it++)
 		{
 			Ptr<IGMPv3MaintenanceState> maintenance_state = (*state_it);
+
+			if (true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(record.GetMulticastAddress()))
+			{
+				std::cout << "If State Manager: " << this << " handling a secure group record" << std::endl;
+			}
+			else
+			{
+				std::cout << "If State Manager: " << this << " handling a non-secure group record" << std::endl;
+			}
 
 			if (record.GetMulticastAddress() == maintenance_state->GetMulticastAddress())
 			{

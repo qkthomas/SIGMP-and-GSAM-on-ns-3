@@ -6196,6 +6196,7 @@ void
 GsamFilter::DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache)
 {
 	NS_LOG_FUNCTION (this);
+	std::cout << "Node: " << this->m_ptr_gsam->GetNode()->GetId() << " DoGsam, Group Address: " << group_address << std::endl;
 	Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
 	Ptr<GsamL4Protocol> gsam = this->GetGsam();
 	Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
