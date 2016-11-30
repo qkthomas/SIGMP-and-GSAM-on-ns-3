@@ -213,7 +213,18 @@ Igmpv3Application::GenerateHostJoinEvent (void)
 
 	std::list<Ipv4Address> src_list;
 
-	Ipv4Address group_address = GsamConfig::GetSingleton()->GetAnUnusedSecGrpAddress();
+	Ipv4Address group_address("0.0.0.0");
+
+	if (false == GsamConfig::GetSingleton()->IsFalseByPercentage(GsamConfig::GetSingleton()->GetJoinSecureGroupProbability()))
+	{
+		group_address = GsamConfig::GetSingleton()->GetAnUnusedSecGrpAddress();
+	}
+	else
+	{
+		group_address = GsamConfig::GetSingleton()->GetAnUnusedUnsecGrpAddress();
+	}
+
+	GsamConfig::GetSingleton()->LogJoinStart(this->m_node->GetId(), group_address);
 
 	rawsocket->IPMulticastListen(ipv4l3->GetInterface(ipv4l3->GetInterfaceForDevice(device)),
 								 group_address,

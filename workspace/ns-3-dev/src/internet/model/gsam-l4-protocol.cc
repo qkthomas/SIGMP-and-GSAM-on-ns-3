@@ -598,7 +598,10 @@ GsamL4Protocol::Send_GSA_RE_PUSH (Ptr<GsaPushSession> gsa_push_session)
 	}
 	if (0 != gsa_push_session->GetGmSession())
 	{
-		igmp->SendSecureGroupSpecificQuery(gsa_push_session->GetGmSession()->GetGroupAddress());
+		Ipv4Address peer_address = gsa_push_session->GetGmSession()->GetPeerAddress();
+		Ipv4Address group_address = gsa_push_session->GetGmSession()->GetGroupAddress();
+		GsamConfig::GetSingleton()->LogJoinFinish(GsamConfig::GetSingleton()->GetNodeIdByAddress(peer_address), group_address);
+		igmp->SendSecureGroupSpecificQuery(group_address);
 	}
 }
 
@@ -3065,7 +3068,10 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 			{
 				NS_ASSERT (false);
 			}
-			igmp->SendSecureGroupSpecificQuery(gsa_push_session->GetGmSession()->GetGroupAddress());
+			Ipv4Address peer_address = session->GetPeerAddress();
+			Ipv4Address group_address = session->GetGroupAddress();
+			GsamConfig::GetSingleton()->LogJoinFinish(GsamConfig::GetSingleton()->GetNodeIdByAddress(peer_address), group_address);
+			igmp->SendSecureGroupSpecificQuery(group_address);
 		}
 	}
 	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
@@ -3326,7 +3332,10 @@ GsamL4Protocol::HandleGsaAckFromNQ (Ptr<Packet> packet, Ptr<GsamSession> session
 			{
 				NS_ASSERT (false);
 			}
-			igmp->SendSecureGroupSpecificQuery(gsa_push_session->GetGmSession()->GetGroupAddress());
+			Ipv4Address peer_address = gsa_push_session->GetGmSession()->GetPeerAddress();
+			Ipv4Address group_address = gsa_push_session->GetGmSession()->GetGroupAddress();
+			GsamConfig::GetSingleton()->LogJoinFinish(GsamConfig::GetSingleton()->GetNodeIdByAddress(peer_address), group_address);
+			igmp->SendSecureGroupSpecificQuery(group_address);
 		}
 	}
 	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)

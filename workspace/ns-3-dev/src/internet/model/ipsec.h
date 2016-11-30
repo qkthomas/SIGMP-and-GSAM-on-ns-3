@@ -90,6 +90,8 @@ public:	//
 	Ipv4Address GetAnUnusedSecGrpAddress (void);
 	Ipv4Address GetAnUnusedUnsecGrpAddress (void);
 	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs = 2);
+	void LogJoinStart (uint32_t node_id, Ipv4Address group_address);
+	void LogJoinFinish (uint32_t node_id, Ipv4Address group_address);
 public:	//const
 	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;
@@ -120,11 +122,13 @@ public:	//const
 	uint16_t GetJoinSecureGroupProbability (void) const;
 	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredQuery (void) const;
 	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredReport (void) const;
+	uint32_t GetNodeIdByAddress (Ipv4Address node_interface_address) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
 	static Ptr<GsamConfig> m_ptr_config_instance;
 	const static std::string m_path_config;
+	const static std::string m_path_result;
 private:
 	std::map<std::string, std::string> m_map_settings;
 	Ipv4Address m_q_unicast_address;
@@ -684,6 +688,7 @@ public:	//const
 	Ptr<GsamInfo> GetInfo (void) const;
 	void GetInboundSpis (std::list<Ptr<Spi> >& retval) const;
 	Ptr<IpSecPolicyEntry> GetExactMatchedPolicy (const IkeTrafficSelector& ts_src, const IkeTrafficSelector& ts_dest) const;
+	Ptr<IpSecPolicyEntry> GetExactMatchedPolicy (Ipv4Address group_address) const;
 	Ptr<IpSecPolicyEntry> GetFallInRangeMatchedPolicy (	Ipv4Address source,
 														Ipv4Address destination,
 														uint8_t protocol,
@@ -852,7 +857,7 @@ public:	//self-defined non-const
 													Ipv4Address destination,
 													uint8_t protocol,
 													Ptr<Ipv4Route> route);
-	void DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache);
+	void DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache = 0);
 	void GsamCallBack (Ptr<GsamSession> session);
 private:
 	Ptr<GsamL4Protocol> m_ptr_gsam;

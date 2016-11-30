@@ -37,6 +37,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/csma-module.h"
 #include "ns3/event-id.h"
+#include "ns3/gsam-l4-protocol.h"
 
 namespace ns3 {
 
@@ -2446,9 +2447,19 @@ IGMPv3InterfaceStateManager::ReportStateChanges (Ipv4Address secure_group_addres
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
 	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
 
+	//check gsam
+	Ptr<GsamL4Protocol> gsam = igmp->GetGsam();
+	Ptr<IpSecPolicyDatabase> spd = gsam->GetIpSecDatabase()->GetPolicyDatabase();
+	Ptr<IpSecPolicyEntry> policy = spd->GetExactMatchedPolicy(secure_group_address);
+
+	if (0 == policy)
+	{
+		gsam->GetGsamFilter()->DoGsam(secure_group_address);
+	}
+
 	if (true == this->m_event_robustness_retransmission.IsRunning())
 	{
-		//the previous scheduled robustness report sending event should cancled before that this method is invoked
+		//the previous scheduled robustness report sending event should be cancelled before that this method is invoked
 		this->CancelReportStateChanges();
 		igmp->SendStateChangesReport(this, secure_group_address);
 	}
@@ -2883,6 +2894,9 @@ IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &
 		if (state_it == this->m_lst_maintenance_states.end())
 		{
 			//no maintenance_state matched
+
+			GsamConfig::GetSingleton()->LogJoinFinish(0, record.GetMulticastAddress());
+
 			Ptr<IGMPv3MaintenanceState> maintenance_state = this->CreateMaintenanceState(record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
 			maintenance_state->HandleGrpRecord(record);
 		}

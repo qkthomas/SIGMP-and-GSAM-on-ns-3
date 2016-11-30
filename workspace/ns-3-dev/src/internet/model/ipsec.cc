@@ -274,6 +274,7 @@ NS_OBJECT_ENSURE_REGISTERED (GsamConfig);
 
 Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = 0;
 const std::string GsamConfig::m_path_config = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/Config.txt";
+const std::string GsamConfig::m_path_result = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/Result.txt";
 
 TypeId
 GsamConfig::GetTypeId (void)
@@ -411,7 +412,7 @@ GsamConfig::ReadAndParse (Ptr<GsamConfig> singleton)
 	}
 	else
 	{
-		std::cout << "Unable to open file";
+		std::cout << "Unable to open config file";
 	}
 }
 
@@ -1168,6 +1169,24 @@ GsamConfig::GetDestinationAddressForIgmpv3UnsecuredReport (void) const
 	return retval;
 }
 
+uint32_t
+GsamConfig::GetNodeIdByAddress (Ipv4Address node_interface_address) const
+{
+	NS_LOG_FUNCTION (this);
+	uint32_t retval = 0;
+	std::map<uint32_t, uint32_t>::const_iterator const_it = this->m_map_u32_ipv4addr_to_node_id.find(node_interface_address.Get());
+	if (const_it != this->m_map_u32_ipv4addr_to_node_id.end())
+	{
+		retval = const_it->second;
+	}
+	else
+	{
+		std::cout << "No node exists has address: " << node_interface_address << std::endl;
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
 void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {
@@ -1222,6 +1241,52 @@ GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces,
 	}
 }
 
+
+void
+GsamConfig::LogJoinStart (uint32_t node_id, Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		if (true == this->IsGroupAddressSecureGroup(group_address))
+		{
+			result_doc << "Node: " << node_id << " join sec group {start} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+		}
+		else
+		{
+			result_doc << "Node: " << node_id << " join group {start} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+		}
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file";
+	}
+}
+
+void
+GsamConfig::LogJoinFinish (uint32_t node_id, Ipv4Address group_address)
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		if (true == this->IsGroupAddressSecureGroup(group_address))
+		{
+			result_doc << "Node: " << node_id << " join sec group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+		}
+		else
+		{
+			result_doc << "Node: " << node_id << " join group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+		}
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file";
+	}
+}
 
 /********************************************************
  *        GsamInfo
@@ -5019,6 +5084,14 @@ IpSecPolicyDatabase::GetExactMatchedPolicy (const IkeTrafficSelector& ts_src, co
 }
 
 Ptr<IpSecPolicyEntry>
+IpSecPolicyDatabase::GetExactMatchedPolicy (Ipv4Address group_address) const
+{
+	NS_LOG_FUNCTION (this);
+	std::pair<IkeTrafficSelector, IkeTrafficSelector> ts_pair = GsamUtility::GetTsPairFromGroupAddress(group_address);
+	return this->GetExactMatchedPolicy(ts_pair.first, ts_pair.second);
+}
+
+Ptr<IpSecPolicyEntry>
 IpSecPolicyDatabase::GetFallInRangeMatchedPolicy (	Ipv4Address source,
 													Ipv4Address destination,
 													uint8_t protocol,
@@ -6096,10 +6169,11 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 				Ipv4Address group_address = destination;
 				if (true == GsamConfig::GetSingleton()->IsGroupAddressSecureGroup(group_address))
 				{
-					//secure group
-					//do gsam
-					Ptr<GsamFilterCache> cache = Create<GsamFilterCache>(packet, source, destination, protocol, route);
-					this->DoGsam(group_address, cache);
+//					//secure group
+//					//do gsam
+//					Ptr<GsamFilterCache> cache = Create<GsamFilterCache>(packet, source, destination, protocol, route);
+//					this->DoGsam(group_address, cache);
+					//do gsam moved into IGMPv3InterfaceStateManager::ReportStateChanges()
 					retval.first = IpSec::DISCARD;
 				}
 				else
@@ -6200,7 +6274,10 @@ GsamFilter::DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache)
 	Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
 	Ptr<GsamL4Protocol> gsam = this->GetGsam();
 	Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
-	this->m_map_sessions_to_packets.insert(std::pair<Ptr<GsamSession>, Ptr<GsamFilterCache> >(session, cache));
+	if (0 != cache)
+	{
+		this->m_map_sessions_to_packets.insert(std::pair<Ptr<GsamSession>, Ptr<GsamFilterCache> >(session, cache));
+	}
 	gsam->Send_IKE_SA_INIT(session);
 }
 
