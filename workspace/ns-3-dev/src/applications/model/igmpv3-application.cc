@@ -11,6 +11,7 @@
 #include "ns3/nstime.h"
 #include "ns3/ipv4-l3-protocol-multicast.h"
 #include "ns3/ipsec.h"
+#include "gsam-application.h"
 
 namespace ns3 {
 
@@ -31,6 +32,7 @@ Igmpv3Application::GetTypeId(void)
 Igmpv3Application::Igmpv3Application() {
 	// TODO Auto-generated constructor stub
 	this->m_default_query_interval = Seconds(60.0);
+	this->m_flag_nq_joined = false;
 }
 
 Igmpv3Application::~Igmpv3Application() {
@@ -47,8 +49,27 @@ Igmpv3Application::DoDispose(void)
 void
 Igmpv3Application::StartApplication(void)
 {
+	Time dt = Seconds(0.0);
 
-	Time dt = Seconds(this->GetRandomNumber(0, 3));
+	Ptr<Igmpv3L4Protocol> igmp = this->GetIgmp();
+
+	if (igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+	{
+
+	}
+	else if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
+	{
+		dt = GsamConfig::GetSingleton()->GetNqJoinTimeInSeconds();
+	}
+	else if (igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
+	{
+		dt = GsamConfig::GetSingleton()->GetGmJoinTimeInSeconds();
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
 
 	this->m_currentEvent = Simulator::Schedule (dt, &Igmpv3Application::GenerateNextEvent, this);
 
@@ -163,7 +184,16 @@ Igmpv3Application::GenerateNextEvent (void)
 	}
 	else if (Igmpv3L4Protocol::NONQUERIER == igmp->GetRole())
 	{
+		if (false == this->m_flag_nq_joined)
+		{
+			Ptr<GsamL4Protocol> gsam = GsamL4Protocol::GetGsam(this->m_node);
+			Ipv4Address group_address = GsamConfig::GetSingleton()->GetIgmpv3DestGrpReportAddress();
+			Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
+			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
+			gsam->Send_IKE_SA_INIT(session);
 
+			this->m_flag_nq_joined = true;
+		}
 	}
 	else
 	{

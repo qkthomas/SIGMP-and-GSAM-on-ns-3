@@ -2889,13 +2889,18 @@ IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &
 			if (record.GetMulticastAddress() == maintenance_state->GetMulticastAddress())
 			{
 				maintenance_state->HandleGrpRecord(record);
+				break;
 			}
 		}
 		if (state_it == this->m_lst_maintenance_states.end())
 		{
 			//no maintenance_state matched
 
-			GsamConfig::GetSingleton()->LogJoinFinish(0, record.GetMulticastAddress());
+			Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_interface->GetDevice()->GetNode());
+			if (igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
+			{
+				GsamConfig::GetSingleton()->LogJoinFinish(0, record.GetMulticastAddress());
+			}
 
 			Ptr<IGMPv3MaintenanceState> maintenance_state = this->CreateMaintenanceState(record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());
 			maintenance_state->HandleGrpRecord(record);

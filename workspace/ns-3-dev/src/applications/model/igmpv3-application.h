@@ -51,6 +51,8 @@ private:
 	Time m_default_query_interval;		//cisco default 60 sec
 
 	std::list<Ptr<Ipv4RawSocketImplMulticast> > m_lst_sockets;
+
+	bool m_flag_nq_joined;
 };
 
 } /* namespace ns3 */
