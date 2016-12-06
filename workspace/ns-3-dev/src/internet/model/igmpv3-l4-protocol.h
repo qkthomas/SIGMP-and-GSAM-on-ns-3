@@ -250,7 +250,7 @@ public:
 	void NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void HandleV1MemReport (void);
 	void HandleV2MemReport (void);
-	void HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMulticast> incomingInterface);
+	void HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMulticast> incomingInterface, Ipv4Address src);
 //	*obsolete*, moved to interface
 //	void HandleGeneralQuery (Ptr<Ipv4InterfaceMulticast> incomingInterface, Time resp_time);
 	void HandleGroupSpecificQuery (void);

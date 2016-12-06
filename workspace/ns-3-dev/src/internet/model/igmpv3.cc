@@ -2863,7 +2863,7 @@ IGMPv3InterfaceStateManager::DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv
 }
 
 void
-IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &records)
+IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &records, Ipv4Address src)
 {
 	for (std::list<Igmpv3GrpRecord>::const_iterator record_it = records.begin();
 		 record_it != records.end();
@@ -2899,7 +2899,7 @@ IGMPv3InterfaceStateManager::HandleV3Records (const std::list<Igmpv3GrpRecord> &
 			Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_interface->GetDevice()->GetNode());
 			if (igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
 			{
-				GsamConfig::GetSingleton()->LogJoinFinish(0, record.GetMulticastAddress());
+				GsamConfig::GetSingleton()->LogJoinFinish(GsamConfig::GetSingleton()->GetNodeIdByAddress(src), record.GetMulticastAddress());
 			}
 
 			Ptr<IGMPv3MaintenanceState> maintenance_state = this->CreateMaintenanceState(record.GetMulticastAddress(), GsamConfig::GetSingleton()->GetDefaultGroupTimerDelayInSeconds());

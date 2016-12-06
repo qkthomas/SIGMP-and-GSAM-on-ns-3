@@ -92,6 +92,8 @@ public:	//
 	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs = 2);
 	void LogJoinStart (uint32_t node_id, Ipv4Address group_address);
 	void LogJoinFinish (uint32_t node_id, Ipv4Address group_address);
+	void LogIgmpMsgSent (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address dest);
+	void LogIgmpMsgReceived (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address src);
 public:	//const
 	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;

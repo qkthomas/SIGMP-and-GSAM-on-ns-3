@@ -267,7 +267,7 @@ Igmpv3L4Protocol::HandleV2MemReport (void)
 }
 
 void
-Igmpv3L4Protocol::HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMulticast> incomingInterface)
+Igmpv3L4Protocol::HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMulticast> incomingInterface, Ipv4Address src)
 {
 	NS_LOG_FUNCTION (this << packet << incomingInterface);
 
@@ -289,7 +289,7 @@ Igmpv3L4Protocol::HandleV3MemReport (Ptr<Packet> packet, Ptr<Ipv4InterfaceMultic
 
 	Ptr<IGMPv3InterfaceStateManager> ifstate_manager = this->GetManager()->GetIfStateManager(incomingInterface);
 
-	ifstate_manager->HandleV3Records(records);
+	ifstate_manager->HandleV3Records(records, src);
 }
 
 //void
@@ -746,6 +746,8 @@ Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Header ipv4header, Ptr<Ip
 		ttltag.SetTtl (1);
 		packet->AddPacketTag(ttltag);
 
+		GsamConfig::GetSingleton()->LogIgmpMsgSent(this->m_node->GetId(), packet, ipv4header.GetDestination());
+
 		m_downTarget (packet, ipv4header.GetSource(), ipv4header.GetDestination(), ipv4header.GetProtocol(), route);
 	}
 	else
@@ -758,6 +760,8 @@ Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Header ipv4header, Ptr<Ip
 		SocketIpTtlTag ttltag;
 		ttltag.SetTtl (1);
 		packet->AddPacketTag(ttltag);
+
+		GsamConfig::GetSingleton()->LogIgmpMsgSent(this->m_node->GetId(), packet, dest);
 
 		m_downTarget (packet, source, dest, PROT_NUMBER, route);
 	}
@@ -786,6 +790,8 @@ Igmpv3L4Protocol::Receive (Ptr<Packet> p,
 		Ptr<Ipv4InterfaceMulticast> incomingInterface)
 {
 	NS_LOG_FUNCTION (this << p << header << incomingInterface);
+
+	GsamConfig::GetSingleton()->LogIgmpMsgReceived(this->m_node->GetId(), p, header.GetSource());
 
 	Igmpv3Header igmp;
 	p->RemoveHeader (igmp);
@@ -819,7 +825,7 @@ Igmpv3L4Protocol::Receive (Ptr<Packet> p,
 	case Igmpv3Header::V3_MEMBERSHIP_REPORT:
 		std::cout << "Node: " << m_node->GetId() << " received a v3 report" << std::endl;
 		if (Igmpv3L4Protocol::QUERIER == this->m_role) {
-			this->HandleV3MemReport (p, incomingInterface);
+			this->HandleV3MemReport (p, incomingInterface, header.GetSource());
 		}
 		break;
 	default:

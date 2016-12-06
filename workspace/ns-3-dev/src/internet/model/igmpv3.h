@@ -388,7 +388,7 @@ public:	//self-defined
 	void DoHandleGroupSpecificQuery (Time resp_time, Ipv4Address group_address);
 	void HandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
 	void DoHandleGroupNSrcSpecificQuery (Time resp_time, Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
-	void HandleV3Records (const std::list<Igmpv3GrpRecord> &records);
+	void HandleV3Records (const std::list<Igmpv3GrpRecord> &records, Ipv4Address src);
 	void NonQHandleGroupSpecificQuery (Ipv4Address group_address);
 	void NonQHandleGroupNSrcSpecificQuery (Ipv4Address group_address, std::list<Ipv4Address> const &src_list);
 	void SendQuery (Ipv4Address group_address, bool s_flag);

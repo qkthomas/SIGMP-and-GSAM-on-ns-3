@@ -1288,6 +1288,50 @@ GsamConfig::LogJoinFinish (uint32_t node_id, Ipv4Address group_address)
 	}
 }
 
+void
+GsamConfig::LogIgmpMsgSent (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address dest)
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		result_doc << "Node " << node_id << " Send Igmp packet: " << "packet size = " << packet->GetSize() << " bytes," << " uid = " << packet->GetUid();
+		result_doc << ", destination address: " << dest;
+		result_doc << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file";
+	}
+}
+
+void
+GsamConfig::LogIgmpMsgReceived (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address src)
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		result_doc << "Node " << node_id << " Receive Igmp packet: " << "packet size = " << packet->GetSize() << " bytes," << " uid = " << packet->GetUid();
+		result_doc << ", source address: " << src;
+		if (src == Ipv4Address ("127.0.0.1"))
+		{
+			result_doc << ", Node: " << node_id;
+		}
+		else if (false == src.IsMulticast())
+		{
+			result_doc << ", Node: " << this->GetNodeIdByAddress(src);
+		}
+		result_doc << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file";
+	}
+}
+
 /********************************************************
  *        GsamInfo
  ********************************************************/
