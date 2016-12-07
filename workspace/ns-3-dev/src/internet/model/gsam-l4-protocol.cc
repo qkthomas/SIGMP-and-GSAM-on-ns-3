@@ -179,6 +179,8 @@ GsamL4Protocol::HandleRead (Ptr<Socket> socket)
 
 	packet = socket->RecvFrom (from);
 
+	GsamConfig::GetSingleton()->LogMsgReceived("gsam", this->m_node->GetId(), packet, InetSocketAddress::ConvertFrom (from).GetIpv4 ());
+
 	IkeHeader ikeheader;
 	packet->RemoveHeader(ikeheader);
 
@@ -1109,6 +1111,8 @@ GsamL4Protocol::DoSendMessage (Ptr<GsamSession> session, bool retransmit)
 	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, (session_retransmit && retransmit), packet);
 
 	m_socket->Connect (InetSocketAddress (Ipv4Address::ConvertFrom(session->GetPeerAddress()), GsamL4Protocol::PROT_NUMBER));
+
+	GsamConfig::GetSingleton()->LogMsgSent("gsam", this->m_node->GetId(), packet, session->GetPeerAddress());
 
 	m_socket->Send(packet);
 

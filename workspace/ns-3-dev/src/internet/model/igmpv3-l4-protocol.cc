@@ -549,7 +549,7 @@ Igmpv3L4Protocol::SendReport (Ptr<Ipv4InterfaceMulticast> incomingInterface, Ptr
 		new_route->SetGateway (Ipv4Address::GetZero ());
 		new_route->SetOutputDevice (oif);
 		new_route->SetSource (ipv4header.GetSource());
-		this->SendMessage (packet, ipv4header, route);
+		this->SendMessage (packet, ipv4header, new_route);
 	}
 }
 
@@ -585,7 +585,7 @@ Igmpv3L4Protocol::SendSecureReport (Ptr<Ipv4InterfaceMulticast> incomingInterfac
 		new_route->SetGateway (Ipv4Address::GetZero ());
 		new_route->SetOutputDevice (oif);
 		new_route->SetSource (ipv4header.GetSource());
-		this->SendMessage (packet, ipv4header, route);
+		this->SendMessage (packet, ipv4header, new_route);
 	}
 }
 
@@ -746,7 +746,7 @@ Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Header ipv4header, Ptr<Ip
 		ttltag.SetTtl (1);
 		packet->AddPacketTag(ttltag);
 
-		GsamConfig::GetSingleton()->LogIgmpMsgSent(this->m_node->GetId(), packet, ipv4header.GetDestination());
+		GsamConfig::GetSingleton()->LogMsgSent("igmp", this->m_node->GetId(), packet, ipv4header.GetDestination());
 
 		m_downTarget (packet, ipv4header.GetSource(), ipv4header.GetDestination(), ipv4header.GetProtocol(), route);
 	}
@@ -761,7 +761,7 @@ Igmpv3L4Protocol::SendMessage (Ptr<Packet> packet, Ipv4Header ipv4header, Ptr<Ip
 		ttltag.SetTtl (1);
 		packet->AddPacketTag(ttltag);
 
-		GsamConfig::GetSingleton()->LogIgmpMsgSent(this->m_node->GetId(), packet, dest);
+		GsamConfig::GetSingleton()->LogMsgSent("igmp", this->m_node->GetId(), packet, dest);
 
 		m_downTarget (packet, source, dest, PROT_NUMBER, route);
 	}
@@ -791,7 +791,7 @@ Igmpv3L4Protocol::Receive (Ptr<Packet> p,
 {
 	NS_LOG_FUNCTION (this << p << header << incomingInterface);
 
-	GsamConfig::GetSingleton()->LogIgmpMsgReceived(this->m_node->GetId(), p, header.GetSource());
+	GsamConfig::GetSingleton()->LogMsgReceived("igmp", this->m_node->GetId(), p, header.GetSource());
 
 	Igmpv3Header igmp;
 	p->RemoveHeader (igmp);
@@ -1063,7 +1063,7 @@ Igmpv3L4Protocol::DoSendQuery (Ipv4Address group_address, Ptr<Ipv4InterfaceMulti
 		new_route->SetGateway (Ipv4Address::GetZero ());
 		new_route->SetOutputDevice (oif);
 		new_route->SetSource (ipv4header.GetSource());
-		this->SendMessage (packet, ipv4header, route);
+		this->SendMessage (packet, ipv4header, new_route);
 	}
 }
 

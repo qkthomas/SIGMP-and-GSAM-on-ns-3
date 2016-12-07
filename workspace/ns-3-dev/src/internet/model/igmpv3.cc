@@ -2432,7 +2432,8 @@ IGMPv3InterfaceStateManager::ReportStateChanges (void)
 
 	if (true == this->HasPendingRecords())
 	{
-		Time delay = igmp->GetStateChangeReportRetransmissionInterval();
+		//send report immediately
+		Time delay = Seconds (0.0);
 
 		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoReportStateChanges, this);
 	}
@@ -2466,7 +2467,8 @@ IGMPv3InterfaceStateManager::ReportStateChanges (Ipv4Address secure_group_addres
 
 	if (true == this->HasPendingRecords())
 	{
-		Time delay = igmp->GetStateChangeReportRetransmissionInterval();
+		//send report immediately
+		Time delay = Seconds (0.0);
 
 		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoSecureReportStateChanges, this, secure_group_address);
 	}

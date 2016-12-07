@@ -22,6 +22,8 @@ main (int argc, char *argv[])
 
 	cmd.Parse (argc, argv);
 
+	GsamConfig::GetSingleton()->ClearResultFile();
+
 	int simulation_seconds = 1000;
 
 	//std::cout << "Input simulation time (Seconds): ";

@@ -92,8 +92,10 @@ public:	//
 	void SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs = 2);
 	void LogJoinStart (uint32_t node_id, Ipv4Address group_address);
 	void LogJoinFinish (uint32_t node_id, Ipv4Address group_address);
-	void LogIgmpMsgSent (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address dest);
-	void LogIgmpMsgReceived (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address src);
+	void LogMsgSent (const std::string& prefix, uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address dest);
+	void LogMsgReceived (const std::string& prefix, uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address src);
+	void LogMsgIntoResultFile (uint32_t node_id, const std::string& msg);
+	void LogProcessingPacket (uint32_t node_id, bool is_incoming, bool policy_found, IpSec::PROCESS_CHOICE process_choice, const Ptr<const Packet> packet);
 public:	//const
 	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;
@@ -125,6 +127,7 @@ public:	//const
 	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredQuery (void) const;
 	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredReport (void) const;
 	uint32_t GetNodeIdByAddress (Ipv4Address node_interface_address) const;
+	void ClearResultFile (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member

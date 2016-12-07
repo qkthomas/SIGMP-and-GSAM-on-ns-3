@@ -17,6 +17,6 @@ max-resp-code:100
 qqic:125
 qrv:2
 default-s-flag:false
-join-secure-group-probability:50
+join-secure-group-probability:100
 destination-for-igmpv3-unsecure-query:224.0.0.1
 destination-for-igmpv3-unsecure-report:224.0.0.22

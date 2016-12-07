@@ -1188,6 +1188,22 @@ GsamConfig::GetNodeIdByAddress (Ipv4Address node_interface_address) const
 }
 
 void
+GsamConfig::ClearResultFile (void) const
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::out | std::ios::trunc);
+	if (result_doc.is_open())
+	{
+		std::cout << "Clearing result file" << std::endl;
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file" << std::endl;
+	}
+}
+
+void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {
 	NS_LOG_FUNCTION (this);
@@ -1261,7 +1277,7 @@ GsamConfig::LogJoinStart (uint32_t node_id, Ipv4Address group_address)
 	}
 	else
 	{
-		std::cout << "Unable to open result file";
+		std::cout << "Unable to open result file" << std::endl;
 	}
 }
 
@@ -1284,36 +1300,36 @@ GsamConfig::LogJoinFinish (uint32_t node_id, Ipv4Address group_address)
 	}
 	else
 	{
-		std::cout << "Unable to open result file";
+		std::cout << "Unable to open result file" << std::endl;
 	}
 }
 
 void
-GsamConfig::LogIgmpMsgSent (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address dest)
+GsamConfig::LogMsgSent (const std::string& prefix, uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address dest)
 {
 	NS_LOG_FUNCTION (this);
 	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
 	if (result_doc.is_open())
 	{
-		result_doc << "Node " << node_id << " Send Igmp packet: " << "packet size = " << packet->GetSize() << " bytes," << " uid = " << packet->GetUid();
+		result_doc << "Node " << node_id << " Send " << prefix << " packet: " << "packet size = " << packet->GetSize() << " bytes," << " uid = " << packet->GetUid();
 		result_doc << ", destination address: " << dest;
 		result_doc << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
 		result_doc.close();
 	}
 	else
 	{
-		std::cout << "Unable to open result file";
+		std::cout << "Unable to open result file" << std::endl;
 	}
 }
 
 void
-GsamConfig::LogIgmpMsgReceived (uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address src)
+GsamConfig::LogMsgReceived (const std::string& prefix, uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address src)
 {
 	NS_LOG_FUNCTION (this);
 	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
 	if (result_doc.is_open())
 	{
-		result_doc << "Node " << node_id << " Receive Igmp packet: " << "packet size = " << packet->GetSize() << " bytes," << " uid = " << packet->GetUid();
+		result_doc << "Node " << node_id << " Receive " << prefix << " packet: " << "packet size = " << packet->GetSize() << " bytes," << " uid = " << packet->GetUid();
 		result_doc << ", source address: " << src;
 		if (src == Ipv4Address ("127.0.0.1"))
 		{
@@ -1328,7 +1344,72 @@ GsamConfig::LogIgmpMsgReceived (uint32_t node_id, const Ptr<const Packet> packet
 	}
 	else
 	{
-		std::cout << "Unable to open result file";
+		std::cout << "Unable to open result file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogMsgIntoResultFile (uint32_t node_id, const std::string& msg)
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		result_doc << "Node: " << node_id << " " << msg << std::endl;
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogProcessingPacket (uint32_t node_id, bool is_incoming, bool policy_found, IpSec::PROCESS_CHOICE process_choice, const Ptr<const Packet> packet)
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		if (true == is_incoming)
+		{
+			result_doc << "Node: " << node_id << " Processing incoming packet, ";
+		}
+		else
+		{
+			result_doc << "Node: " << node_id << " Processing outgoing packet, ";
+		}
+		result_doc << " uid = " << packet->GetUid();
+		if (true == policy_found)
+		{
+			result_doc << " Policy found, ";
+		}
+		else
+		{
+			result_doc << " No policy found, ";
+		}
+		if (IpSec::BYPASS == process_choice)
+		{
+			result_doc << " BYPASS ";
+		}
+		else if (IpSec::PROTECT == process_choice)
+		{
+			result_doc << " PROTECT ";
+		}
+		else if (IpSec::DISCARD == process_choice)
+		{
+			result_doc << " DISCARD ";
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+		result_doc << "Time: " << Simulator::Now().GetSeconds() << " seconds" << std::endl;
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file" << std::endl;
 	}
 }
 
@@ -5802,6 +5883,7 @@ SimpleAuthenticationHeader::Serialize (Buffer::Iterator start) const
 
 	i.WriteU8(this->m_next_header);
 	i.WriteU8(this->m_payload_len);
+	i.WriteHtonU16(0);
 	i.WriteHtonU32(this->m_spi);
 	i.WriteHtonU32(this->m_seq_number);
 }
@@ -5818,6 +5900,14 @@ SimpleAuthenticationHeader::Deserialize (Buffer::Iterator start)
 
 	this->m_payload_len = i.ReadU8();
 	byte_read++;
+
+	uint16_t reserved = i.ReadNtohU16();
+
+	if (0 != reserved)
+	{
+		NS_ASSERT (false);
+	}
+	byte_read += 2;
 
 	this->m_spi = i.ReadNtohU32();
 	byte_read += 4;
@@ -6132,6 +6222,7 @@ GsamFilter::ProcessIncomingPacket (	Ptr<Packet> incoming_and_retval_packet)
 			//no policy found
 			//discard because it's incoming packet
 			retval = this->m_default_process_choice;
+			GsamConfig::GetSingleton()->LogProcessingPacket(this->GetGsam()->GetNode()->GetId(), true, false, retval, incoming_and_retval_packet);
 		}
 		else
 		{
@@ -6183,6 +6274,7 @@ GsamFilter::ProcessIncomingPacket (	Ptr<Packet> incoming_and_retval_packet)
 				NS_ASSERT (false);
 			}
 		}
+		GsamConfig::GetSingleton()->LogProcessingPacket(this->GetGsam()->GetNode()->GetId(), true, true, retval, incoming_and_retval_packet);
 	}
 	incoming_and_retval_packet->AddHeader(ipv4header);
 	return retval;
@@ -6230,6 +6322,7 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 			{
 				retval.first = this->m_default_process_choice;
 			}
+			GsamConfig::GetSingleton()->LogProcessingPacket(this->GetGsam()->GetNode()->GetId(), false, false, retval.first, packet);
 		}
 		else
 		{
@@ -6300,6 +6393,8 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 			{
 				NS_ASSERT (false);
 			}
+
+			GsamConfig::GetSingleton()->LogProcessingPacket(this->GetGsam()->GetNode()->GetId(), false, true, retval.first, packet);
 		}
 	}
 	else
