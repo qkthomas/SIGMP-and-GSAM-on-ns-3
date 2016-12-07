@@ -21,6 +21,7 @@
 #include <string>
 #include <map>
 #include "ns3/ip-l4-protocol-multicast.h"
+#include <utility>
 
 namespace ns3 {
 
@@ -140,6 +141,7 @@ private:
 	std::set<uint32_t> m_set_used_sec_grp_addresses;
 	std::set<uint32_t> m_set_used_unsec_grp_addresses;
 	std::map<uint32_t, uint32_t> m_map_u32_ipv4addr_to_node_id;
+	std::map<std::pair<uint32_t, uint32_t>, Time> m_map_node_id_group_address_to_delay;
 };
 
 class GsamInfo : public Object {

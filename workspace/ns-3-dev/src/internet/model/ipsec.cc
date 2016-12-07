@@ -301,6 +301,7 @@ GsamConfig::~GsamConfig()
 	this->m_map_settings.clear();
 	this->m_map_u32_ipv4addr_to_node_id.clear();
 	this->m_set_used_unsec_grp_addresses.clear();
+	this->m_map_node_id_group_address_to_delay.clear();
 }
 
 TypeId
@@ -1273,6 +1274,7 @@ GsamConfig::LogJoinStart (uint32_t node_id, Ipv4Address group_address)
 		{
 			result_doc << "Node: " << node_id << " join group {start} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
 		}
+		this->m_map_node_id_group_address_to_delay.insert(std::pair<std::pair<uint32_t, uint32_t>, Time>(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()), Simulator::Now()));
 		result_doc.close();
 	}
 	else
@@ -1288,14 +1290,25 @@ GsamConfig::LogJoinFinish (uint32_t node_id, Ipv4Address group_address)
 	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
 	if (result_doc.is_open())
 	{
-		if (true == this->IsGroupAddressSecureGroup(group_address))
+		Time join_delay = Seconds (0.0);
+		std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_delay.find(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()));
+		if (this->m_map_node_id_group_address_to_delay.end() == const_it)
 		{
-			result_doc << "Node: " << node_id << " join sec group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+			NS_ASSERT (false);
 		}
 		else
 		{
-			result_doc << "Node: " << node_id << " join group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
+			join_delay = Simulator::Now() - const_it->second;
 		}
+		if (true == this->IsGroupAddressSecureGroup(group_address))
+		{
+			result_doc << "Node: " << node_id << " join sec group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds.";
+		}
+		else
+		{
+			result_doc << "Node: " << node_id << " join group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds.";
+		}
+		result_doc << " join delay: " << join_delay.GetSeconds() << " seconds." << std::endl;
 		result_doc.close();
 	}
 	else
