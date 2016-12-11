@@ -1,5 +1,5 @@
-number-of-node:2
-number-of-nq:0
+number-of-node:5
+number-of-nq:1
 fake-rejection-probability:50
 nq-join-time:2
 gm-join-time:10
@@ -17,6 +17,6 @@ max-resp-code:100
 qqic:125
 qrv:2
 default-s-flag:false
-join-secure-group-probability:100
+join-secure-group-probability:50
 destination-for-igmpv3-unsecure-query:224.0.0.1
 destination-for-igmpv3-unsecure-report:224.0.0.22

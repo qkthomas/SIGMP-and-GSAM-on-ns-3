@@ -352,6 +352,67 @@ private:	//fields
 	std::list<Ptr<IkeGroupNotifySubstructure> > m_lst_nq_rejected_spis_subs;
 };
 
+class GsamInitSession : public Object {
+	enum PHASE_ONE_ROLE {
+		P1_UNINITIALIZED = 0,
+		INITIATOR = 1,
+		RESPONDER = 2,
+	};
+public:	//Object override
+	static TypeId GetTypeId (void);
+	GsamInitSession ();
+	virtual ~GsamInitSession();
+	virtual TypeId GetInstanceTypeId (void) const;
+protected:
+	/*
+	 * This function will notify other components connected to the node that a new stack member is now connected
+	 * This will be used to notify Layer 3 protocol of layer 4 protocol stack to connect them together.
+	 */
+	virtual void NotifyNewAggregate ();
+
+private:
+	virtual void DoDispose (void);
+
+public:
+	void SetPhaseOneRole (GsamSession::PHASE_ONE_ROLE role);
+	//init sa
+	void SetInitSaInitiatorSpi (uint64_t spi);
+	void SetInitSaResponderSpi (uint64_t spi);
+	void SetDatabase (Ptr<IpSecDatabase> database);
+	void EtablishGsamInitSa (void);
+	Timer& GetRetransmitTimer (void);
+	void SceduleTimeout (Time delay);
+	void SetPeerAddress (Ipv4Address peer_address);
+	void SetCachePacket (Ptr<Packet> packet);
+	void SetNumberRetransmission (uint16_t number_retransmission);
+	void DecrementNumberRetransmission (void);
+public: //const
+	bool HaveInitSa (void) const;
+	Ptr<GsamInfo> GetInfo (void) const;
+	Ptr<IpSecDatabase> GetDatabase (void) const;
+	uint64_t GetInitSaResponderSpi (void) const;
+	uint64_t GetInitSaInitiatorSpi (void) const;
+	GsamSession::PHASE_ONE_ROLE GetPhaseOneRole (void) const;
+	uint32_t GetCurrentMessageId (void) const;
+	Ipv4Address GetPeerAddress (void) const;
+	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
+	bool IsHostQuerier (void) const;
+	bool IsHostGroupMember (void) const;
+	bool IsHostNonQuerier (void) const;
+	bool IsRetransmit (void) const;
+	uint16_t GetRemainingRetransmissionCount (void) const;
+private:
+	void TimeoutAction (void);
+private:
+	Ptr<IpSecDatabase> m_ptr_database;
+	Ipv4Address m_peer_address;
+	GsamSession::PHASE_ONE_ROLE m_p1_role;
+	Ptr<GsamSa> m_ptr_init_sa;
+	Timer m_timer_retransmit;
+	Timer m_timer_timeout;
+	Ptr<Packet> m_last_sent_packet;
+};
+
 class GsamSession : public Object {
 public:
 	enum PHASE_ONE_ROLE {
