@@ -56,10 +56,17 @@ public:	//added by Lin Chen
 	void HandleRead (Ptr<Socket> socket);
 public:	//exchanges, added by Lin Chen
 	//create session somewhere first
-	void Send_IKE_SA_INIT (Ptr<GsamSession> session);
-	void Send_IKE_SA_AUTH (Ptr<GsamSession> session);
+	void Send_IKE_SA_INIT (Ptr<GsamInitSession> init_session);
+	void Send_IKE_SA_AUTH (Ptr<GsamInitSession> init_session, Ptr<GsamSession> session);
 private:	//Sending, added by Lin Chen,
 	void SendPhaseOneMessage (Ptr<GsamSession> session,
+								IkeHeader::EXCHANGE_TYPE exchange_type,
+								bool is_responder,
+								IkePayloadHeader::PAYLOAD_TYPE first_payload_type,
+								uint32_t length_beside_ikeheader,
+								Ptr<Packet> packet,
+								bool retransmit);
+	void SendPhaseOneMessage (Ptr<GsamInitSession> session,
 								IkeHeader::EXCHANGE_TYPE exchange_type,
 								bool is_responder,
 								IkePayloadHeader::PAYLOAD_TYPE first_payload_type,
@@ -74,9 +81,10 @@ private:	//Sending, added by Lin Chen,
 						Ptr<Packet> packet,
 						bool retransmit);
 	void DoSendMessage (Ptr<GsamSession> session, bool retransmit);
+	void DoSendInitMessage (Ptr<GsamInitSession> session, bool retransmit);
 private:	//phase 1, initiator
 	void HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
-	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
+	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamInitSession> init_session);
 	void ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
 									const std::list<Ptr<IkeSaProposal> >& sar2_proposals,
 									const std::list<IkeTrafficSelector>& tsi_selectors,
@@ -84,14 +92,18 @@ private:	//phase 1, initiator
 private:	//phase 1, responder
 	void HandleIkeSaInit (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaInitInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
-	void RespondIkeSaInit (Ptr<GsamSession> session);
+	void RespondIkeSaInit (Ptr<GsamInitSession> session);
 	void HandleIkeSaAuth (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
-	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamSession> session);
-	void ProcessIkeSaAuthInvitation (	Ptr<GsamSession> session,
+	void HandleIkeSaAuthInvitation (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamInitSession> init_session);
+	/*
+	 * @return value: whether a new session is created
+	 */
+	bool ProcessIkeSaAuthInvitation (	Ptr<GsamInitSession> init_session,
 										Ipv4Address group_address,
 										const Ptr<IkeSaProposal> proposal,
 										const std::list<IkeTrafficSelector>& tsi_selectors,
-										const std::list<IkeTrafficSelector>& tsr_selectors);
+										const std::list<IkeTrafficSelector>& tsr_selectors,
+										Ptr<GsamSession>& found_or_created_session);
 	void RespondIkeSaAuth (	Ptr<GsamSession> session,
 							const Ptr<IkeSaProposal> chosen_proposal,
 							const std::list<IkeTrafficSelector>& narrowed_tssi,

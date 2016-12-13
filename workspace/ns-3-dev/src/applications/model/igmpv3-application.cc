@@ -189,8 +189,9 @@ Igmpv3Application::GenerateNextEvent (void)
 			Ptr<GsamL4Protocol> gsam = GsamL4Protocol::GetGsam(this->m_node);
 			Ipv4Address group_address = GsamConfig::GetSingleton()->GetIgmpv3DestGrpReportAddress();
 			Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
-			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(group_address, q_address);
-			gsam->Send_IKE_SA_INIT(session);
+			Ptr<GsamInitSession> init_session = gsam->GetIpSecDatabase()->CreateInitSession(q_address, group_address);
+			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(init_session, group_address);
+			gsam->Send_IKE_SA_INIT(init_session);
 
 			this->m_flag_nq_joined = true;
 		}
