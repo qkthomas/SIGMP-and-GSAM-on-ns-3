@@ -88,8 +88,8 @@ void
 Igmpv3Application::StopApplication (void)
 {
 	Simulator::Cancel(this->m_currentEvent);
-//	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
-//	igmp->GetManager()->StopEverything();
+	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+	igmp->GetManager()->StopEverything();
 }
 
 Ptr<Igmpv3L4Protocol>

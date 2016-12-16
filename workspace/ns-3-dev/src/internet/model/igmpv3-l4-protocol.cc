@@ -691,7 +691,7 @@ Igmpv3L4Protocol::SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifsta
 }
 
 void
-Igmpv3L4Protocol::SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager, Ipv4Address secure_group_address)
+Igmpv3L4Protocol::SendSecureStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager, Ipv4Address secure_group_address)
 {
 	Igmpv3Report report;
 	ifstate_manager->AddPendingRecordsToReport(report, secure_group_address);

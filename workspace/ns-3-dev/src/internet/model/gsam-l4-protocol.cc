@@ -31,6 +31,7 @@
 #include <ctime>
 #include "ns3/socket-factory.h"
 #include "ns3/udp-l4-protocol-multicast.h"
+#include "ns3/nstime.h"
 
 namespace ns3 {
 
@@ -222,7 +223,7 @@ GsamL4Protocol::Send_IKE_SA_INIT (Ptr<GsamInitSession> init_session)
 
 	//setting up Ni
 	IkePayload nonce_payload_init;
-	nonce_payload_init.SetSubstructure(IkeNonceSubstructure::GenerateNonceSubstructure());
+	nonce_payload_init.SetSubstructure(IkeNonceSubstructure::GenerateRandomNonceSubstructure());
 	//setting up KEi
 	IkePayload key_payload_init;
 	key_payload_init.SetSubstructure(IkeKeyExchangeSubStructure::GetDummySubstructure());
@@ -269,7 +270,7 @@ GsamL4Protocol::Send_IKE_SA_AUTH (Ptr<GsamInitSession> init_session, Ptr<GsamSes
 
 	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
 
-	if (0 != init_session->GetCurrentMessageId())
+	if (1 < init_session->GetCurrentMessageId())
 	{
 		NS_ASSERT (false);
 	}
@@ -1435,7 +1436,7 @@ GsamL4Protocol::RespondIkeSaInit (Ptr<GsamInitSession> session)
 
 	//setting up Nr
 	IkePayload n_r;
-	n_r.SetSubstructure(IkeNonceSubstructure::GenerateNonceSubstructure());
+	n_r.SetSubstructure(IkeNonceSubstructure::GenerateRandomNonceSubstructure());
 
 	//setting up KEr
 	IkePayload ke_r;
@@ -1643,7 +1644,6 @@ GsamL4Protocol::ProcessIkeSaAuthInvitation(	Ptr<GsamInitSession> init_session,
 	if (0 == found_or_created_session)
 	{
 		found_or_created_session = this->GetIpSecDatabase()->CreateSession(init_session, group_address);
-		found_or_created_session->SetGroupAddress(group_address);
 		found_or_created_session->EtablishGsamKekSa();
 		found_or_created_session->SetKekSaInitiatorSpi(proposal->GetSpi()->ToUint64());
 		found_or_created_session->SetKekSaResponderSpi(init_session->GetInfo()->RegisterGsamSpi());
@@ -1702,10 +1702,11 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 
 	if (init_session->GetCurrentMessageId() == message_id)
 	{
-		//response with matched message id
-		session->GetRetransmitTimer().Cancel();
 
 		NS_ASSERT (message_id == 1);
+
+		//response with matched message id
+		init_session->GetRetransmitTimer().Cancel();
 
 		//picking up auth payload
 		IkePayloadHeader::PAYLOAD_TYPE auth_payload_type = ikeheader.GetNextPayloadType();
@@ -1725,8 +1726,17 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 		IkePayload sar2 = IkePayload::GetEmptyPayloadFromPayloadType(sar2_payload_type);
 		packet->RemoveHeader(sar2);
 
+		//picking up nonce payload that contains kek initiator spi
+		IkePayloadHeader::PAYLOAD_TYPE nonce_payload_type = sar2.GetNextPayloadType();
+		if (nonce_payload_type != IkePayloadHeader::NONCE)
+		{
+			NS_ASSERT (false);
+		}
+		IkePayload nonce_payload = IkePayload::GetEmptyPayloadFromPayloadType(nonce_payload_type);
+		packet->RemoveHeader(nonce_payload);
+
 		//picking up TSi payload
-		IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = sar2.GetNextPayloadType();
+		IkePayloadHeader::PAYLOAD_TYPE tsi_payload_type = nonce_payload.GetNextPayloadType();
 		if (tsi_payload_type != IkePayloadHeader::TRAFFIC_SELECTOR_INITIATOR)
 		{
 			NS_ASSERT (false);
@@ -1746,7 +1756,9 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 		Ptr<IkeSaPayloadSubstructure> sar2_sub = DynamicCast<IkeSaPayloadSubstructure>(sar2.GetSubstructure());
 		Ptr<IkeTrafficSelectorSubstructure> tsi_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsi.GetSubstructure());
 		Ptr<IkeTrafficSelectorSubstructure> tsr_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsr.GetSubstructure());
-		this->ProcessIkeSaAuthResponse(session, sar2_sub->GetProposals(), tsi_sub->GetTrafficSelectors(), tsr_sub->GetTrafficSelectors());
+		Ptr<IkeNonceSubstructure> nonce_sub = DynamicCast<IkeNonceSubstructure>(nonce_payload.GetSubstructure());
+
+		this->ProcessIkeSaAuthResponse(init_session, nonce_sub->GetDataToU64(), sar2_sub->GetProposals(), tsi_sub->GetTrafficSelectors(), tsr_sub->GetTrafficSelectors());
 	}
 	else if (init_session->GetCurrentMessageId() > message_id)
 	{
@@ -1763,7 +1775,8 @@ GsamL4Protocol::HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ik
 }
 
 void
-GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
+GsamL4Protocol::ProcessIkeSaAuthResponse (	const Ptr<const GsamInitSession> init_session,
+											uint64_t kek_initiator_spi,
 											const std::list<Ptr<IkeSaProposal> >& sar2_proposals,
 											const std::list<IkeTrafficSelector>& tsi_selectors,
 											const std::list<IkeTrafficSelector>& tsr_selectors)
@@ -1775,30 +1788,48 @@ GsamL4Protocol::ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
 		NS_ASSERT (false);
 	}
 
-	Ptr<IkeSaProposal> proposal = sar2_proposals.front();
+	Ptr<GsamSession> session = this->GetIpSecDatabase()->GetSession(init_session, kek_initiator_spi);
 
-	Ptr<Spi> spi_responder = proposal->GetSpi();
-
-	session->SetKekSaResponderSpi(spi_responder->ToUint64());
-
-	if (true == session->IsHostNonQuerier())
+	if (0 == session)
 	{
-		//do not crate any policy
+		NS_ASSERT (false);
 	}
 	else
 	{
-		//according to gsam's rule, a GM can only join one group at a time using a session
-		if (tsi_selectors.size() != 1)
-		{
-			NS_ASSERT (false);
-		}
+		//do nothing
+	}
 
-		if (tsr_selectors.size() != 1)
-		{
-			NS_ASSERT (false);
-		}
+	if (0 == session->GetKekSaResponderSpi())
+	{
+		Ptr<IkeSaProposal> proposal = sar2_proposals.front();
 
-		this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+		Ptr<Spi> spi_responder = proposal->GetSpi();
+
+		session->SetKekSaResponderSpi(spi_responder->ToUint64());
+
+		if (true == session->IsHostNonQuerier())
+		{
+			//do not crate any policy
+		}
+		else
+		{
+			//according to gsam's rule, a GM can only join one group at a time using a session
+			if (tsi_selectors.size() != 1)
+			{
+				NS_ASSERT (false);
+			}
+
+			if (tsr_selectors.size() != 1)
+			{
+				NS_ASSERT (false);
+			}
+
+			this->CreateIpSecPolicy(session, tsi_selectors, tsr_selectors);
+		}
+	}
+	else
+	{
+		//duplicate received packet
 	}
 }
 
@@ -1821,12 +1852,16 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 	Ptr<IkeTrafficSelectorSubstructure> tsi_payload_sub = DynamicCast<IkeTrafficSelectorSubstructure>(tsi.GetSubstructure());
 	tsi_payload_sub->PushBackTrafficSelectors(narrowed_tssi);
 	tsi.SetNextPayloadType(tsr.GetPayloadType());
+	//setting up initiator's kek spi as nonce
+	IkePayload nonce_payload_init;
+	nonce_payload_init.SetSubstructure(IkeNonceSubstructure::GenerateNonceSubstructure(session->GetKekSaInitiatorSpi()));
+	nonce_payload_init.SetNextPayloadType(tsi.GetPayloadType());
 	//setting up sar2
 	IkePayload sar2;
 	Ptr<Spi> responder_kek_sa_spi = Create<Spi>();
 	responder_kek_sa_spi->SetValueFromUint64(session->GetKekSaResponderSpi());
 	sar2.SetSubstructure(IkeSaPayloadSubstructure::GenerateAuthIkePayload(responder_kek_sa_spi));
-	sar2.SetNextPayloadType(tsi.GetPayloadType());
+	sar2.SetNextPayloadType(nonce_payload_init.GetPayloadType());
 	//setting up auth
 	IkePayload auth;
 	auth.SetSubstructure(IkeAuthSubstructure::GenerateEmptyAuthSubstructure());
@@ -1834,12 +1869,14 @@ GsamL4Protocol::RespondIkeSaAuth (	Ptr<GsamSession> session,
 
 	uint32_t length_beside_ikeheader = 	auth.GetSerializedSize() +
 										sar2.GetSerializedSize() +
+										nonce_payload_init.GetSerializedSize() +
 										tsi.GetSerializedSize() +
 										tsr.GetSerializedSize();
 
 	Ptr<Packet> packet = Create<Packet>();
 	packet->AddHeader(tsr);
 	packet->AddHeader(tsi);
+	packet->AddHeader(nonce_payload_init);
 	packet->AddHeader(sar2);
 	packet->AddHeader(auth);
 
@@ -2953,6 +2990,16 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 			ack_notify_payload.GetSerializedSize(),
 			packet,
 			false);
+
+	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+	Time dt = MilliSeconds (10.0);
+	Simulator::Schedule (dt,
+						&Igmpv3L4Protocol::SendSecureStateChangesReport,
+						igmp,
+						igmp->GetManager()->GetIfStateManager(session->GetIgmpInterface()),
+						session->GetGroupAddress());
+//	igmp->SendStateChangesReport(igmp->GetManager()->GetIfStateManager(session->GetIgmpInterface()), session->GetGroupAddress());
+
 }
 
 void
@@ -3187,32 +3234,39 @@ GsamL4Protocol::HandleGsaAckFromGM (Ptr<Packet> packet, const IkePayload& first_
 
 	}
 
-	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
-	if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+	if (false == session->GetInfo()->IsGsaPushIdDeleted(first_payload_gsa_push_id))
 	{
-		gsa_push_session->MarkGmSessionReplied();
-
-		if (true == gsa_push_session->IsAllReplied())
+		Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
+		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
 		{
-			GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
-			gsa_push_session->InstallGsaPair();
-			gsa_push_session->SelfRemoval();
-			Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
-			if (0 == igmp)
+			gsa_push_session->MarkGmSessionReplied();
+
+			if (true == gsa_push_session->IsAllReplied())
 			{
-				NS_ASSERT (false);
+				GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
+				gsa_push_session->InstallGsaPair();
+				gsa_push_session->SelfRemoval();
+				Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+				if (0 == igmp)
+				{
+					NS_ASSERT (false);
+				}
+				Ipv4Address group_address = session->GetGroupAddress();
+				igmp->SendSecureGroupSpecificQuery(group_address);
 			}
-			Ipv4Address group_address = session->GetGroupAddress();
-			igmp->SendSecureGroupSpecificQuery(group_address);
 		}
-	}
-	else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
-	{
-		//do nothing
+		else if (gsa_push_session->GetStatus() == GsaPushSession::SPI_CONFLICT_RESOLVE)
+		{
+			//do nothing
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
 	}
 	else
 	{
-		NS_ASSERT (false);
+		//ignore
 	}
 }
 
@@ -3240,20 +3294,27 @@ GsamL4Protocol::HandleGsaRejectionFromGM (Ptr<Packet> packet, const IkePayload& 
 		NS_ASSERT (false);
 	}
 
-	Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
-	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
-	uint32_t gsa_q = *(lst_spi_first_payload_sub.begin());
-
-	if (gsa_q != gsa_push_session->GetGsaQ()->GetSpi())
+	if (false == session->GetInfo()->IsGsaPushIdDeleted(first_payload_sub->GetGsaPushId()))
 	{
-		NS_ASSERT (false);
-	}
+		Ptr<GsaPushSession> gsa_push_session = session->GetGsaPushSession();
+		GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session, gsa_push_session->GetId());
+		uint32_t gsa_q = *(lst_spi_first_payload_sub.begin());
 
-	if (gsa_push_session->GetId() != first_payload_sub->GetGsaPushId())
-	{
-		NS_ASSERT (false);
+		if (gsa_q != gsa_push_session->GetGsaQ()->GetSpi())
+		{
+			NS_ASSERT (false);
+		}
+
+		if (gsa_push_session->GetId() != first_payload_sub->GetGsaPushId())
+		{
+			NS_ASSERT (false);
+		}
+		this->Send_SPI_REQUEST(session->GetGsaPushSession(), GsaPushSession::GSA_Q_SPI_REQUEST);
 	}
-	this->Send_SPI_REQUEST(session->GetGsaPushSession(), GsaPushSession::GSA_Q_SPI_REQUEST);
+	else
+	{
+		//ignore
+	}
 }
 
 void
@@ -3305,44 +3366,51 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 		//ok
 	}
 
-	if (payload_gsa_push_id == session->GetGsaPushSession()->GetId())
+	if (false == session->GetInfo()->IsGsaPushIdDeleted(payload_gsa_push_id))
 	{
-		//gm session
-		gsa_push_session = session->GetGsaPushSession();
-		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+		if (payload_gsa_push_id == session->GetGsaPushSession()->GetId())
 		{
-			NS_ASSERT (false);
-		}
+			//gm session
+			gsa_push_session = session->GetGsaPushSession();
+			if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+			{
+				NS_ASSERT (false);
+			}
 
-		gsa_push_session->MarkGmSessionReplied();
-	}
-	else
-	{
-		//other gm session for gsa q spi request
-		gsa_push_session = session->GetGsaPushSession(payload_gsa_push_id);
-		if (0 == gsa_push_session)
-		{
-			return;
+			gsa_push_session->MarkGmSessionReplied();
 		}
 		else
 		{
-			//ok
+			//other gm session for gsa q spi request
+			gsa_push_session = session->GetGsaPushSession(payload_gsa_push_id);
+			if (0 == gsa_push_session)
+			{
+				return;
+			}
+			else
+			{
+				//ok
+			}
+			if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+			{
+				NS_ASSERT (false);
+			}
+			gsa_push_session->MarkOtherGmSessionReplied(session);
 		}
-		if (gsa_push_session->GetStatus() == GsaPushSession::GSA_PUSH_ACK)
+
+		gsa_push_session->AggregateGsaQSpiNotification(first_payload_spis);
+
+		if (gsa_push_session->IsAllReplied())
 		{
-			NS_ASSERT (false);
+			//create new spis base on what is received and modify those IpSecSAEntry
+			gsa_push_session->GenerateNewSpisAndModifySa();
+			//and then send Gsa repush
+			this->Send_GSA_RE_PUSH(gsa_push_session);
 		}
-		gsa_push_session->MarkOtherGmSessionReplied(session);
 	}
-
-	gsa_push_session->AggregateGsaQSpiNotification(first_payload_spis);
-
-	if (gsa_push_session->IsAllReplied())
+	else
 	{
-		//create new spis base on what is received and modify those IpSecSAEntry
-		gsa_push_session->GenerateNewSpisAndModifySa();
-		//and then send Gsa repush
-		this->Send_GSA_RE_PUSH(gsa_push_session);
+		//ignore
 	}
 }
 

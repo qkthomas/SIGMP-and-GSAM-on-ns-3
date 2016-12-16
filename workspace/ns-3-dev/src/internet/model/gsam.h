@@ -770,9 +770,14 @@ public:	//Header Override
 public:	//override IkePayloadSubstructure
 	virtual IkePayloadHeader::PAYLOAD_TYPE GetPayloadType (void) const;
 public:	//static
-	static Ptr<IkeNonceSubstructure> GenerateNonceSubstructure (void);
+	static Ptr<IkeNonceSubstructure> GenerateRandomNonceSubstructure (void);
+	static Ptr<IkeNonceSubstructure> GenerateNonceSubstructure (uint64_t u64);
 public:
 	using IkePayloadSubstructure::Deserialize;
+public:	//self-defined const
+	uint64_t GetDataToU64 (void) const;
+private:	//self-defined
+	void SetU64ToData (uint64_t u64);
 private:
 	std::list<uint8_t> m_lst_nonce_data;
 };

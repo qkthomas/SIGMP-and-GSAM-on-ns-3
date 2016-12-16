@@ -245,7 +245,7 @@ public:
 	void SendDefaultGeneralQuery (void);
 	void SendSecureGroupSpecificQuery (Ipv4Address group_address);
 	void SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager);
-	void SendStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager, Ipv4Address secure_group_address);
+	void SendSecureStateChangesReport (Ptr<IGMPv3InterfaceStateManager> ifstate_manager, Ipv4Address secure_group_address);
 	void HandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void NonQHandleQuery (Ptr<Packet> packet, uint8_t max_resp_code, Ptr<Ipv4InterfaceMulticast> incomingInterface);
 	void HandleV1MemReport (void);

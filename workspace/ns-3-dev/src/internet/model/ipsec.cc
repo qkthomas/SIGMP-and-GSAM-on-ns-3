@@ -420,7 +420,7 @@ GsamConfig::ReadAndParse (Ptr<GsamConfig> singleton)
 void
 GsamConfig::Log (	const std::string& func_name,
 					uint32_t node_id,
-					const Ptr<GsamSession> session,
+					const Ptr<GsamInitSession> session,
 					uint32_t gsa_push_id,
 					uint32_t gsa_q_spi,
 					uint32_t gsa_r_spi)
@@ -438,7 +438,7 @@ GsamConfig::Log (	const std::string& func_name,
 void
 GsamConfig::Log (	const std::string& func_name,
 					uint32_t node_id,
-					const Ptr<GsamSession> session,
+					const Ptr<GsamInitSession> session,
 					bool retransmit,
 					Ptr<Packet> packet)
 {
@@ -460,7 +460,7 @@ GsamConfig::Log (	const std::string& func_name,
 void
 GsamConfig::Log (	const std::string& func_name,
 					uint32_t node_id,
-					const Ptr<GsamSession> session,
+					const Ptr<GsamInitSession> session,
 					uint32_t gsa_push_id)
 {
 
@@ -1750,7 +1750,7 @@ GsamSa::GsamSa ()
   :  m_type (GsamSa::NOT_INITIATED),
 	 m_initiator_spi (0),
 	 m_responder_spi (0),
-	 m_ptr_session (0),
+	 m_ptr_init_session (0),
 	 m_ptr_encrypt_fn (0)
 {
 	NS_LOG_FUNCTION (this);
@@ -1762,7 +1762,7 @@ GsamSa::~GsamSa()
 
 	this->FreeLocalSpi();
 
-	this->m_ptr_session = 0;
+	this->m_ptr_init_session = 0;
 	this->m_ptr_encrypt_fn = 0;
 }
 
@@ -1811,16 +1811,16 @@ GsamSa::GetType (void) const
 }
 
 void
-GsamSa::SetSession (Ptr<GsamSession> session)
+GsamSa::SetSession (Ptr<GsamInitSession> session)
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_ptr_session != 0)
+	if (this->m_ptr_init_session != 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	this->m_ptr_session = session;
+	this->m_ptr_init_session = session;
 }
 
 void
@@ -1895,7 +1895,7 @@ GsamSa::FreeLocalSpi (void)
 //		role = this->m_ptr_session->GetPhaseTwoRole();
 //	}
 
-	role = this->m_ptr_session->GetSessionRole;
+	role = this->m_ptr_init_session->GetSessionRole();
 
 	if (role == GsamInitSession::INITIATOR)
 	{
@@ -1906,7 +1906,7 @@ GsamSa::FreeLocalSpi (void)
 		local_spi = this->m_responder_spi;
 	}
 
-	this->m_ptr_session->GetInfo()->FreeGsamSpi(local_spi);
+	this->m_ptr_init_session->GetInfo()->FreeGsamSpi(local_spi);
 }
 
 /********************************************************
@@ -2973,6 +2973,502 @@ GsaPushSession::GetOtherGmSessions (void) const
 }
 
 /********************************************************
+ *        GsamInitSession
+ ********************************************************/
+
+NS_OBJECT_ENSURE_REGISTERED (GsamInitSession);
+
+TypeId
+GsamInitSession::GetTypeId (void)
+{
+	static TypeId tid = TypeId ("ns3::GsamInitSession")
+    		.SetParent<Object> ()
+			.SetGroupName ("Internet")
+			.AddConstructor<GsamInitSession> ()
+			;
+	return tid;
+}
+
+GsamInitSession::GsamInitSession ()
+  :  m_current_message_id (0),
+	 m_ptr_database (0),
+	 m_session_role (GsamInitSession::P1_UNINITIALIZED),
+	 m_last_sent_packet (0),
+	 m_number_retranmission (0),
+	 m_peer_address (Ipv4Address ("0.0.0.0")),
+	 m_ptr_init_sa (0),
+	 m_ptr_first_join_session (0)
+{
+	NS_LOG_FUNCTION (this);
+
+	this->m_timer_timeout.SetFunction(&GsamInitSession::TimeoutAction, this);
+}
+
+GsamInitSession::~GsamInitSession()
+{
+	NS_LOG_FUNCTION (this);
+
+	if(this->m_ptr_database != 0)
+	{
+		this->m_ptr_database->RemoveInitSession(this);
+	}
+
+	this->m_ptr_database = 0;
+	this->m_ptr_init_sa = 0;
+
+	this->m_timer_retransmit.Cancel();
+	this->m_timer_timeout.Cancel();
+
+	this->m_last_sent_packet = 0;
+	this->m_ptr_first_join_session = 0;
+}
+
+TypeId
+GsamInitSession::GetInstanceTypeId (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return GsamInitSession::GetTypeId();
+}
+
+void
+GsamInitSession::NotifyNewAggregate ()
+{
+	NS_LOG_FUNCTION (this);
+}
+
+void
+GsamInitSession::DoDispose (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database != 0)
+	{
+		this->m_ptr_database->RemoveInitSession(this);
+	}
+
+	this->m_ptr_database = 0;
+
+}
+
+GsamInitSession::SESSION_ROLE
+GsamInitSession::GetLocalRole (const IkeHeader& incoming_header)
+{
+	if (incoming_header.IsInitiator() && incoming_header.IsResponder())
+	{
+		NS_ASSERT (false);
+	}
+
+	if ((!incoming_header.IsInitiator()) && (!incoming_header.IsResponder()))
+	{
+		NS_ASSERT (false);
+	}
+
+	GsamInitSession::SESSION_ROLE role = GsamInitSession::P1_UNINITIALIZED;
+
+	if (incoming_header.IsInitiator())
+	{
+		role = GsamInitSession::RESPONDER;
+	}
+	else
+	{
+		role = GsamInitSession::INITIATOR;
+	}
+
+	return role;
+}
+
+void
+GsamInitSession::SetSessionRole (GsamInitSession::SESSION_ROLE role)
+{
+	if (GsamInitSession::P1_UNINITIALIZED == this->m_session_role)
+	{
+		this->m_session_role = role;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+uint64_t
+GsamInitSession::GetInitSaInitiatorSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_init_sa->GetInitiatorSpi();
+}
+
+void
+GsamInitSession::SetInitSaInitiatorSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_init_sa)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_init_sa->SetInitiatorSpi(spi);
+	}
+}
+
+uint64_t
+GsamInitSession::GetInitSaResponderSpi (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_init_sa->GetResponderSpi();
+}
+
+void
+GsamInitSession::SetInitSaResponderSpi (uint64_t spi)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_init_sa)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_init_sa->SetResponderSpi(spi);
+	}
+}
+
+void
+GsamInitSession::SetDatabase (Ptr<IpSecDatabase> database)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == database)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_ptr_database = database;
+	}
+}
+
+void
+GsamInitSession::SetPeerAddress (Ipv4Address peer_address)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_peer_address = peer_address;
+}
+
+void
+GsamInitSession::SetMessageId (uint32_t message_id)
+{
+	NS_LOG_FUNCTION (this);
+
+//	if (this->m_session_role == GsamInitSession::RESPONDER)
+//	{
+//		if (message_id > this->m_current_message_id)
+//		{
+//			this->m_current_message_id = message_id;
+//		}
+//		else
+//		{
+//			if (0 == message_id)
+//			{
+//				//ok
+//			}
+//			else
+//
+//			{
+//				NS_ASSERT (false);
+//			}
+//		}
+//	}
+//	else
+//	{
+//		if ((0 == message_id) || (1 == message_id))
+//		{
+//			if (this->m_session_role == GsamInitSession::INITIATOR)
+//			{
+//				//phase 1
+//				//ok
+//				this->m_current_message_id = message_id;
+//			}
+//		}
+//		else if (message_id < 0)
+//		{
+//			NS_ASSERT (false);
+//		}
+//		else
+//		{
+//			if (this->m_session_role == GsamInitSession::INITIATOR)
+//			{
+//				//phase 2
+//				//ok
+//				this->m_current_message_id = message_id;
+//			}
+//			else
+//			{
+//				NS_ASSERT (false);
+//			}
+//		}
+//	}
+
+	this->m_current_message_id = message_id;
+}
+
+void
+GsamInitSession::EtablishGsamInitSa (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_init_sa)
+	{
+		this->m_ptr_init_sa = Create<GsamSa>();
+		this->m_ptr_init_sa->SetType(GsamSa::GSAM_INIT_SA);
+		this->m_ptr_init_sa->SetSession(this);
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+}
+
+Timer&
+GsamInitSession::GetRetransmitTimer (void)
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_timer_retransmit;
+}
+
+void
+GsamInitSession::SceduleTimeout (Time delay)
+{
+	NS_LOG_FUNCTION (this);
+	this->m_timer_timeout.Cancel();
+	this->m_timer_timeout.Schedule(delay);
+}
+
+bool
+GsamInitSession::IsRetransmit (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = false;
+
+	if (false == GsamConfig::GetSingleton()->IsRetransmissionDisable())
+	{
+		if (this->m_number_retranmission > 0)
+		{
+			retval = true;
+		}
+		else
+		{
+			retval = false;
+		}
+	}
+	else
+	{
+		retval = false;
+	}
+
+	return retval;
+}
+
+uint16_t
+GsamInitSession::GetRemainingRetransmissionCount (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_number_retranmission;
+}
+
+Ptr<GsamSession>
+GsamInitSession::GetFirstJoinSession (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_first_join_session)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_ptr_first_join_session;
+}
+
+void
+GsamInitSession::SetCachePacket (Ptr<Packet> packet)
+{
+	NS_LOG_FUNCTION (this);
+	if (packet == 0)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_last_sent_packet = 0;
+	this->m_last_sent_packet = packet;
+}
+
+void
+GsamInitSession::SetNumberRetransmission (uint16_t number_retransmission)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 > number_retransmission)
+	{
+		NS_ASSERT (false);
+	}
+	else
+	{
+		this->m_number_retranmission = number_retransmission;
+	}
+}
+
+void
+GsamInitSession::DecrementNumberRetransmission (void)
+{
+	NS_LOG_FUNCTION (this);
+	if (this->m_number_retranmission > 0)
+	{
+		this->m_number_retranmission--;
+	}
+}
+
+void
+GsamInitSession::SetFirstJoinSession (Ptr<GsamSession> session)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == session)
+	{
+		NS_ASSERT (false);
+	}
+	if (0 != this->m_ptr_first_join_session)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_ptr_first_join_session = session;
+}
+
+
+
+Ptr<GsamInfo>
+GsamInitSession::GetInfo (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_ptr_database->GetInfo();
+}
+
+Ptr<IpSecDatabase>
+GsamInitSession::GetDatabase (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_ptr_database == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_ptr_database;
+}
+
+GsamInitSession::SESSION_ROLE
+GsamInitSession::GetSessionRole (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_session_role;
+}
+
+uint32_t
+GsamInitSession::GetExchangeMessageId (IkeHeader::EXCHANGE_TYPE exchange_type) const
+{
+	NS_LOG_FUNCTION (this);
+	uint32_t retval = 0;
+	if (IkeHeader::IKE_SA_INIT == exchange_type)
+	{
+		retval = 0;
+	}
+	else if (IkeHeader::IKE_AUTH == exchange_type)
+	{
+		retval = 1;
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	return retval;
+}
+
+uint32_t
+GsamInitSession::GetCurrentMessageId () const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_current_message_id;
+}
+
+Ipv4Address
+GsamInitSession::GetPeerAddress (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return this->m_peer_address;
+}
+
+bool
+GsamInitSession::IsHostQuerier (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = this->GetDatabase()->IsHostQuerier();
+
+	return retval;
+}
+
+bool
+GsamInitSession::IsHostGroupMember (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = this->GetDatabase()->IsHostGroupMember();
+
+	return retval;
+}
+
+bool
+GsamInitSession::IsHostNonQuerier (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	bool retval = this->GetDatabase()->IsHostNonQuerier();
+
+	return retval;
+}
+
+Ptr<Packet>
+GsamInitSession::GetCachePacket (void) const
+{
+	NS_LOG_FUNCTION (this);
+
+	if (this->m_last_sent_packet == 0)
+	{
+		NS_ASSERT (false);
+	}
+
+	return this->m_last_sent_packet;
+}
+
+void
+GsamInitSession::TimeoutAction (void)
+{
+	NS_LOG_FUNCTION (this);
+
+	std::cout << "Node: " << this->GetDatabase()->GetGsam()->GetNode()->GetId() << ", ";
+	if (true == this->IsHostGroupMember())
+	{
+		std::cout << "GM, ";
+	}
+	else if (true == this->IsHostNonQuerier())
+	{
+		std::cout << "NQ, ";
+	}
+	else if (true == this->IsHostQuerier())
+	{
+		std::cout << "Q, ";
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+
+	std::cout << "GsamInitSession: " << this << " time out." << std::endl;
+}
+
+/********************************************************
  *        GsamSession
  ********************************************************/
 
@@ -2991,16 +3487,12 @@ GsamSession::GetTypeId (void)
 
 GsamSession::GsamSession ()
   :  m_ptr_init_session (0),
-	 m_current_message_id (0),
-	 m_peer_address (Ipv4Address ("0.0.0.0")),
 	 m_ptr_session_group (0),
-	 m_p1_role (GsamSession::P1_UNINITIALIZED),
+	 m_group_address (Ipv4Address ("0.0.0.0")),
 	 m_ptr_kek_sa (0),
-	 m_ptr_database (0),
 	 m_ptr_related_gsa_r (0),
 	 m_ptr_push_session (0),
-	 m_number_retranmission (0),
-	 m_last_sent_packet (0)
+	 m_ptr_igmp_interface (0)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -3033,6 +3525,7 @@ GsamSession::~GsamSession()
 	this->m_last_sent_packet = 0;
 	this->m_set_ptr_push_sessions.clear();
 	this->m_ptr_init_session = 0;
+	this->m_ptr_igmp_interface = 0;
 }
 
 TypeId
@@ -3068,40 +3561,6 @@ GsamSession::DoDispose (void)
 	this->m_ptr_session_group = 0;
 }
 
-GsamSession::PHASE_ONE_ROLE
-GsamSession::GetLocalRole (const IkeHeader& incoming_header)
-{
-	if (incoming_header.IsInitiator() && incoming_header.IsResponder())
-	{
-		NS_ASSERT (false);
-	}
-
-	if ((!incoming_header.IsInitiator()) && (!incoming_header.IsResponder()))
-	{
-		NS_ASSERT (false);
-	}
-
-	GsamSession::PHASE_ONE_ROLE role = GsamSession::P1_UNINITIALIZED;
-
-	if (incoming_header.IsInitiator())
-	{
-		role = GsamSession::RESPONDER;
-	}
-	else
-	{
-		role = GsamSession::INITIATOR;
-	}
-
-	return role;
-}
-
-uint32_t
-GsamSession::GetCurrentMessageId (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_current_message_id;
-}
-
 //bool
 //operator == (GsamSession const& lhs, GsamSession const& rhs)
 //{
@@ -3134,20 +3593,6 @@ GsamSession::GetCurrentMessageId (void) const
 //
 //	return retval;
 //}
-
-GsamSession::PHASE_ONE_ROLE
-GsamSession::GetPhaseOneRole (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_p1_role;
-}
-
-GsamInitSession::SESSION_ROLE
-GsamSession::GetSessionRole (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_ptr_init_session->GetSessionRole();
-}
 
 uint64_t
 GsamSession::GetInitSaInitiatorSpi (void) const
@@ -3206,19 +3651,6 @@ GsamSession::SetKekSaResponderSpi (uint64_t spi)
 }
 
 void
-GsamSession::SetDatabase (Ptr<IpSecDatabase> database)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (database == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	this->m_ptr_database = database;
-}
-
-void
 GsamSession::SetInitSession (Ptr<GsamInitSession> init_session)
 {
 	NS_LOG_FUNCTION (this);
@@ -3254,120 +3686,17 @@ GsamSession::IncrementMessageId (void)
 	this->m_current_message_id++;
 }
 
-void
-GsamSession::SetMessageId (uint32_t message_id)
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_p1_role == GsamSession::RESPONDER)
-	{
-		if (message_id > this->m_current_message_id)
-		{
-			this->m_current_message_id = message_id;
-		}
-		else
-		{
-			if (0 == message_id)
-			{
-				//ok
-			}
-			else
-
-			{
-				NS_ASSERT (false);
-			}
-		}
-	}
-	else
-	{
-		if ((0 == message_id) || (1 == message_id))
-		{
-			if (this->m_p1_role == GsamSession::INITIATOR)
-			{
-				//phase 1
-				//ok
-				this->m_current_message_id = message_id;
-			}
-		}
-		else if (message_id < 0)
-		{
-			NS_ASSERT (false);
-		}
-		else
-		{
-			if (this->m_p1_role == GsamSession::INITIATOR)
-			{
-				//phase 2
-				//ok
-				this->m_current_message_id = message_id;
-			}
-			else
-			{
-				NS_ASSERT (false);
-			}
-		}
-	}
-}
-
-Timer&
-GsamSession::GetRetransmitTimer (void)
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_timer_retransmit;
-}
-
-void
-GsamSession::SceduleTimeout (Time delay)
-{
-	NS_LOG_FUNCTION (this);
-	this->m_timer_timeout.Cancel();
-	this->m_timer_timeout.Schedule(delay);
-}
-
-bool
-GsamSession::IsRetransmit (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	bool retval = false;
-
-	if (false == GsamConfig::GetSingleton()->IsRetransmissionDisable())
-	{
-		if (this->m_number_retranmission > 0)
-		{
-			retval = true;
-		}
-		else
-		{
-			retval = false;
-		}
-	}
-	else
-	{
-		retval = false;
-	}
-
-	return retval;
-}
-
-uint16_t
-GsamSession::GetRemainingRetransmissionCount (void) const
-{
-	NS_LOG_FUNCTION (this);
-	return this->m_number_retranmission;
-}
-
 Ipv4Address
 GsamSession::GetPeerAddress (void) const
 {
 	NS_LOG_FUNCTION (this);
 
-	if (this->m_peer_address.Get() == 0)
+	if (this->m_ptr_init_session == 0)
 	{
 		NS_ASSERT (false);
 	}
 
-	return this->m_peer_address;
+	return this->m_ptr_init_session->GetPeerAddress();
 }
 
 Ipv4Address
@@ -3540,18 +3869,6 @@ GsamSession::CreateAndSetGsaPushSession (void)
 }
 
 void
-GsamSession::SetCachePacket (Ptr<Packet> packet)
-{
-	NS_LOG_FUNCTION (this);
-	if (packet == 0)
-	{
-		NS_ASSERT (false);
-	}
-	this->m_last_sent_packet = 0;
-	this->m_last_sent_packet = packet;
-}
-
-void
 GsamSession::SetNumberRetransmission (uint16_t number_retransmission)
 {
 	NS_LOG_FUNCTION (this);
@@ -3573,6 +3890,17 @@ GsamSession::DecrementNumberRetransmission (void)
 	{
 		this->m_number_retranmission--;
 	}
+}
+
+void
+GsamSession::SetIgmpInterface (Ptr<Ipv4InterfaceMulticast> interface)
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == interface)
+	{
+		NS_ASSERT (false);
+	}
+	this->m_ptr_igmp_interface = interface;
 }
 
 Ptr<GsamInfo>
@@ -3675,26 +4003,6 @@ GsamSession::GetRelatedPolicy (void) const
 }
 
 bool
-GsamSession::IsHostQuerier (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	bool retval = this->GetDatabase()->IsHostQuerier();
-
-	return retval;
-}
-
-bool
-GsamSession::IsHostGroupMember (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	bool retval = this->GetDatabase()->IsHostGroupMember();
-
-	return retval;
-}
-
-bool
 GsamSession::IsHostNonQuerier (void) const
 {
 	NS_LOG_FUNCTION (this);
@@ -3785,19 +4093,6 @@ GsamSession::GetGsaPushSession (uint32_t gsa_push_id) const
 	return retval;
 }
 
-Ptr<Packet>
-GsamSession::GetCachePacket (void) const
-{
-	NS_LOG_FUNCTION (this);
-
-	if (this->m_last_sent_packet == 0)
-	{
-		NS_ASSERT (false);
-	}
-
-	return this->m_last_sent_packet;
-}
-
 Ptr<GsamSessionGroup>
 GsamSession::GetSessionGroup (void) const
 {
@@ -3805,6 +4100,17 @@ GsamSession::GetSessionGroup (void) const
 
 	//return value is allowed to be zero
 	return this->m_ptr_session_group;
+}
+
+Ptr<Ipv4InterfaceMulticast>
+GsamSession::GetIgmpInterface (void) const
+{
+	NS_LOG_FUNCTION (this);
+	if (0 == this->m_ptr_igmp_interface)
+	{
+		NS_ASSERT (false);
+	}
+	return this->m_ptr_igmp_interface;
 }
 
 /********************************************************
@@ -5402,58 +5708,6 @@ IpSecDatabase::DoDispose (void)
 }
 
 Ptr<GsamSession>
-IpSecDatabase::GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
-{
-	NS_LOG_FUNCTION (this);
-
-	Ptr<GsamSession> session = 0;
-
-	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_all_sessions.begin();
-			const_it != this->m_lst_ptr_all_sessions.end();
-			const_it++)
-	{
-		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
-				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
-				(session_it->GetInitSaResponderSpi() == responder_spi) &&
-				 session_it->GetPeerAddress() == peer_address)
-			)
-		{
-			session = session_it;
-			break;
-		}
-	}
-
-	return session;
-}
-
-Ptr<GsamSession>
-IpSecDatabase::GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const
-{
-	NS_LOG_FUNCTION (this);
-
-	Ptr<GsamSession> session = 0;
-
-	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_all_sessions.begin();
-			const_it != this->m_lst_ptr_all_sessions.end();
-			const_it++)
-	{
-		Ptr<GsamSession> session_it = (*const_it);
-		if (	(session_it->GetPhaseOneRole() == local_p1_role) &&
-				(session_it->GetInitSaInitiatorSpi() == initiator_spi &&
-//				 session_it->GetInitSaResponderSpi() == 0 &&
-				 session_it->GetPeerAddress() == peer_address)
-			)
-		{
-			session = session_it;
-			break;
-		}
-	}
-
-	return session;
-}
-
-Ptr<GsamSession>
 IpSecDatabase::GetPhaseTwoSession (uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const
 {
 	NS_LOG_FUNCTION (this);
@@ -5486,32 +5740,16 @@ IpSecDatabase::GetSession (const IkeHeader& header, Ipv4Address peer_address) co
 {
 	Ptr<GsamSession> retval = 0;
 
-	GsamSession::PHASE_ONE_ROLE local_role = GsamSession::GetLocalRole(header);
 	uint32_t header_message_id = header.GetMessageId();
 
-	switch (header_message_id)
+	if (header_message_id >= 2)
 	{
-	case 0:
-		retval = this->GetPhaseOneSession(local_role, header.GetInitiatorSpi(), header_message_id, peer_address);
-		break;
-	case 1:
-		retval = this->GetPhaseOneSession(local_role, header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
-		break;
-	default:
-		if (header_message_id >= 2)
-		{
-			retval = this->GetPhaseTwoSession(header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
-			break;
-		}
-		else if (header_message_id < 0)
-		{
-			//something went wrong
-			NS_ASSERT (false);
-		}
-		else
-		{
-
-		}
+		retval = this->GetPhaseTwoSession(header.GetInitiatorSpi(), header.GetResponderSpi(), header_message_id, peer_address);
+	}
+	else
+	{
+		//something went wrong
+		NS_ASSERT (false);
 	}
 
 	return retval;
@@ -5543,6 +5781,34 @@ IpSecDatabase::GetSession (const Ptr<const GsamInitSession> init_session, Ipv4Ad
 	return retval;
 }
 
+Ptr<GsamSession>
+IpSecDatabase::GetSession (const Ptr<const GsamInitSession> init_session, uint64_t initiator_kek_spi) const
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamSession> retval = 0;
+
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = this->m_lst_ptr_all_sessions.begin();
+			const_it != this->m_lst_ptr_all_sessions.end();
+			const_it++)
+	{
+		Ptr<GsamSession> session_it = (*const_it);
+		if (true == session_it->HaveKekSa())
+		{
+			if (	(session_it->GetInitSession() == init_session) &&
+					(session_it->GetKekSaInitiatorSpi() == initiator_kek_spi)
+			)
+			{
+
+				retval = session_it;
+				break;
+			}
+		}
+	}
+
+	return retval;
+}
+
 Ptr<GsamInitSession>
 IpSecDatabase::GetInitSession (const IkeHeader& header, Ipv4Address peer_address) const
 {
@@ -5553,7 +5819,7 @@ IpSecDatabase::GetInitSession (const IkeHeader& header, Ipv4Address peer_address
 	GsamInitSession::SESSION_ROLE local_role = GsamInitSession::GetLocalRole(header);
 	uint32_t header_message_id = header.GetMessageId();
 
-	NS_ASSERT (header_message_id == 0);
+	NS_ASSERT (header_message_id <= 1);
 
 	Ptr<GsamInitSession> session = 0;
 
@@ -5580,6 +5846,37 @@ IpSecDatabase::GetInitSession (const IkeHeader& header, Ipv4Address peer_address
 					retval = session_it;
 					break;
 				}
+			}
+		}
+	}
+
+	return retval;
+}
+
+Ptr<GsamInitSession>
+IpSecDatabase::GetInitSession (GsamInitSession::SESSION_ROLE local_role, Ipv4Address peer_address) const
+{
+	NS_LOG_FUNCTION (this);
+
+	Ptr<GsamInitSession> retval = 0;
+
+	Ptr<GsamInitSession> session = 0;
+
+	for (	std::list<Ptr<GsamInitSession> >::const_iterator const_it = this->m_lst_init_sessions.begin();
+			const_it != this->m_lst_init_sessions.end();
+			const_it++)
+	{
+		Ptr<GsamInitSession> session_it = (*const_it);
+		if (	(session_it->GetSessionRole() == local_role) &&
+				(//session_it->GetInitSaInitiatorSpi() == header.GetInitiatorSpi() &&
+//				 session_it->GetInitSaResponderSpi() == 0 &&
+				session_it->GetPeerAddress() == peer_address)
+		)
+		{
+			if (0 != session_it->GetInitSaResponderSpi())
+			{
+				retval = session_it;
+				break;
 			}
 		}
 	}
@@ -5738,11 +6035,23 @@ IpSecDatabase::CreateSession (Ptr<GsamInitSession> init_session, Ipv4Address gro
 	session->SetDatabase(this);
 	session->SetGroupAddress(group_address);
 	session->SetInitSession(init_session);
-	session->SetMessageId(init_session->GetCurrentMessageId());
+	session->SetMessageId(1);
 
-	Ptr<GsamSessionGroup> session_group = this->GetSessionGroup(group_address);
+	this->m_lst_ptr_all_sessions.push_back(session);
 
-	session_group->PushBackSession(session);
+	return session;
+}
+
+Ptr<GsamSession>
+IpSecDatabase::CreateSession (Ptr<GsamInitSession> init_session, Ipv4Address group_address, Ptr<Ipv4InterfaceMulticast> interface)
+{
+	NS_LOG_FUNCTION (this);
+	Ptr<GsamSession> session = Create<GsamSession>();
+	session->SetDatabase(this);
+	session->SetGroupAddress(group_address);
+	session->SetInitSession(init_session);
+	session->SetMessageId(1);
+	session->SetIgmpInterface(interface);
 
 	this->m_lst_ptr_all_sessions.push_back(session);
 
@@ -5763,7 +6072,7 @@ IpSecDatabase::CreateInitSession (Ipv4Address peer_address)
 }
 
 Ptr<GsamInitSession>
-IpSecDatabase::CreateInitSession (Ipv4Address peer_address, Ipv4Address first_join_group_address)
+IpSecDatabase::CreateInitSession (Ipv4Address peer_address, Ipv4Address first_join_group_address, Ptr<Ipv4InterfaceMulticast> interface)
 {
 	NS_LOG_FUNCTION (this);
 
@@ -5772,7 +6081,17 @@ IpSecDatabase::CreateInitSession (Ipv4Address peer_address, Ipv4Address first_jo
 	init_session->SetPeerAddress(peer_address);
 	this->m_lst_init_sessions.push_back(init_session);
 
-	Ptr<GsamSessionGroup> session = this->CreateSession(init_session, first_join_group_address);
+	Ptr<GsamSession> session = 0;
+
+	if (0 != interface)
+	{
+		session = this->CreateSession(init_session, first_join_group_address, interface);
+	}
+	else
+	{
+		session = this->CreateSession(init_session, first_join_group_address);
+	}
+	init_session->SetFirstJoinSession(session);
 
 	return init_session;
 }
@@ -5818,6 +6137,25 @@ IpSecDatabase::RemoveSession (Ptr<GsamSession> session)
 		if (session_it == session_it)
 		{
 			it = this->m_lst_ptr_all_sessions.erase(it);
+			break;
+		}
+	}
+}
+
+void
+IpSecDatabase::RemoveInitSession (Ptr<GsamInitSession> session)
+{
+	NS_LOG_FUNCTION (this);
+
+	for (	std::list<Ptr<GsamInitSession> >::iterator it = this->m_lst_init_sessions.begin();
+			it != this->m_lst_init_sessions.end();
+			it++)
+	{
+		Ptr<GsamInitSession> session_it = (*it);
+
+		if (session_it == session_it)
+		{
+			it = this->m_lst_init_sessions.erase(it);
 			break;
 		}
 	}
@@ -6461,19 +6799,29 @@ GsamFilter::ProcessOutgoingPacket (	Ptr<Packet> packet,
 }
 
 void
-GsamFilter::DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache)
+GsamFilter::DoGsam (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address group_address, const Ptr<GsamFilterCache> cache)
 {
 	NS_LOG_FUNCTION (this);
 	std::cout << "Node: " << this->m_ptr_gsam->GetNode()->GetId() << " DoGsam, Group Address: " << group_address << std::endl;
 	Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
 	Ptr<GsamL4Protocol> gsam = this->GetGsam();
-	Ptr<GsamInitSession> init_session = gsam->GetIpSecDatabase()->CreateInitSession(q_address, group_address);
-	Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(init_session, group_address);
+	Ptr<GsamInitSession> init_session = gsam->GetIpSecDatabase()->GetInitSession(GsamInitSession::INITIATOR, q_address);
+	Ptr<GsamSession> session = 0;
+	if (0 == init_session)
+	{
+		init_session = gsam->GetIpSecDatabase()->CreateInitSession(q_address, group_address, interface);
+		session = init_session->GetFirstJoinSession();
+		gsam->Send_IKE_SA_INIT(init_session);
+	}
+	else
+	{
+		session = gsam->GetIpSecDatabase()->CreateSession(init_session, group_address, interface);
+		gsam->Send_IKE_SA_AUTH(init_session, session);
+	}
 	if (0 != cache)
 	{
 		this->m_map_sessions_to_packets.insert(std::pair<Ptr<GsamSession>, Ptr<GsamFilterCache> >(session, cache));
 	}
-	gsam->Send_IKE_SA_INIT(init_session);
 }
 
 void

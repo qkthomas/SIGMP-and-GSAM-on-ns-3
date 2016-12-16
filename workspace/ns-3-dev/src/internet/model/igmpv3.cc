@@ -2455,22 +2455,24 @@ IGMPv3InterfaceStateManager::ReportStateChanges (Ipv4Address secure_group_addres
 
 	if (0 == policy)
 	{
-		gsam->GetGsamFilter()->DoGsam(secure_group_address);
+		gsam->GetGsamFilter()->DoGsam(this->GetInterface(), secure_group_address);
 	}
-
-	if (true == this->m_event_robustness_retransmission.IsRunning())
+	else
 	{
-		//the previous scheduled robustness report sending event should be cancelled before that this method is invoked
-		this->CancelReportStateChanges();
-		igmp->SendStateChangesReport(this, secure_group_address);
-	}
+		if (true == this->m_event_robustness_retransmission.IsRunning())
+		{
+			//the previous scheduled robustness report sending event should be cancelled before that this method is invoked
+			this->CancelReportStateChanges();
+			igmp->SendSecureStateChangesReport(this, secure_group_address);
+		}
 
-	if (true == this->HasPendingRecords())
-	{
-		//send report immediately
-		Time delay = Seconds (0.0);
+		if (true == this->HasPendingRecords())
+		{
+			//send report immediately
+			Time delay = Seconds (0.0);
 
-		this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoSecureReportStateChanges, this, secure_group_address);
+			this->m_event_robustness_retransmission = Simulator::Schedule (delay, &IGMPv3InterfaceStateManager::DoSecureReportStateChanges, this, secure_group_address);
+		}
 	}
 }
 
@@ -2502,7 +2504,7 @@ IGMPv3InterfaceStateManager::DoSecureReportStateChanges (Ipv4Address group_addre
 	Ptr<Ipv4L3ProtocolMulticast> ipv4l3 = DynamicCast<Ipv4L3ProtocolMulticast>(ipv4);
 	Ptr<Igmpv3L4Protocol> igmp = ipv4l3->GetIgmp();
 
-	igmp->SendStateChangesReport(this, group_address);
+	igmp->SendSecureStateChangesReport(this, group_address);
 
 	if (true == this->HasPendingRecords())
 	{

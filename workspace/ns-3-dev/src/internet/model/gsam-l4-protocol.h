@@ -85,7 +85,8 @@ private:	//Sending, added by Lin Chen,
 private:	//phase 1, initiator
 	void HandleIkeSaInitResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ipv4Address peer_address);
 	void HandleIkeSaAuthResponse (Ptr<Packet> packet, const IkeHeader& ikeheader, Ptr<GsamInitSession> init_session);
-	void ProcessIkeSaAuthResponse (	Ptr<GsamSession> session,
+	void ProcessIkeSaAuthResponse (	const Ptr<const GsamInitSession> init_session,
+									uint64_t kek_initiator_spi,
 									const std::list<Ptr<IkeSaProposal> >& sar2_proposals,
 									const std::list<IkeTrafficSelector>& tsi_selectors,
 									const std::list<IkeTrafficSelector>& tsr_selectors);

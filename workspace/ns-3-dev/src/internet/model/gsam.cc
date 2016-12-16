@@ -2861,7 +2861,7 @@ IkeNonceSubstructure::GetPayloadType (void) const
 }
 
 Ptr<IkeNonceSubstructure>
-IkeNonceSubstructure::GenerateNonceSubstructure (void)
+IkeNonceSubstructure::GenerateRandomNonceSubstructure (void)
 {
 	Ptr<IkeNonceSubstructure> nonce = Create<IkeNonceSubstructure>();
 
@@ -2878,6 +2878,32 @@ IkeNonceSubstructure::GenerateNonceSubstructure (void)
 	}
 
 	return nonce;
+}
+
+Ptr<IkeNonceSubstructure>
+IkeNonceSubstructure::GenerateNonceSubstructure (uint64_t u64)
+{
+	Ptr<IkeNonceSubstructure> nonce = Create<IkeNonceSubstructure>();
+
+	nonce->SetU64ToData(u64);
+	uint16_t length = 8;	//fix length 4
+	nonce->SetLength(length);
+
+	return nonce;
+}
+
+void
+IkeNonceSubstructure::SetU64ToData (uint64_t u64)
+{
+	NS_LOG_FUNCTION (this);
+	GsamUtility::Uint64ToBytes(this->m_lst_nonce_data, u64);
+}
+
+uint64_t
+IkeNonceSubstructure::GetDataToU64 (void) const
+{
+	NS_LOG_FUNCTION (this);
+	return GsamUtility::BytesToUint64(this->m_lst_nonce_data);
 }
 
 /********************************************************

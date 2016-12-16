@@ -22,6 +22,7 @@
 #include <map>
 #include "ns3/ip-l4-protocol-multicast.h"
 #include <utility>
+#include "ns3/ipv4-interface-multicast.h"
 
 namespace ns3 {
 
@@ -29,6 +30,7 @@ class Node;
 class Ipv4InterfaceMulticast;
 class Ipv4Route;
 class GsamSession;
+class GsamInitSession;
 class GsamSessionGroup;
 class IpSecDatabase;
 class IpSecSADatabase;
@@ -68,18 +70,18 @@ public:	//static methods
 public:	//log method
 	static void Log (	const std::string& func_name,
 						uint32_t node_id,
-						const Ptr<GsamSession> session,
+						const Ptr<GsamInitSession> session,
 						uint32_t gsa_push_id,
 						uint32_t gsa_q_spi,
 						uint32_t gsa_r_spi);
 	static void Log (	const std::string& func_name,
 							uint32_t node_id,
-							const Ptr<GsamSession> session,
+							const Ptr<GsamInitSession> session,
 							bool retransmit = false,
 							Ptr<Packet> packet = 0);
 	static void Log (	const std::string& func_name,
 						uint32_t node_id,
-						const Ptr<GsamSession> session,
+						const Ptr<GsamInitSession> session,
 						uint32_t gsa_push_id);
 	static void Log (	const std::string& func_name,
 							uint32_t node_id,
@@ -221,7 +223,7 @@ private:
 public:	//operator
 	friend bool operator == (GsamSa const& lhs, GsamSa const& rhs);
 public:	//self defined
-	void SetSession (Ptr<GsamSession> session);
+	void SetSession (Ptr<GsamInitSession> session);
 	void SetType (GsamSa::SA_TYPE type);
 	void SetInitiatorSpi (uint64_t spi);
 	void SetResponderSpi (uint64_t spi);
@@ -236,7 +238,7 @@ private:	//fields
 	GsamSa::SA_TYPE m_type;
 	uint64_t m_initiator_spi;
 	uint64_t m_responder_spi;
-	Ptr<GsamSession> m_ptr_session;
+	Ptr<GsamInitSession> m_ptr_init_session;
 	Ptr<EncryptionFunction> m_ptr_encrypt_fn;
 };
 
@@ -353,6 +355,7 @@ private:	//fields
 };
 
 class GsamInitSession : public Object {
+public:
 	enum SESSION_ROLE {
 		P1_UNINITIALIZED = 0,
 		INITIATOR = 1,
@@ -390,52 +393,41 @@ public:
 	void SetCachePacket (Ptr<Packet> packet);
 	void SetNumberRetransmission (uint16_t number_retransmission);
 	void DecrementNumberRetransmission (void);
+	void SetFirstJoinSession (Ptr<GsamSession> session);
 public: //const
 	bool HaveInitSa (void) const;
 	Ptr<GsamInfo> GetInfo (void) const;
 	Ptr<IpSecDatabase> GetDatabase (void) const;
-	uint64_t GetInitSaResponderSpi (void) const;
-	uint64_t GetInitSaInitiatorSpi (void) const;
+	virtual uint64_t GetInitSaResponderSpi (void) const;
+	virtual uint64_t GetInitSaInitiatorSpi (void) const;
 	GsamInitSession::SESSION_ROLE GetSessionRole (void) const;
 	uint32_t GetExchangeMessageId (IkeHeader::EXCHANGE_TYPE exchange_type) const;
 	uint32_t GetCurrentMessageId () const;
-	Ipv4Address GetPeerAddress (void) const;
-	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
+	virtual Ipv4Address GetPeerAddress (void) const;
 	bool IsHostQuerier (void) const;
 	bool IsHostGroupMember (void) const;
-	bool IsHostNonQuerier (void) const;
+	virtual bool IsHostNonQuerier (void) const;
 	Ptr<Packet> GetCachePacket (void) const;
 	bool IsRetransmit (void) const;
 	uint16_t GetRemainingRetransmissionCount (void) const;
-private:
-	void TimeoutAction (void);
 	Ptr<GsamSession> GetFirstJoinSession (void) const;
-private:
+protected:
+	void TimeoutAction (void);
+protected:
 	uint32_t m_current_message_id;
 	Ptr<IpSecDatabase> m_ptr_database;
-	Ipv4Address m_peer_address;
-	GsamInitSession::SESSION_ROLE m_p1_role;
-	Ptr<GsamSa> m_ptr_init_sa;
+	GsamInitSession::SESSION_ROLE m_session_role;
 	Timer m_timer_retransmit;
 	Timer m_timer_timeout;
 	Ptr<Packet> m_last_sent_packet;
+	uint16_t m_number_retranmission;
+private:
+	Ipv4Address m_peer_address;
+	Ptr<GsamSa> m_ptr_init_sa;
 	Ptr<GsamSession> m_ptr_first_join_session;
 };
 
-class GsamSession : public Object {
-public:
-	enum PHASE_ONE_ROLE {
-		P1_UNINITIALIZED = 0,
-		INITIATOR = 1,
-		RESPONDER = 2,
-	};
-
-	enum PHASE_TWO_ROLE {
-		P2_UNINITIALIZED = 10,
-		QUERIER = 11,
-		NON_QUERIER = 12,
-		GROUP_MEMBER = 13
-	};
+class GsamSession : public GsamInitSession {
 
 public:	//Object override
 	static TypeId GetTypeId (void);
@@ -451,8 +443,6 @@ protected:
 
 private:
 	virtual void DoDispose (void);
-public:	//static
-	static GsamSession::PHASE_ONE_ROLE GetLocalRole (const IkeHeader& incoming_header);
 public:	//operator
 //	friend bool operator == (GsamSession const& lhs, GsamSession const& rhs);
 public:	//self defined
@@ -460,13 +450,9 @@ public:	//self defined
 	void SetKekSaInitiatorSpi (uint64_t spi);
 	void SetKekSaResponderSpi (uint64_t spi);
 	//
-	void SetDatabase (Ptr<IpSecDatabase> database);
 	void SetInitSession (Ptr<GsamInitSession> init_session);
 	void EtablishGsamKekSa (void);
 	void IncrementMessageId (void);
-	void SetMessageId (uint32_t message_id);
-	Timer& GetRetransmitTimer (void);
-	void SceduleTimeout (Time delay);
 	void SetGroupAddress (Ipv4Address group_address);
 	void SetRelatedGsaR (Ptr<IpSecSAEntry> gsa_r);
 	void AssociateGsaQ (Ptr<IpSecSAEntry> gsa_q);
@@ -477,9 +463,9 @@ public:	//self defined
 	void ClearGsaPushSession (void);
 	void ClearGsaPushSession (const Ptr<GsaPushSession> gsa_push_session);
 	Ptr<GsaPushSession> CreateAndSetGsaPushSession (void);
-	void SetCachePacket (Ptr<Packet> packet);
 	void SetNumberRetransmission (uint16_t number_retransmission);
 	void DecrementNumberRetransmission (void);
+	void SetIgmpInterface (Ptr<Ipv4InterfaceMulticast> interface);
 public: //const
 	bool HaveKekSa (void) const;
 	Ptr<GsamInfo> GetInfo (void) const;
@@ -487,45 +473,31 @@ public: //const
 	Ptr<GsamInitSession> GetInitSession (void) const;
 	uint64_t GetKekSaResponderSpi (void) const;
 	uint64_t GetKekSaInitiatorSpi (void) const;
-	uint64_t GetInitSaResponderSpi (void) const;
-	uint64_t GetInitSaInitiatorSpi (void) const;
-	GsamSession::PHASE_ONE_ROLE GetPhaseOneRole (void) const;
-	GsamInitSession::SESSION_ROLE GetSessionRole (void) const;
-	uint32_t GetCurrentMessageId (void) const;
-	Ipv4Address GetPeerAddress (void) const;
+	virtual uint64_t GetInitSaResponderSpi (void) const;
+	virtual uint64_t GetInitSaInitiatorSpi (void) const;
+	virtual Ipv4Address GetPeerAddress (void) const;
 	Ipv4Address GetGroupAddress (void) const;
 	Ptr<IpSecSAEntry> GetRelatedGsaR (void) const;
 	Ptr<IpSecSAEntry> GetRelatedGsaQ (void) const;
 	Ptr<IpSecPolicyEntry> GetRelatedPolicy (void) const;
-	bool IsHostQuerier (void) const;
-	bool IsHostGroupMember (void) const;
-	bool IsHostNonQuerier (void) const;
+	virtual bool IsHostNonQuerier (void) const;
 	Ptr<GsaPushSession> GetGsaPushSession (void) const;
 	Ptr<GsaPushSession> GetGsaPushSession (uint32_t gsa_push_id) const;
-	Ptr<Packet> GetCachePacket (void) const;
 	Ptr<GsamSessionGroup> GetSessionGroup (void) const;
-	bool IsRetransmit (void) const;
-	uint16_t GetRemainingRetransmissionCount (void) const;
+	Ptr<Ipv4InterfaceMulticast> GetIgmpInterface (void) const;
 private:
 	void TimeoutAction (void);
 private:	//fields
 	Ptr<GsamInitSession> m_ptr_init_session;
-	uint32_t m_current_message_id;
-	Ipv4Address m_peer_address;
 	Ptr<GsamSessionGroup> m_ptr_session_group;
 	Ipv4Address m_group_address;
-	GsamSession::PHASE_ONE_ROLE m_p1_role;
 	Ptr<GsamSa> m_ptr_kek_sa;
-	Ptr<IpSecDatabase> m_ptr_database;
-	Timer m_timer_retransmit;
-	Timer m_timer_timeout;
 	Ptr<IpSecSAEntry> m_ptr_related_gsa_r;
 	Ptr<GsaPushSession> m_ptr_push_session;
 	//nq session or
 	//other gm sessions for spi request
 	std::set<Ptr<GsaPushSession> > m_set_ptr_push_sessions;
-	uint16_t m_number_retranmission;
-	Ptr<Packet> m_last_sent_packet;
+	Ptr<Ipv4InterfaceMulticast> m_ptr_igmp_interface;
 };
 
 class GsamSessionGroup : public Object {
@@ -792,12 +764,14 @@ private:
 
 public:	//self defined
 	Ptr<GsamSession> CreateSession (Ptr<GsamInitSession> init_session, Ipv4Address group_address);
+	Ptr<GsamSession> CreateSession (Ptr<GsamInitSession> init_session, Ipv4Address group_address, Ptr<Ipv4InterfaceMulticast> interface);
 	Ptr<GsamInitSession> CreateInitSession (Ipv4Address peer_address);
-	Ptr<GsamInitSession> CreateInitSession (Ipv4Address peer_address, Ipv4Address first_join_group_address);
+	Ptr<GsamInitSession> CreateInitSession (Ipv4Address peer_address, Ipv4Address first_join_group_address, Ptr<Ipv4InterfaceMulticast> interface = 0);
 	Ptr<GsaPushSession> CreateGsaPushSession (void);
 	Ptr<GsamSessionGroup> GetSessionGroup (Ipv4Address group_address);
 	std::list<Ptr<GsamSessionGroup> >& GetSessionGroups (void);
 	void RemoveSession (Ptr<GsamSession> session);
+	void RemoveInitSession (Ptr<GsamInitSession> session);
 	void RemoveSessionGroup (Ptr<GsamSessionGroup> session_group);
 	void RemoveGsaPushSession (Ptr<GsaPushSession> gsa_push_session);
 	Time GetRetransmissionDelay (void);
@@ -806,12 +780,12 @@ public:	//self defined
 	void SetGsam (Ptr<GsamL4Protocol> gsam);
 public:	//const
 	Ptr<GsamInfo> GetInfo (void) const;
-	Ptr<GsamSession> GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
-	Ptr<GsamSession> GetPhaseOneSession (GsamSession::PHASE_ONE_ROLE local_p1_role, uint64_t initiator_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetPhaseTwoSession (uint64_t initiator_spi, uint64_t responder_spi, uint32_t message_id, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetSession (const IkeHeader& header, Ipv4Address peer_address) const;
 	Ptr<GsamSession> GetSession (const Ptr<const GsamInitSession> init_session, Ipv4Address group_address, uint64_t initiator_kek_spi) const;
+	Ptr<GsamSession> GetSession (const Ptr<const GsamInitSession> init_session, uint64_t initiator_kek_spi) const;
 	Ptr<GsamInitSession> GetInitSession (const IkeHeader& header, Ipv4Address peer_address) const;
+	Ptr<GsamInitSession> GetInitSession (GsamInitSession::SESSION_ROLE local_role, Ipv4Address peer_address) const;
 	Ptr<IpSecPolicyDatabase> GetPolicyDatabase (void) const;
 	Ptr<IpSecSADatabase> GetIpSecSaDatabase (void) const;
 	const Ptr<Igmpv3L4Protocol> GetIgmp (void) const;
@@ -934,7 +908,7 @@ public:	//self-defined non-const
 													Ipv4Address destination,
 													uint8_t protocol,
 													Ptr<Ipv4Route> route);
-	void DoGsam (Ipv4Address group_address, const Ptr<GsamFilterCache> cache = 0);
+	void DoGsam (Ptr<Ipv4InterfaceMulticast> interface, Ipv4Address group_address, const Ptr<GsamFilterCache> cache = 0);
 	void GsamCallBack (Ptr<GsamSession> session);
 private:
 	Ptr<GsamL4Protocol> m_ptr_gsam;

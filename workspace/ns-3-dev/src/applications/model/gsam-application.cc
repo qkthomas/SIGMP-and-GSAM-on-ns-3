@@ -185,9 +185,18 @@ GsamApplication::GenerateEvent (void)
 			Ptr<GsamL4Protocol> gsam = this->GetGsam();
 			Ipv4Address group_address = GsamConfig::GetSingleton()->GetAnUnusedSecGrpAddress();
 			Ipv4Address q_address = GsamConfig::GetSingleton()->GetQAddress();
-			Ptr<GsamInitSession> init_session = gsam->GetIpSecDatabase()->CreateInitSession(q_address, group_address);
-			Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(init_session, group_address);
-			gsam->Send_IKE_SA_INIT(init_session);
+			Ptr<GsamInitSession> init_session = gsam->GetIpSecDatabase()->GetInitSession(GsamInitSession::INITIATOR, q_address);
+			if (0 == init_session)
+			{
+				init_session = gsam->GetIpSecDatabase()->CreateInitSession(q_address, group_address);
+				Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(init_session, group_address);
+				gsam->Send_IKE_SA_INIT(init_session);
+			}
+			else
+			{
+				Ptr<GsamSession> session = gsam->GetIpSecDatabase()->CreateSession(init_session, group_address);
+				gsam->Send_IKE_SA_AUTH(init_session, session);
+			}
 			this->m_num_events--;
 			if (0 < this->m_num_events)
 			{
