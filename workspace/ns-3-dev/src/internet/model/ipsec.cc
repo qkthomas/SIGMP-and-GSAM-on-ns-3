@@ -1204,6 +1204,32 @@ GsamConfig::ClearResultFile (void) const
 	}
 }
 
+Time
+GsamConfig::GetSigmpReportDelayAfterGsamInMilliSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	double seconds_double = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("sigmp-delay-after-gsam-ms");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> seconds_double)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	Time retval = MilliSeconds(seconds_double);
+	return retval;
+}
+
 void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {
@@ -2511,7 +2537,7 @@ GsaPushSession::AlterRejectedGsaAndAggregatePacket (Ptr<Packet> retval_packet_fo
 	}
 
 
-	if (this->m_lst_nq_rejected_spis_subs.size() != 0)
+	if (this->m_lst_nq_rejected_spis_subs.size() == 0)
 	{
 		NS_ASSERT (false);
 	}

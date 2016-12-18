@@ -131,6 +131,7 @@ public:	//const
 	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredReport (void) const;
 	uint32_t GetNodeIdByAddress (Ipv4Address node_interface_address) const;
 	void ClearResultFile (void) const;
+	Time GetSigmpReportDelayAfterGsamInMilliSeconds (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member

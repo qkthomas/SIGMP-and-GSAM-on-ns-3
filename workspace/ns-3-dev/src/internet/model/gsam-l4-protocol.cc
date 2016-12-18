@@ -631,17 +631,21 @@ GsamL4Protocol::Send_GSA_PUSH_NQ (Ptr<GsamSession> session)
 
 			if (gsa_q == 0)
 			{
-				//no gsa_q but there is an established session group
-				if (0 != session_group->GetSessionsConst().size())
-				{
-					//has no established gsa_q but has established gsa_r?
-					NS_ASSERT (false);
-				}
-				else
-				{
-					//ok
-					//maybe there the q is waiting for reply of GSA_PUSH from the first member joining that group
-				}
+				//do nothing
+				//nothing to push
+
+
+//				//no gsa_q but there is an established session group
+//				if (0 != session_group->GetSessionsConst().size())
+//				{
+//					//has no established gsa_q but has established gsa_r?
+//					NS_ASSERT (false);
+//				}
+//				else
+//				{
+//					//ok
+//					//maybe there the q is waiting for reply of GSA_PUSH from the first member joining that group
+//				}
 			}
 			else
 			{
@@ -2295,6 +2299,14 @@ GsamL4Protocol::HandleGsaRepushGM (Ptr<Packet> packet, const IkeHeader& ikeheade
 		}
 		next_payload_type = gsa_repush_payload.GetNextPayloadType();
 	}
+
+	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
+	Time dt = GsamConfig::GetSingleton()->GetSigmpReportDelayAfterGsamInMilliSeconds();
+	Simulator::Schedule (dt,
+							&Igmpv3L4Protocol::SendSecureStateChangesReport,
+							igmp,
+							igmp->GetManager()->GetIfStateManager(session->GetIgmpInterface()),
+							session->GetGroupAddress());
 }
 
 void
@@ -2992,7 +3004,7 @@ GsamL4Protocol::SendAcceptAck (	Ptr<GsamSession> session,
 			false);
 
 	Ptr<Igmpv3L4Protocol> igmp = Igmpv3L4Protocol::GetIgmp(this->m_node);
-	Time dt = MilliSeconds (10.0);
+	Time dt = GsamConfig::GetSingleton()->GetSigmpReportDelayAfterGsamInMilliSeconds();
 	Simulator::Schedule (dt,
 						&Igmpv3L4Protocol::SendSecureStateChangesReport,
 						igmp,
@@ -3553,11 +3565,12 @@ GsamL4Protocol::HandleGsaRejectionFromNQ (Ptr<Packet> packet, Ptr<GsamSession> s
 	//There should be no gsa push session attached to the nq session on the Q, yet.
 	GsamConfig::Log(__FUNCTION__, this->m_node->GetId(), session);
 	Ptr<GsaPushSession> gsa_push_session = this->m_ptr_database->CreateGsaPushSession();
+	gsa_push_session->SetStatus(GsaPushSession::GSA_PUSH_ACK);
 
 	IkePayloadHeader::PAYLOAD_TYPE next_payload_type = IkePayloadHeader::NO_NEXT_PAYLOAD;
 
 	do {
-		IkePayload gsa_rejection_payload;
+		IkePayload gsa_rejection_payload = IkePayload::GetEmptyPayloadFromPayloadType(IkePayloadHeader::GROUP_NOTIFY);
 		packet->RemoveHeader(gsa_rejection_payload);
 		IkePayloadHeader::PAYLOAD_TYPE this_payload_type = gsa_rejection_payload.GetPayloadType();
 
