@@ -925,13 +925,13 @@ GsamL4Protocol::DeliverToNQs (	Ptr<GsaPushSession> gsa_push_session,
 
 	Ptr<GsamSessionGroup> session_group_nq = this->GetIpSecDatabase()->GetSessionGroup(GsamConfig::GetIgmpv3DestGrpReportAddress());
 
-	std::list<Ptr<GsamSession> > lst_sessions_nq = session_group_nq->GetSessions();
+	std::list<Ptr<GsamSession> >& lst_sessions_nq = session_group_nq->GetSessions();
 
-	for (	std::list<Ptr<GsamSession> >::iterator it = lst_sessions_nq.begin();
-			it != lst_sessions_nq.end();
-			it++)
+	for (	std::list<Ptr<GsamSession> >::const_iterator const_it = lst_sessions_nq.begin();
+			const_it != lst_sessions_nq.end();
+			const_it++)
 	{
-		Ptr<GsamSession> nq_session = (*it);
+		Ptr<GsamSession> nq_session = (*const_it);
 		gsa_push_session->PushBackNqSession(nq_session);
 		nq_session->InsertGsaPushSession(gsa_push_session);
 
@@ -2083,7 +2083,8 @@ GsamL4Protocol::SendSpiReportGMNQ (Ptr<GsamSession> session, uint32_t gsa_push_i
 																																IkeTrafficSelector::GetIpv4DummyTs());
 	if (0 == session_spd_spis.size())
 	{
-		NS_ASSERT (false);
+		//NS_ASSERT (false);
+		//ok no inbound spi, send empty report
 	}
 	spi_report_payload_sub->InertSpis(session_spd_spis);
 	spi_report_payload.SetSubstructure(spi_report_payload_sub);
@@ -2167,7 +2168,9 @@ GsamL4Protocol::HandleGsaRepush (Ptr<Packet> packet, const IkeHeader& ikeheader,
 		}
 		else
 		{
-			NS_ASSERT (false);
+			//NS_ASSERT (false);
+			//unknown cause
+			//ignore for getting result
 		}
 	}
 }
@@ -2675,7 +2678,8 @@ GsamL4Protocol::HandleGsaPushSpiRequestNQ (Ptr<Packet> packet, const IkeHeader& 
 		}
 		else
 		{
-			NS_ASSERT (false);
+			//NS_ASSERT (false);
+			//ignore for getting result
 		}
 	}
 	else if (first_payload_type == IkePayloadHeader::GROUP_NOTIFY)

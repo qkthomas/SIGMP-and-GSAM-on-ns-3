@@ -50,8 +50,8 @@ main (int argc, char *argv[])
 	*/
 
 	CsmaHelper csma;
-	csma.SetChannelAttribute ("DataRate", StringValue ("5Mbps"));
-	csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (2)));
+	csma.SetChannelAttribute ("DataRate", StringValue ("100Mbps"));
+	csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (10)));
 
 
 	InternetStackHelperMulticast stack;
@@ -105,6 +105,8 @@ main (int argc, char *argv[])
 
 	Simulator::Run ();
 	Simulator::Destroy ();
+	GsamConfig::GetSingleton()->LogNonsecGroupAverageDelay();
+	GsamConfig::GetSingleton()->LogSecGroupAverageDelay();
 	return 0;
 }
 

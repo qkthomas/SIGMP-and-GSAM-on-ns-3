@@ -301,7 +301,8 @@ GsamConfig::~GsamConfig()
 	this->m_map_settings.clear();
 	this->m_map_u32_ipv4addr_to_node_id.clear();
 	this->m_set_used_unsec_grp_addresses.clear();
-	this->m_map_node_id_group_address_to_delay.clear();
+	this->m_map_node_id_group_address_to_time_join_finish.clear();
+	this->m_map_node_id_group_address_to_time_join_sec_delay.clear();
 }
 
 TypeId
@@ -1300,7 +1301,7 @@ GsamConfig::LogJoinStart (uint32_t node_id, Ipv4Address group_address)
 		{
 			result_doc << "Node: " << node_id << " join group {start} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds." << std::endl;
 		}
-		this->m_map_node_id_group_address_to_delay.insert(std::pair<std::pair<uint32_t, uint32_t>, Time>(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()), Simulator::Now()));
+		this->m_map_node_id_group_address_to_time_join_finish.insert(std::pair<std::pair<uint32_t, uint32_t>, Time>(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()), Simulator::Now()));
 		result_doc.close();
 	}
 	else
@@ -1317,8 +1318,8 @@ GsamConfig::LogJoinFinish (uint32_t node_id, Ipv4Address group_address)
 	if (result_doc.is_open())
 	{
 		Time join_delay = Seconds (0.0);
-		std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_delay.find(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()));
-		if (this->m_map_node_id_group_address_to_delay.end() == const_it)
+		std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_finish.find(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()));
+		if (this->m_map_node_id_group_address_to_time_join_finish.end() == const_it)
 		{
 			NS_ASSERT (false);
 		}
@@ -1329,10 +1330,12 @@ GsamConfig::LogJoinFinish (uint32_t node_id, Ipv4Address group_address)
 		if (true == this->IsGroupAddressSecureGroup(group_address))
 		{
 			result_doc << "Node: " << node_id << " join sec group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds.";
+			this->m_map_node_id_group_address_to_time_join_sec_delay.insert(std::pair<std::pair<uint32_t, uint32_t>, Time>(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()), join_delay));
 		}
 		else
 		{
 			result_doc << "Node: " << node_id << " join group {finish} address: " << group_address << " Time: " << Simulator::Now().GetSeconds() << " seconds.";
+			this->m_map_node_id_group_address_to_time_join_nonsec_delay.insert(std::pair<std::pair<uint32_t, uint32_t>, Time>(std::pair<uint32_t, uint32_t>(node_id, group_address.Get()), join_delay));
 		}
 		result_doc << " join delay: " << join_delay.GetSeconds() << " seconds." << std::endl;
 		result_doc.close();
@@ -1444,6 +1447,68 @@ GsamConfig::LogProcessingPacket (uint32_t node_id, bool is_incoming, bool policy
 			NS_ASSERT (false);
 		}
 		result_doc << "Time: " << Simulator::Now().GetSeconds() << " seconds" << std::endl;
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogSecGroupAverageDelay (void)
+{
+	Time total_delay = Seconds(0.0);
+	Time typical_total_delay = Seconds (0.0);
+	uint32_t typical_count = 0;
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_sec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_sec_delay.end();
+			const_it++)
+	{
+		total_delay += const_it->second;
+		if (const_it->second < Seconds (1.0))
+		{
+			typical_total_delay += const_it->second;
+			typical_count++;
+		}
+	}
+
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		result_doc << " sec group - average join delay["<< this->m_map_node_id_group_address_to_time_join_sec_delay.size() <<"]: " << (total_delay.GetSeconds()/this->m_map_node_id_group_address_to_time_join_sec_delay.size()) << " seconds." << std::endl;
+		result_doc << " sec group - typical join delay["<< typical_count <<"]: " << (typical_total_delay.GetSeconds()/typical_count) << " seconds." << std::endl;
+		result_doc.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogNonsecGroupAverageDelay (void)
+{
+	Time total_delay = Seconds(0.0);
+	Time typical_total_delay = Seconds (0.0);
+	uint32_t typical_count = 0;
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_nonsec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_nonsec_delay.end();
+			const_it++)
+	{
+		total_delay += const_it->second;
+		if (const_it->second < Seconds (1.0))
+		{
+			typical_total_delay += const_it->second;
+			typical_count++;
+		}
+	}
+
+	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
+	if (result_doc.is_open())
+	{
+		result_doc << " nonsec group - average join delay["<< this->m_map_node_id_group_address_to_time_join_nonsec_delay.size() <<"]: " << (total_delay.GetSeconds()/this->m_map_node_id_group_address_to_time_join_nonsec_delay.size()) << " seconds." << std::endl;
+		result_doc << " nonsec group - typical join delay["<< typical_count <<"]: " << (typical_total_delay.GetSeconds()/typical_count) << " seconds." << std::endl;
 		result_doc.close();
 	}
 	else

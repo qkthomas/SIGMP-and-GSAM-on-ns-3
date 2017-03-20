@@ -99,6 +99,8 @@ public:	//
 	void LogMsgReceived (const std::string& prefix, uint32_t node_id, const Ptr<const Packet> packet, Ipv4Address src);
 	void LogMsgIntoResultFile (uint32_t node_id, const std::string& msg);
 	void LogProcessingPacket (uint32_t node_id, bool is_incoming, bool policy_found, IpSec::PROCESS_CHOICE process_choice, const Ptr<const Packet> packet);
+	void LogSecGroupAverageDelay (void);
+	void LogNonsecGroupAverageDelay (void);
 public:	//const
 	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;
@@ -144,7 +146,9 @@ private:
 	std::set<uint32_t> m_set_used_sec_grp_addresses;
 	std::set<uint32_t> m_set_used_unsec_grp_addresses;
 	std::map<uint32_t, uint32_t> m_map_u32_ipv4addr_to_node_id;
-	std::map<std::pair<uint32_t, uint32_t>, Time> m_map_node_id_group_address_to_delay;
+	std::map<std::pair<uint32_t, uint32_t>, Time> m_map_node_id_group_address_to_time_join_finish;
+	std::map<std::pair<uint32_t, uint32_t>, Time> m_map_node_id_group_address_to_time_join_sec_delay;
+	std::map<std::pair<uint32_t, uint32_t>, Time>m_map_node_id_group_address_to_time_join_nonsec_delay;
 };
 
 class GsamInfo : public Object {
