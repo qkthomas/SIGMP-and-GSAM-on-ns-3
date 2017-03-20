@@ -47,17 +47,17 @@ GsamApplication::StartApplication (void)
 	this->Initialization();
 	if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::QUERIER)
 	{
-		Time delay = Seconds (1.0);
+		Time delay = Seconds (0.1);
 		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
 	}
 	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
 	{
-		Time delay = GsamConfig::GetSingleton()->GetNqJoinTimeInSeconds();
+		Time delay = GsamConfig::GetSingleton()->GetNqJoinTimePlusRandomIntervalInSeconds();
 		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
 	}
 	else if (this->m_ptr_igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
 	{
-		Time delay = GsamConfig::GetSingleton()->GetGmJoinTimeInSeconds();
+		Time delay = GsamConfig::GetSingleton()->GetGmJoinTimePlusRandomIntervalInSeconds();
 		this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
 	}
 	else
@@ -200,7 +200,7 @@ GsamApplication::GenerateEvent (void)
 			this->m_num_events--;
 			if (0 < this->m_num_events)
 			{
-				Time delay = Seconds (1.0);
+				Time delay = GsamConfig::GetSingleton()->GetGmJoinIntervalInSeconds();
 				this->m_event_current = Simulator::Schedule(delay, &GsamApplication::GenerateEvent, this);
 			}
 		}

@@ -32,6 +32,7 @@
 #include "ns3/ipv4-header.h"
 #include "tcp-header.h"
 #include "udp-header.h"
+#include "ns3/random-variable-stream.h"
 
 namespace ns3 {
 
@@ -783,6 +784,36 @@ GsamConfig::GetGmJoinTimeInSeconds (void) const
 	return retval;
 }
 
+Time
+GsamConfig::GetNqJoinTimePlusRandomIntervalInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Time nq_join_time = this->GetNqJoinTimeInSeconds();
+	Time gm_join_interval = this->GetGmJoinIntervalInSeconds();
+
+	Ptr<UniformRandomVariable> random = CreateObject<UniformRandomVariable> ();
+	random->SetAttribute ("Min", DoubleValue (0.0));
+	random->SetAttribute ("Max", DoubleValue (gm_join_interval.GetSeconds()));
+
+	Time retval = nq_join_time + Seconds (random->GetValue());
+	return retval;
+}
+
+Time
+GsamConfig::GetGmJoinTimePlusRandomIntervalInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	Time gm_join_time = this->GetGmJoinTimeInSeconds();
+	Time gm_join_interval = this->GetGmJoinIntervalInSeconds();
+
+	Ptr<UniformRandomVariable> random = CreateObject<UniformRandomVariable> ();
+	random->SetAttribute ("Min", DoubleValue (0.0));
+	random->SetAttribute ("Max", DoubleValue (gm_join_interval.GetSeconds()));
+
+	Time retval = gm_join_time + Seconds (random->GetValue());
+	return retval;
+}
+
 uint16_t
 GsamConfig::GetNumberOfRetransmission (void) const
 {
@@ -1211,6 +1242,32 @@ GsamConfig::GetSigmpReportDelayAfterGsamInMilliSeconds (void) const
 	NS_LOG_FUNCTION (this);
 	double seconds_double = 0;
 	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("sigmp-delay-after-gsam-ms");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> seconds_double)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	Time retval = MilliSeconds(seconds_double);
+	return retval;
+}
+
+Time
+GsamConfig::GetGmJoinIntervalInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	double seconds_double = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("gm-join-interval-second");
 	if (const_it != this->m_map_settings.end())
 	{
 		std::string value_text = const_it->second;

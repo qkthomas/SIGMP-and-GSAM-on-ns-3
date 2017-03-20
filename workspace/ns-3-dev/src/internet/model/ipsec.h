@@ -114,6 +114,8 @@ public:	//const
 	bool IsNodeIsNq (uint32_t node_id) const;
 	Time GetNqJoinTimeInSeconds (void) const;
 	Time GetGmJoinTimeInSeconds (void) const;
+	Time GetNqJoinTimePlusRandomIntervalInSeconds (void) const;
+	Time GetGmJoinTimePlusRandomIntervalInSeconds (void) const;
 	uint16_t GetNumberOfRetransmission (void) const;
 	bool IsRetransmissionDisable (void) const;
 	uint16_t GetGmJoinEventNumber (void) const;
@@ -134,6 +136,7 @@ public:	//const
 	uint32_t GetNodeIdByAddress (Ipv4Address node_interface_address) const;
 	void ClearResultFile (void) const;
 	Time GetSigmpReportDelayAfterGsamInMilliSeconds (void) const;
+	Time GetGmJoinIntervalInSeconds (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
