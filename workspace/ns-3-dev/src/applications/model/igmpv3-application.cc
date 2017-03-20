@@ -59,11 +59,11 @@ Igmpv3Application::StartApplication(void)
 	}
 	else if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
 	{
-		dt = GsamConfig::GetSingleton()->GetNqJoinTimeInSeconds();
+		dt = GsamConfig::GetSingleton()->GetNqJoinTimePlusRandomIntervalInSeconds();
 	}
 	else if (igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
 	{
-		dt = GsamConfig::GetSingleton()->GetGmJoinTimeInSeconds();
+		dt = GsamConfig::GetSingleton()->GetGmJoinTimePlusRandomIntervalInSeconds();
 	}
 	else
 	{

@@ -763,7 +763,7 @@ GsamConfig::GetGmJoinTimeInSeconds (void) const
 {
 	NS_LOG_FUNCTION (this);
 	double seconds_double = 0;
-	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("nq-join-time");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("gm-join-time");
 	if (const_it != this->m_map_settings.end())
 	{
 		std::string value_text = const_it->second;

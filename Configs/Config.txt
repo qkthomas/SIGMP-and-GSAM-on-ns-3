@@ -1,6 +1,6 @@
-number-of-node:6
+number-of-node:20
 number-of-nq:2
-fake-rejection-probability:90
+fake-rejection-probability:20
 nq-join-time:2
 gm-join-time:10
 number-of-retransmission:1
