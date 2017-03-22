@@ -23,8 +23,7 @@ main (int argc, char *argv[])
 	cmd.Parse (argc, argv);
 
 	GsamConfig::GetSingleton()->ClearResultFile();
-
-	int simulation_seconds = 1000;
+//	GsamConfig::GetSingleton()->ClearWorstDelayFile();
 
 	//std::cout << "Input simulation time (Seconds): ";
 	//std::cin >> simulation_seconds;
@@ -86,7 +85,7 @@ main (int argc, char *argv[])
 			factory.SetTypeId(Igmpv3Application::GetTypeId());
 			Ptr<Application> app = factory.Create<Igmpv3Application>();
 			app->SetStartTime(Seconds(0.));
-			app->SetStopTime(Seconds(double(simulation_seconds)));
+			app->SetStopTime(GsamConfig::GetSingleton()->GetSimulationTimeInSeconds());
 			nodes.Get(i)->AddApplication(app);
 		}
 
@@ -107,6 +106,11 @@ main (int argc, char *argv[])
 	Simulator::Destroy ();
 	GsamConfig::GetSingleton()->LogNonsecGroupAverageDelay();
 	GsamConfig::GetSingleton()->LogSecGroupAverageDelay();
+	GsamConfig::GetSingleton()->PlotSecGroupDelay();
+	GsamConfig::GetSingleton()->PlotSecGroupDelayInRange (Seconds (10.0));
+	GsamConfig::GetSingleton()->PlotSecGroupDelayInRange (Seconds (1.0));
+	GsamConfig::GetSingleton()->PlotNonsecGroupDelay();
+	GsamConfig::GetSingleton()->LogALlJoinWorstDelay(GsamConfig::GetSingleton()->GetNumberOfNodes() - GsamConfig::GetSingleton()->GetNumberOfNqs() - 1);
 	return 0;
 }
 

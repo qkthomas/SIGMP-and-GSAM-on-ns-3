@@ -1,0 +1,350 @@
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 0, destination address: 224.0.0.1 Time: 0 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 0, source address: 127.0.0.1, Node: 0 Time: 0 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 0, source address: 10.1.1.1, Node: 0 Time: 0.000102401 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 0, source address: 10.1.1.1, Node: 0 Time: 0.000102401 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 0, source address: 10.1.1.1, Node: 0 Time: 0.000102401 seconds.
+Node 3 Send igmp packet: packet size = 8 bytes, uid = 2, destination address: 224.0.0.22 Time: 1.8721 seconds.
+Node 0 Receive igmp packet: packet size = 8 bytes, uid = 2, source address: 10.1.1.4, Node: 3 Time: 1.8722 seconds.
+Node 1 Receive igmp packet: packet size = 8 bytes, uid = 2, source address: 10.1.1.4, Node: 3 Time: 1.8722 seconds.
+Node 2 Receive igmp packet: packet size = 8 bytes, uid = 2, source address: 10.1.1.4, Node: 3 Time: 1.8722 seconds.
+Node 1 Send gsam packet: packet size = 68 bytes, uid = 4, destination address: 10.1.1.1 Time: 2 seconds.
+Node 2 Send gsam packet: packet size = 68 bytes, uid = 5, destination address: 10.1.1.1 Time: 2 seconds.
+Node: 3 join sec group {start} address: 232.67.190.1 Time: 2 seconds.
+Node 3 Send gsam packet: packet size = 68 bytes, uid = 6, destination address: 10.1.1.1 Time: 2 seconds.
+Node 0 Receive gsam packet: packet size = 68 bytes, uid = 4, source address: 10.1.1.2, Node: 1 Time: 2.00139 seconds.
+Node 0 Send gsam packet: packet size = 68 bytes, uid = 11, destination address: 10.1.1.2 Time: 2.00139 seconds.
+Node 0 Receive gsam packet: packet size = 68 bytes, uid = 6, source address: 10.1.1.4, Node: 3 Time: 2.00639 seconds.
+Node 0 Send gsam packet: packet size = 68 bytes, uid = 16, destination address: 10.1.1.4 Time: 2.00639 seconds.
+Node 0 Receive gsam packet: packet size = 68 bytes, uid = 5, source address: 10.1.1.3, Node: 2 Time: 2.00939 seconds.
+Node 0 Send gsam packet: packet size = 68 bytes, uid = 23, destination address: 10.1.1.3 Time: 2.00939 seconds.
+Node 1 Receive gsam packet: packet size = 68 bytes, uid = 11, source address: 10.1.1.1, Node: 0 Time: 2.00978 seconds.
+Node 1 Send gsam packet: packet size = 92 bytes, uid = 26, destination address: 10.1.1.1 Time: 2.00978 seconds.
+Node 0 Receive gsam packet: packet size = 92 bytes, uid = 26, source address: 10.1.1.2, Node: 1 Time: 2.01 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 27, destination address: 10.1.1.2 Time: 2.01 seconds.
+Node 0 Send gsam packet: packet size = 68 bytes, uid = 28, destination address: 10.1.1.2 Time: 2.01 seconds.
+Node 1 Receive gsam packet: packet size = 92 bytes, uid = 27, source address: 10.1.1.1, Node: 0 Time: 2.01022 seconds.
+Node 1 Receive gsam packet: packet size = 68 bytes, uid = 28, source address: 10.1.1.1, Node: 0 Time: 2.01042 seconds.
+Node 1 Send gsam packet: packet size = 72 bytes, uid = 29, destination address: 10.1.1.1 Time: 2.01042 seconds.
+Node 1 Send gsam packet: packet size = 72 bytes, uid = 30, destination address: 10.1.1.1 Time: 2.01042 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 29, source address: 10.1.1.2, Node: 1 Time: 2.01061 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 30, source address: 10.1.1.2, Node: 1 Time: 2.01082 seconds.
+Node 3 Receive gsam packet: packet size = 68 bytes, uid = 16, source address: 10.1.1.1, Node: 0 Time: 2.01278 seconds.
+Node 3 Send gsam packet: packet size = 124 bytes, uid = 35, destination address: 10.1.1.1 Time: 2.01278 seconds.
+Node 0 Receive gsam packet: packet size = 124 bytes, uid = 35, source address: 10.1.1.4, Node: 3 Time: 2.01305 seconds.
+Node 0 Send gsam packet: packet size = 124 bytes, uid = 36, destination address: 10.1.1.4 Time: 2.01305 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 37, destination address: 10.1.1.4 Time: 2.01305 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 38, destination address: 10.1.1.2 Time: 2.01305 seconds.
+Node 3 Receive gsam packet: packet size = 124 bytes, uid = 36, source address: 10.1.1.1, Node: 0 Time: 2.01332 seconds.
+Node 3 Receive gsam packet: packet size = 92 bytes, uid = 37, source address: 10.1.1.1, Node: 0 Time: 2.01356 seconds.
+Node 3 Send gsam packet: packet size = 76 bytes, uid = 41, destination address: 10.1.1.1 Time: 2.01356 seconds.
+Node 0 Receive gsam packet: packet size = 76 bytes, uid = 41, source address: 10.1.1.4, Node: 3 Time: 2.01376 seconds.
+Node 0 Send gsam packet: packet size = 72 bytes, uid = 42, destination address: 10.1.1.4 Time: 2.01376 seconds.
+Node 0 Send gsam packet: packet size = 72 bytes, uid = 43, destination address: 10.1.1.2 Time: 2.01376 seconds.
+Node 1 Receive gsam packet: packet size = 92 bytes, uid = 38, source address: 10.1.1.1, Node: 0 Time: 2.01433 seconds.
+Node 1 Send gsam packet: packet size = 72 bytes, uid = 44, destination address: 10.1.1.1 Time: 2.01433 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 44, source address: 10.1.1.2, Node: 1 Time: 2.01452 seconds.
+Node 3 Receive gsam packet: packet size = 72 bytes, uid = 42, source address: 10.1.1.1, Node: 0 Time: 2.01514 seconds.
+Node 3 Send gsam packet: packet size = 76 bytes, uid = 47, destination address: 10.1.1.1 Time: 2.01514 seconds.
+Node 0 Receive gsam packet: packet size = 76 bytes, uid = 47, source address: 10.1.1.4, Node: 3 Time: 2.01534 seconds.
+Node 1 Receive gsam packet: packet size = 72 bytes, uid = 43, source address: 10.1.1.1, Node: 0 Time: 2.01563 seconds.
+Node 1 Send gsam packet: packet size = 76 bytes, uid = 48, destination address: 10.1.1.1 Time: 2.01563 seconds.
+Node 0 Receive gsam packet: packet size = 76 bytes, uid = 48, source address: 10.1.1.2, Node: 1 Time: 2.01583 seconds.
+Node 0 Send gsam packet: packet size = 116 bytes, uid = 49, destination address: 10.1.1.4 Time: 2.01583 seconds.
+Node 0 Send gsam packet: packet size = 116 bytes, uid = 49, destination address: 10.1.1.2 Time: 2.01583 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 51, destination address: 224.0.0.1 Time: 2.01583 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 51, source address: 127.0.0.1, Node: 0 Time: 2.01583 seconds.
+Node 2 Receive gsam packet: packet size = 68 bytes, uid = 23, source address: 10.1.1.1, Node: 0 Time: 2.01602 seconds.
+Node 2 Send gsam packet: packet size = 92 bytes, uid = 53, destination address: 10.1.1.1 Time: 2.01602 seconds.
+Node 0 Receive gsam packet: packet size = 92 bytes, uid = 53, source address: 10.1.1.3, Node: 2 Time: 2.01624 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 54, destination address: 10.1.1.3 Time: 2.01624 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 55, destination address: 10.1.1.3 Time: 2.01624 seconds.
+Node 3 Receive gsam packet: packet size = 116 bytes, uid = 49, source address: 10.1.1.1, Node: 0 Time: 2.01661 seconds.
+Node 1 Receive gsam packet: packet size = 116 bytes, uid = 49, source address: 10.1.1.1, Node: 0 Time: 2.01689 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 51, source address: 10.1.1.1, Node: 0 Time: 2.01701 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 51, source address: 10.1.1.1, Node: 0 Time: 2.01701 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 51, source address: 10.1.1.1, Node: 0 Time: 2.01701 seconds.
+Node 2 Receive gsam packet: packet size = 92 bytes, uid = 54, source address: 10.1.1.1, Node: 0 Time: 2.01725 seconds.
+Node 2 Receive gsam packet: packet size = 92 bytes, uid = 55, source address: 10.1.1.1, Node: 0 Time: 2.01749 seconds.
+Node 2 Send gsam packet: packet size = 76 bytes, uid = 56, destination address: 10.1.1.1 Time: 2.01749 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 57, destination address: 232.67.190.1 Time: 2.01761 seconds.
+Node: 3 Processing outgoing packet,  uid = 57 Policy found,  PROTECT Time: 2.01761 seconds
+Node 0 Receive gsam packet: packet size = 76 bytes, uid = 56, source address: 10.1.1.3, Node: 2 Time: 2.01769 seconds.
+Node 0 Send gsam packet: packet size = 72 bytes, uid = 59, destination address: 10.1.1.2 Time: 2.01769 seconds.
+Node 0 Send gsam packet: packet size = 72 bytes, uid = 60, destination address: 10.1.1.3 Time: 2.01769 seconds.
+Node 1 Receive gsam packet: packet size = 72 bytes, uid = 59, source address: 10.1.1.1, Node: 0 Time: 2.01788 seconds.
+Node 1 Send gsam packet: packet size = 76 bytes, uid = 61, destination address: 10.1.1.1 Time: 2.01788 seconds.
+Node 0 Receive gsam packet: packet size = 76 bytes, uid = 61, source address: 10.1.1.2, Node: 1 Time: 2.01807 seconds.
+Node 2 Receive gsam packet: packet size = 72 bytes, uid = 60, source address: 10.1.1.1, Node: 0 Time: 2.01827 seconds.
+Node 2 Send gsam packet: packet size = 76 bytes, uid = 62, destination address: 10.1.1.1 Time: 2.01827 seconds.
+Node 0 Receive gsam packet: packet size = 76 bytes, uid = 62, source address: 10.1.1.3, Node: 2 Time: 2.01847 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 64, destination address: 10.1.1.4 Time: 2.01847 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 63, destination address: 10.1.1.3 Time: 2.01847 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 63, destination address: 10.1.1.2 Time: 2.01847 seconds.
+Node 3 Receive gsam packet: packet size = 92 bytes, uid = 64, source address: 10.1.1.1, Node: 0 Time: 2.01869 seconds.
+Node 2 Receive gsam packet: packet size = 92 bytes, uid = 63, source address: 10.1.1.1, Node: 0 Time: 2.01893 seconds.
+Node 1 Receive gsam packet: packet size = 92 bytes, uid = 63, source address: 10.1.1.1, Node: 0 Time: 2.01917 seconds.
+Node: 0 Processing incoming packet,  uid = 57 Policy found,  DISCARD Time: 2.01944 seconds
+Node: 1 Processing incoming packet,  uid = 57 Policy found,  DISCARD Time: 2.01944 seconds
+Node: 2 Processing incoming packet,  uid = 57 Policy found,  BYPASS Time: 2.01944 seconds
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 65, destination address: 232.67.190.1 Time: 2.01969 seconds.
+Node: 3 Processing outgoing packet,  uid = 65 Policy found,  PROTECT Time: 2.01969 seconds
+Node: 0 Processing incoming packet,  uid = 65 Policy found,  PROTECT Time: 2.01979 seconds
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 65, source address: 10.1.1.4, Node: 3 Time: 2.01979 seconds.
+Node: 3 join sec group {finish} address: 232.67.190.1 Time: 2.01979 seconds. join delay: 0.0197936 seconds.
+Node: 1 Processing incoming packet,  uid = 65 Policy found,  PROTECT Time: 2.01979 seconds
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 65, source address: 10.1.1.4, Node: 3 Time: 2.01979 seconds.
+Node: 2 Processing incoming packet,  uid = 65 Policy found,  BYPASS Time: 2.01979 seconds
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 66, destination address: 224.0.0.22 Time: 3.12001 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 66, source address: 10.1.1.4, Node: 3 Time: 3.12011 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 66, source address: 10.1.1.4, Node: 3 Time: 3.12011 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 66, source address: 10.1.1.4, Node: 3 Time: 3.12011 seconds.
+Node: 3 join group {start} address: 79.60.173.166 Time: 62 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 68, destination address: 224.0.0.22 Time: 62 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 68, source address: 10.1.1.4, Node: 3 Time: 62.0001 seconds.
+Node: 3 join group {finish} address: 79.60.173.166 Time: 62.0001 seconds. join delay: 0.000102401 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 68, source address: 10.1.1.4, Node: 3 Time: 62.0001 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 68, source address: 10.1.1.4, Node: 3 Time: 62.0001 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 70, destination address: 224.0.0.22 Time: 62.564 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 70, source address: 10.1.1.4, Node: 3 Time: 62.5641 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 70, source address: 10.1.1.4, Node: 3 Time: 62.5641 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 70, source address: 10.1.1.4, Node: 3 Time: 62.5641 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 72, destination address: 224.0.0.1 Time: 180 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 72, source address: 127.0.0.1, Node: 0 Time: 180 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 72, source address: 10.1.1.1, Node: 0 Time: 180 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 72, source address: 10.1.1.1, Node: 0 Time: 180 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 72, source address: 10.1.1.1, Node: 0 Time: 180 seconds.
+Node 3 Send igmp packet: packet size = 24 bytes, uid = 74, destination address: 224.0.0.22 Time: 180.59 seconds.
+Node 0 Receive igmp packet: packet size = 24 bytes, uid = 74, source address: 10.1.1.4, Node: 3 Time: 180.59 seconds.
+Node 1 Receive igmp packet: packet size = 24 bytes, uid = 74, source address: 10.1.1.4, Node: 3 Time: 180.59 seconds.
+Node 2 Receive igmp packet: packet size = 24 bytes, uid = 74, source address: 10.1.1.4, Node: 3 Time: 180.59 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 76, destination address: 224.0.0.1 Time: 240 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 76, source address: 127.0.0.1, Node: 0 Time: 240 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 76, source address: 10.1.1.1, Node: 0 Time: 240 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 76, source address: 10.1.1.1, Node: 0 Time: 240 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 76, source address: 10.1.1.1, Node: 0 Time: 240 seconds.
+Node: 3 join sec group {start} address: 233.233.92.81 Time: 242 seconds.
+Node 3 Send gsam packet: packet size = 124 bytes, uid = 78, destination address: 10.1.1.1 Time: 242 seconds.
+Node 0 Receive gsam packet: packet size = 124 bytes, uid = 78, source address: 10.1.1.4, Node: 3 Time: 242 seconds.
+Node 0 Send gsam packet: packet size = 124 bytes, uid = 83, destination address: 10.1.1.4 Time: 242 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 84, destination address: 10.1.1.4 Time: 242 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 85, destination address: 10.1.1.2 Time: 242 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 86, destination address: 10.1.1.3 Time: 242 seconds.
+Node 3 Receive gsam packet: packet size = 124 bytes, uid = 83, source address: 10.1.1.1, Node: 0 Time: 242.004 seconds.
+Node 3 Receive gsam packet: packet size = 92 bytes, uid = 84, source address: 10.1.1.1, Node: 0 Time: 242.005 seconds.
+Node 3 Send gsam packet: packet size = 72 bytes, uid = 95, destination address: 10.1.1.1 Time: 242.005 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 95, source address: 10.1.1.4, Node: 3 Time: 242.005 seconds.
+Node 1 Receive gsam packet: packet size = 92 bytes, uid = 85, source address: 10.1.1.1, Node: 0 Time: 242.005 seconds.
+Node 1 Send gsam packet: packet size = 72 bytes, uid = 96, destination address: 10.1.1.1 Time: 242.005 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 97, destination address: 233.233.92.81 Time: 242.006 seconds.
+Node: 3 Processing outgoing packet,  uid = 97 Policy found,  BYPASS Time: 242.006 seconds
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 97, source address: 10.1.1.4, Node: 3 Time: 242.006 seconds.
+Node: 3 join sec group {finish} address: 233.233.92.81 Time: 242.006 seconds. join delay: 0.0056124 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 97, source address: 10.1.1.4, Node: 3 Time: 242.006 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 97, source address: 10.1.1.4, Node: 3 Time: 242.006 seconds.
+Node 2 Receive gsam packet: packet size = 92 bytes, uid = 86, source address: 10.1.1.1, Node: 0 Time: 242.009 seconds.
+Node 2 Send gsam packet: packet size = 72 bytes, uid = 103, destination address: 10.1.1.1 Time: 242.009 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 103, source address: 10.1.1.3, Node: 2 Time: 242.01 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 96, source address: 10.1.1.2, Node: 1 Time: 242.011 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 112, destination address: 224.0.0.1 Time: 242.011 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 112, source address: 127.0.0.1, Node: 0 Time: 242.011 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 112, source address: 10.1.1.1, Node: 0 Time: 242.011 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 112, source address: 10.1.1.1, Node: 0 Time: 242.011 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 112, source address: 10.1.1.1, Node: 0 Time: 242.011 seconds.
+Node 3 Send igmp packet: packet size = 32 bytes, uid = 114, destination address: 224.0.0.22 Time: 245.268 seconds.
+Node 0 Receive igmp packet: packet size = 32 bytes, uid = 114, source address: 10.1.1.4, Node: 3 Time: 245.268 seconds.
+Node 1 Receive igmp packet: packet size = 32 bytes, uid = 114, source address: 10.1.1.4, Node: 3 Time: 245.268 seconds.
+Node 2 Receive igmp packet: packet size = 32 bytes, uid = 114, source address: 10.1.1.4, Node: 3 Time: 245.268 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 115, destination address: 224.0.0.22 Time: 247.971 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 115, source address: 10.1.1.4, Node: 3 Time: 247.971 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 115, source address: 10.1.1.4, Node: 3 Time: 247.971 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 115, source address: 10.1.1.4, Node: 3 Time: 247.971 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 117, destination address: 224.0.0.1 Time: 300 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 117, source address: 127.0.0.1, Node: 0 Time: 300 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 117, source address: 10.1.1.1, Node: 0 Time: 300 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 117, source address: 10.1.1.1, Node: 0 Time: 300 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 117, source address: 10.1.1.1, Node: 0 Time: 300 seconds.
+Node 3 Send igmp packet: packet size = 32 bytes, uid = 119, destination address: 224.0.0.22 Time: 302.8 seconds.
+Node 0 Receive igmp packet: packet size = 32 bytes, uid = 119, source address: 10.1.1.4, Node: 3 Time: 302.8 seconds.
+Node 1 Receive igmp packet: packet size = 32 bytes, uid = 119, source address: 10.1.1.4, Node: 3 Time: 302.8 seconds.
+Node 2 Receive igmp packet: packet size = 32 bytes, uid = 119, source address: 10.1.1.4, Node: 3 Time: 302.8 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 120, destination address: 224.0.0.1 Time: 360 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 120, source address: 127.0.0.1, Node: 0 Time: 360 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 120, source address: 10.1.1.1, Node: 0 Time: 360 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 120, source address: 10.1.1.1, Node: 0 Time: 360 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 120, source address: 10.1.1.1, Node: 0 Time: 360 seconds.
+Node: 3 join group {start} address: 88.107.13.21 Time: 362 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 122, destination address: 224.0.0.22 Time: 362 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 122, source address: 10.1.1.4, Node: 3 Time: 362 seconds.
+Node: 3 join group {finish} address: 88.107.13.21 Time: 362 seconds. join delay: 0.000102401 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 122, source address: 10.1.1.4, Node: 3 Time: 362 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 122, source address: 10.1.1.4, Node: 3 Time: 362 seconds.
+Node 3 Send igmp packet: packet size = 40 bytes, uid = 124, destination address: 224.0.0.22 Time: 362.432 seconds.
+Node 0 Receive igmp packet: packet size = 40 bytes, uid = 124, source address: 10.1.1.4, Node: 3 Time: 362.432 seconds.
+Node 1 Receive igmp packet: packet size = 40 bytes, uid = 124, source address: 10.1.1.4, Node: 3 Time: 362.432 seconds.
+Node 2 Receive igmp packet: packet size = 40 bytes, uid = 124, source address: 10.1.1.4, Node: 3 Time: 362.432 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 125, destination address: 224.0.0.22 Time: 362.446 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 125, source address: 10.1.1.4, Node: 3 Time: 362.446 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 125, source address: 10.1.1.4, Node: 3 Time: 362.446 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 125, source address: 10.1.1.4, Node: 3 Time: 362.446 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 127, destination address: 224.0.0.1 Time: 420 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 127, source address: 127.0.0.1, Node: 0 Time: 420 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 127, source address: 10.1.1.1, Node: 0 Time: 420 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 127, source address: 10.1.1.1, Node: 0 Time: 420 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 127, source address: 10.1.1.1, Node: 0 Time: 420 seconds.
+Node 3 Send igmp packet: packet size = 40 bytes, uid = 129, destination address: 224.0.0.22 Time: 429.771 seconds.
+Node 0 Receive igmp packet: packet size = 40 bytes, uid = 129, source address: 10.1.1.4, Node: 3 Time: 429.771 seconds.
+Node 1 Receive igmp packet: packet size = 40 bytes, uid = 129, source address: 10.1.1.4, Node: 3 Time: 429.771 seconds.
+Node 2 Receive igmp packet: packet size = 40 bytes, uid = 129, source address: 10.1.1.4, Node: 3 Time: 429.771 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 130, destination address: 224.0.0.1 Time: 480 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 130, source address: 127.0.0.1, Node: 0 Time: 480 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 130, source address: 10.1.1.1, Node: 0 Time: 480 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 130, source address: 10.1.1.1, Node: 0 Time: 480 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 130, source address: 10.1.1.1, Node: 0 Time: 480 seconds.
+Node: 3 join group {start} address: 50.244.235.118 Time: 482 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 132, destination address: 224.0.0.22 Time: 482 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 134, destination address: 224.0.0.22 Time: 482 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 132, source address: 10.1.1.4, Node: 3 Time: 482 seconds.
+Node: 3 join group {finish} address: 50.244.235.118 Time: 482 seconds. join delay: 0.000102401 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 132, source address: 10.1.1.4, Node: 3 Time: 482 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 132, source address: 10.1.1.4, Node: 3 Time: 482 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 134, source address: 10.1.1.4, Node: 3 Time: 482 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 134, source address: 10.1.1.4, Node: 3 Time: 482 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 134, source address: 10.1.1.4, Node: 3 Time: 482 seconds.
+Node 3 Send igmp packet: packet size = 48 bytes, uid = 136, destination address: 224.0.0.22 Time: 488.342 seconds.
+Node 0 Receive igmp packet: packet size = 48 bytes, uid = 136, source address: 10.1.1.4, Node: 3 Time: 488.342 seconds.
+Node 1 Receive igmp packet: packet size = 48 bytes, uid = 136, source address: 10.1.1.4, Node: 3 Time: 488.342 seconds.
+Node 2 Receive igmp packet: packet size = 48 bytes, uid = 136, source address: 10.1.1.4, Node: 3 Time: 488.342 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 137, destination address: 224.0.0.1 Time: 540 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 137, source address: 127.0.0.1, Node: 0 Time: 540 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 137, source address: 10.1.1.1, Node: 0 Time: 540 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 137, source address: 10.1.1.1, Node: 0 Time: 540 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 137, source address: 10.1.1.1, Node: 0 Time: 540 seconds.
+Node: 3 join sec group {start} address: 234.248.17.231 Time: 542 seconds.
+Node 3 Send gsam packet: packet size = 124 bytes, uid = 139, destination address: 10.1.1.1 Time: 542 seconds.
+Node 0 Receive gsam packet: packet size = 124 bytes, uid = 139, source address: 10.1.1.4, Node: 3 Time: 542.002 seconds.
+Node 0 Send gsam packet: packet size = 124 bytes, uid = 144, destination address: 10.1.1.4 Time: 542.002 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 145, destination address: 10.1.1.4 Time: 542.002 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 146, destination address: 10.1.1.2 Time: 542.002 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 147, destination address: 10.1.1.3 Time: 542.002 seconds.
+Node 3 Receive gsam packet: packet size = 124 bytes, uid = 144, source address: 10.1.1.1, Node: 0 Time: 542.004 seconds.
+Node 3 Receive gsam packet: packet size = 92 bytes, uid = 145, source address: 10.1.1.1, Node: 0 Time: 542.004 seconds.
+Node 3 Send gsam packet: packet size = 72 bytes, uid = 152, destination address: 10.1.1.1 Time: 542.004 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 152, source address: 10.1.1.4, Node: 3 Time: 542.004 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 153, destination address: 234.248.17.231 Time: 542.005 seconds.
+Node: 3 Processing outgoing packet,  uid = 153 Policy found,  BYPASS Time: 542.005 seconds
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 153, source address: 10.1.1.4, Node: 3 Time: 542.005 seconds.
+Node: 3 join sec group {finish} address: 234.248.17.231 Time: 542.005 seconds. join delay: 0.00530001 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 153, source address: 10.1.1.4, Node: 3 Time: 542.005 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 153, source address: 10.1.1.4, Node: 3 Time: 542.005 seconds.
+Node 1 Receive gsam packet: packet size = 92 bytes, uid = 146, source address: 10.1.1.1, Node: 0 Time: 542.008 seconds.
+Node 1 Send gsam packet: packet size = 72 bytes, uid = 159, destination address: 10.1.1.1 Time: 542.008 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 159, source address: 10.1.1.2, Node: 1 Time: 542.011 seconds.
+Node 2 Receive gsam packet: packet size = 92 bytes, uid = 147, source address: 10.1.1.1, Node: 0 Time: 542.012 seconds.
+Node 2 Send gsam packet: packet size = 72 bytes, uid = 168, destination address: 10.1.1.1 Time: 542.012 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 168, source address: 10.1.1.3, Node: 2 Time: 542.02 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 173, destination address: 224.0.0.1 Time: 542.02 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 173, source address: 127.0.0.1, Node: 0 Time: 542.02 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 173, source address: 10.1.1.1, Node: 0 Time: 542.02 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 173, source address: 10.1.1.1, Node: 0 Time: 542.02 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 173, source address: 10.1.1.1, Node: 0 Time: 542.02 seconds.
+Node 3 Send igmp packet: packet size = 56 bytes, uid = 175, destination address: 224.0.0.22 Time: 543.632 seconds.
+Node 0 Receive igmp packet: packet size = 56 bytes, uid = 175, source address: 10.1.1.4, Node: 3 Time: 543.632 seconds.
+Node 1 Receive igmp packet: packet size = 56 bytes, uid = 175, source address: 10.1.1.4, Node: 3 Time: 543.632 seconds.
+Node 2 Receive igmp packet: packet size = 56 bytes, uid = 175, source address: 10.1.1.4, Node: 3 Time: 543.632 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 176, destination address: 224.0.0.22 Time: 546.259 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 176, source address: 10.1.1.4, Node: 3 Time: 546.26 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 176, source address: 10.1.1.4, Node: 3 Time: 546.26 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 176, source address: 10.1.1.4, Node: 3 Time: 546.26 seconds.
+Node: 3 join group {start} address: 88.183.52.135 Time: 722 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 178, destination address: 224.0.0.22 Time: 722 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 180, destination address: 224.0.0.22 Time: 722 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 178, source address: 10.1.1.4, Node: 3 Time: 722 seconds.
+Node: 3 join group {finish} address: 88.183.52.135 Time: 722 seconds. join delay: 0.000102401 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 178, source address: 10.1.1.4, Node: 3 Time: 722 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 178, source address: 10.1.1.4, Node: 3 Time: 722 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 180, source address: 10.1.1.4, Node: 3 Time: 722 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 180, source address: 10.1.1.4, Node: 3 Time: 722 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 180, source address: 10.1.1.4, Node: 3 Time: 722 seconds.
+Node: 3 join sec group {start} address: 230.151.10.58 Time: 782 seconds.
+Node 3 Send gsam packet: packet size = 124 bytes, uid = 182, destination address: 10.1.1.1 Time: 782 seconds.
+Node 0 Receive gsam packet: packet size = 124 bytes, uid = 182, source address: 10.1.1.4, Node: 3 Time: 782 seconds.
+Node 0 Send gsam packet: packet size = 124 bytes, uid = 187, destination address: 10.1.1.4 Time: 782 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 188, destination address: 10.1.1.4 Time: 782 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 189, destination address: 10.1.1.2 Time: 782 seconds.
+Node 0 Send gsam packet: packet size = 92 bytes, uid = 190, destination address: 10.1.1.3 Time: 782 seconds.
+Node 2 Receive gsam packet: packet size = 92 bytes, uid = 190, source address: 10.1.1.1, Node: 0 Time: 782.006 seconds.
+Node 2 Send gsam packet: packet size = 76 bytes, uid = 195, destination address: 10.1.1.1 Time: 782.006 seconds.
+Node 3 Receive gsam packet: packet size = 124 bytes, uid = 187, source address: 10.1.1.1, Node: 0 Time: 782.007 seconds.
+Node 3 Receive gsam packet: packet size = 92 bytes, uid = 188, source address: 10.1.1.1, Node: 0 Time: 782.007 seconds.
+Node 3 Send gsam packet: packet size = 72 bytes, uid = 200, destination address: 10.1.1.1 Time: 782.007 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 200, source address: 10.1.1.4, Node: 3 Time: 782.007 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 201, destination address: 230.151.10.58 Time: 782.008 seconds.
+Node: 3 Processing outgoing packet,  uid = 201 Policy found,  BYPASS Time: 782.008 seconds
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 201, source address: 10.1.1.4, Node: 3 Time: 782.008 seconds.
+Node: 3 join sec group {finish} address: 230.151.10.58 Time: 782.008 seconds. join delay: 0.00830001 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 201, source address: 10.1.1.4, Node: 3 Time: 782.008 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 201, source address: 10.1.1.4, Node: 3 Time: 782.008 seconds.
+Node 1 Receive gsam packet: packet size = 92 bytes, uid = 189, source address: 10.1.1.1, Node: 0 Time: 782.009 seconds.
+Node 1 Send gsam packet: packet size = 72 bytes, uid = 207, destination address: 10.1.1.1 Time: 782.009 seconds.
+Node 0 Receive gsam packet: packet size = 72 bytes, uid = 207, source address: 10.1.1.2, Node: 1 Time: 782.012 seconds.
+Node 0 Receive gsam packet: packet size = 76 bytes, uid = 195, source address: 10.1.1.3, Node: 2 Time: 782.013 seconds.
+Node 0 Send gsam packet: packet size = 72 bytes, uid = 217, destination address: 10.1.1.2 Time: 782.013 seconds.
+Node 0 Send gsam packet: packet size = 72 bytes, uid = 218, destination address: 10.1.1.3 Time: 782.013 seconds.
+Node 1 Receive gsam packet: packet size = 72 bytes, uid = 217, source address: 10.1.1.1, Node: 0 Time: 782.013 seconds.
+Node 1 Send gsam packet: packet size = 88 bytes, uid = 219, destination address: 10.1.1.1 Time: 782.013 seconds.
+Node 0 Receive gsam packet: packet size = 88 bytes, uid = 219, source address: 10.1.1.2, Node: 1 Time: 782.014 seconds.
+Node 2 Receive gsam packet: packet size = 72 bytes, uid = 218, source address: 10.1.1.1, Node: 0 Time: 782.014 seconds.
+Node 2 Send gsam packet: packet size = 92 bytes, uid = 220, destination address: 10.1.1.1 Time: 782.014 seconds.
+Node 0 Receive gsam packet: packet size = 92 bytes, uid = 220, source address: 10.1.1.3, Node: 2 Time: 782.014 seconds.
+Node 0 Send gsam packet: packet size = 116 bytes, uid = 221, destination address: 10.1.1.4 Time: 782.014 seconds.
+Node 0 Send gsam packet: packet size = 116 bytes, uid = 221, destination address: 10.1.1.3 Time: 782.014 seconds.
+Node 0 Send gsam packet: packet size = 116 bytes, uid = 221, destination address: 10.1.1.2 Time: 782.014 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 222, destination address: 224.0.0.1 Time: 782.014 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 222, source address: 127.0.0.1, Node: 0 Time: 782.014 seconds.
+Node 3 Receive gsam packet: packet size = 116 bytes, uid = 221, source address: 10.1.1.1, Node: 0 Time: 782.014 seconds.
+Node 2 Receive gsam packet: packet size = 116 bytes, uid = 221, source address: 10.1.1.1, Node: 0 Time: 782.015 seconds.
+Node 1 Receive gsam packet: packet size = 116 bytes, uid = 221, source address: 10.1.1.1, Node: 0 Time: 782.015 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 222, source address: 10.1.1.1, Node: 0 Time: 782.015 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 222, source address: 10.1.1.1, Node: 0 Time: 782.015 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 222, source address: 10.1.1.1, Node: 0 Time: 782.015 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 224, destination address: 230.151.10.58 Time: 782.015 seconds.
+Node: 3 Processing outgoing packet,  uid = 224 Policy found,  BYPASS Time: 782.015 seconds
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 224, source address: 10.1.1.4, Node: 3 Time: 782.016 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 224, source address: 10.1.1.4, Node: 3 Time: 782.016 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 224, source address: 10.1.1.4, Node: 3 Time: 782.016 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 226, destination address: 224.0.0.22 Time: 785.246 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 226, source address: 10.1.1.4, Node: 3 Time: 785.246 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 226, source address: 10.1.1.4, Node: 3 Time: 785.246 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 226, source address: 10.1.1.4, Node: 3 Time: 785.246 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 228, destination address: 224.0.0.1 Time: 840 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 228, source address: 127.0.0.1, Node: 0 Time: 840 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 228, source address: 10.1.1.1, Node: 0 Time: 840 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 228, source address: 10.1.1.1, Node: 0 Time: 840 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 228, source address: 10.1.1.1, Node: 0 Time: 840 seconds.
+Node 3 Send igmp packet: packet size = 72 bytes, uid = 230, destination address: 224.0.0.22 Time: 847.26 seconds.
+Node 0 Receive igmp packet: packet size = 72 bytes, uid = 230, source address: 10.1.1.4, Node: 3 Time: 847.26 seconds.
+Node 1 Receive igmp packet: packet size = 72 bytes, uid = 230, source address: 10.1.1.4, Node: 3 Time: 847.26 seconds.
+Node 2 Receive igmp packet: packet size = 72 bytes, uid = 230, source address: 10.1.1.4, Node: 3 Time: 847.26 seconds.
+Node: 3 join group {start} address: 71.14.126.226 Time: 902 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 231, destination address: 224.0.0.22 Time: 902 seconds.
+Node 3 Send igmp packet: packet size = 16 bytes, uid = 233, destination address: 224.0.0.22 Time: 902 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 231, source address: 10.1.1.4, Node: 3 Time: 902 seconds.
+Node: 3 join group {finish} address: 71.14.126.226 Time: 902 seconds. join delay: 0.000102401 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 231, source address: 10.1.1.4, Node: 3 Time: 902 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 231, source address: 10.1.1.4, Node: 3 Time: 902 seconds.
+Node 0 Receive igmp packet: packet size = 16 bytes, uid = 233, source address: 10.1.1.4, Node: 3 Time: 902 seconds.
+Node 1 Receive igmp packet: packet size = 16 bytes, uid = 233, source address: 10.1.1.4, Node: 3 Time: 902 seconds.
+Node 2 Receive igmp packet: packet size = 16 bytes, uid = 233, source address: 10.1.1.4, Node: 3 Time: 902 seconds.
+Node 0 Send igmp packet: packet size = 12 bytes, uid = 235, destination address: 224.0.0.1 Time: 960 seconds.
+Node 0 Receive igmp packet: packet size = 12 bytes, uid = 235, source address: 127.0.0.1, Node: 0 Time: 960 seconds.
+Node 1 Receive igmp packet: packet size = 12 bytes, uid = 235, source address: 10.1.1.1, Node: 0 Time: 960 seconds.
+Node 2 Receive igmp packet: packet size = 12 bytes, uid = 235, source address: 10.1.1.1, Node: 0 Time: 960 seconds.
+Node 3 Receive igmp packet: packet size = 12 bytes, uid = 235, source address: 10.1.1.1, Node: 0 Time: 960 seconds.
+Node 3 Send igmp packet: packet size = 80 bytes, uid = 237, destination address: 224.0.0.22 Time: 969.943 seconds.
+Node 0 Receive igmp packet: packet size = 80 bytes, uid = 237, source address: 10.1.1.4, Node: 3 Time: 969.943 seconds.
+Node 1 Receive igmp packet: packet size = 80 bytes, uid = 237, source address: 10.1.1.4, Node: 3 Time: 969.943 seconds.
+Node 2 Receive igmp packet: packet size = 80 bytes, uid = 237, source address: 10.1.1.4, Node: 3 Time: 969.943 seconds.
+ nonsec group - average join delay[5]: 0.000102401 seconds.
+ nonsec group - typical join delay[5]: 0.000102401 seconds.
+ sec group - average join delay[4]: 0.0097515 seconds.
+ sec group - typical join delay[4]: 0.0097515 seconds.

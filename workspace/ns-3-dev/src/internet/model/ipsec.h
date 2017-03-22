@@ -101,6 +101,13 @@ public:	//
 	void LogProcessingPacket (uint32_t node_id, bool is_incoming, bool policy_found, IpSec::PROCESS_CHOICE process_choice, const Ptr<const Packet> packet);
 	void LogSecGroupAverageDelay (void);
 	void LogNonsecGroupAverageDelay (void);
+	void PlotSecGroupDelay (void);
+	void PlotSecGroupDelayInRange (Time max);
+	void PlotNonsecGroupDelay (void);
+	void LogNonSecGroupJoinWorstDelay (void);
+	void LogSecGroupJoinWorstDelay (void);
+	void LogClusterWorstDelay (void);
+	void LogALlJoinWorstDelay (uint16_t number_of_gm);
 public:	//const
 	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;
@@ -135,14 +142,17 @@ public:	//const
 	Ipv4Address GetDestinationAddressForIgmpv3UnsecuredReport (void) const;
 	uint32_t GetNodeIdByAddress (Ipv4Address node_interface_address) const;
 	void ClearResultFile (void) const;
+	void ClearWorstDelayFile (void) const;
 	Time GetSigmpReportDelayAfterGsamInMilliSeconds (void) const;
 	Time GetGmJoinIntervalInSeconds (void) const;
+	Time GetSimulationTimeInSeconds (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
 	static Ptr<GsamConfig> m_ptr_config_instance;
 	const static std::string m_path_config;
 	const static std::string m_path_result;
+	const static std::string m_path_dat_worst_delay;
 private:
 	std::map<std::string, std::string> m_map_settings;
 	Ipv4Address m_q_unicast_address;
@@ -151,7 +161,7 @@ private:
 	std::map<uint32_t, uint32_t> m_map_u32_ipv4addr_to_node_id;
 	std::map<std::pair<uint32_t, uint32_t>, Time> m_map_node_id_group_address_to_time_join_finish;
 	std::map<std::pair<uint32_t, uint32_t>, Time> m_map_node_id_group_address_to_time_join_sec_delay;
-	std::map<std::pair<uint32_t, uint32_t>, Time>m_map_node_id_group_address_to_time_join_nonsec_delay;
+	std::map<std::pair<uint32_t, uint32_t>, Time> m_map_node_id_group_address_to_time_join_nonsec_delay;
 };
 
 class GsamInfo : public Object {

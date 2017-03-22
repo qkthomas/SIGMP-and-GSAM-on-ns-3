@@ -1,0 +1,60 @@
+set terminal svg
+set output "sec group join 1 seconds delay max ranged.svg"
+set title "sec group join 2-D Plot, joins with dealy smaller than 1 seconds"
+set xlabel "Nth GM Join (20 GMs, 2 NQs, 20% Rejection, Link: 100mbps, 10ms)"
+set ylabel "Delay in Seconds"
+
+set yrange [0:+1]
+set term svg mouse jsdir "http://gnuplot.sourceforge.net/demo_svg/"
+plot "-"  title "50 joins, average delay: 0.572067 seconds" with linespoints
+0 0.476985
+1 0.747758
+2 0.558337
+3 0.791251
+4 0.363579
+5 0.699111
+6 0.64981
+7 0.406245
+8 0.77076
+9 0.842999
+10 0.939515
+11 0.363196
+12 0.293811
+13 0.630266
+14 0.425263
+15 0.89539
+16 0.252225
+17 0.151395
+18 0.670086
+19 0.780429
+20 0.175969
+21 0.426076
+22 0.386702
+23 0.24133
+24 0.864513
+25 0.673884
+26 0.802314
+27 0.251448
+28 0.739023
+29 0.353124
+30 0.538622
+31 0.651057
+32 0.457801
+33 0.658082
+34 0.900544
+35 0.308064
+36 0.456389
+37 0.46332
+38 0.465075
+39 0.966712
+40 0.547977
+41 0.910684
+42 0.843161
+43 0.353173
+44 0.904704
+45 0.221003
+46 0.377418
+47 0.506043
+48 0.595372
+49 0.855365
+e

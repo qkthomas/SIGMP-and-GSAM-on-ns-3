@@ -1,4 +1,4 @@
-number-of-node:83
+number-of-node:20
 number-of-nq:2
 fake-rejection-probability:20
 nq-join-time:2
@@ -21,5 +21,4 @@ join-secure-group-probability:50
 destination-for-igmpv3-unsecure-query:224.0.0.1
 destination-for-igmpv3-unsecure-report:224.0.0.22
 sigmp-delay-after-gsam-ms:1
-gm-join-interval-second:10
-simulation-time-second:100
+gm-join-interval-second:1

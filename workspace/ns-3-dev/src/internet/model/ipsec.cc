@@ -33,6 +33,9 @@
 #include "tcp-header.h"
 #include "udp-header.h"
 #include "ns3/random-variable-stream.h"
+#include "ns3/gnuplot.h"
+#include <vector>
+#include <algorithm>
 
 namespace ns3 {
 
@@ -276,6 +279,7 @@ NS_OBJECT_ENSURE_REGISTERED (GsamConfig);
 Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = 0;
 const std::string GsamConfig::m_path_config = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/Config.txt";
 const std::string GsamConfig::m_path_result = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/Result.txt";
+const std::string GsamConfig::m_path_dat_worst_delay = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/worst_delay.dat";
 
 TypeId
 GsamConfig::GetTypeId (void)
@@ -1236,6 +1240,22 @@ GsamConfig::ClearResultFile (void) const
 	}
 }
 
+void
+GsamConfig::ClearWorstDelayFile (void) const
+{
+	NS_LOG_FUNCTION (this);
+	std::ofstream worst_delay(GsamConfig::m_path_dat_worst_delay.c_str(), std::ios::out | std::ios::trunc);
+	if (worst_delay.is_open())
+	{
+		std::cout << "Clearing result file" << std::endl;
+		worst_delay.close();
+	}
+	else
+	{
+		std::cout << "Unable to open result file" << std::endl;
+	}
+}
+
 Time
 GsamConfig::GetSigmpReportDelayAfterGsamInMilliSeconds (void) const
 {
@@ -1284,7 +1304,33 @@ GsamConfig::GetGmJoinIntervalInSeconds (void) const
 	{
 		NS_ASSERT (false);
 	}
-	Time retval = MilliSeconds(seconds_double);
+	Time retval = Seconds(seconds_double);
+	return retval;
+}
+
+Time
+GsamConfig::GetSimulationTimeInSeconds (void) const
+{
+	NS_LOG_FUNCTION (this);
+	double seconds_double = 0;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("simulation-time-second");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if (std::stringstream(value_text) >> seconds_double)
+		{
+			//ok
+		}
+		else
+		{
+			NS_ASSERT (false);
+		}
+	}
+	else
+	{
+		NS_ASSERT (false);
+	}
+	Time retval = Seconds(seconds_double);
 	return retval;
 }
 
@@ -1516,25 +1562,40 @@ void
 GsamConfig::LogSecGroupAverageDelay (void)
 {
 	Time total_delay = Seconds(0.0);
-	Time typical_total_delay = Seconds (0.0);
-	uint32_t typical_count = 0;
+//	//delay smaller than 500 ms
+//	Time total_delay_smaller_500_ms = Seconds (0.0);
+//	uint32_t delay_smaller_500_ms_count = 0;
+//	//delay smaller than 1 s
+//	Time total_delay_smaller_one_second = Seconds (0.0);
+//	uint32_t delay_smaller_one_second_count = 0;
+
 	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_sec_delay.begin();
 			const_it != this->m_map_node_id_group_address_to_time_join_sec_delay.end();
 			const_it++)
 	{
 		total_delay += const_it->second;
-		if (const_it->second < Seconds (1.0))
-		{
-			typical_total_delay += const_it->second;
-			typical_count++;
-		}
+//		//delay smaller than 500 ms
+//		if (const_it->second < Seconds (0.5))
+//		{
+//			total_delay_smaller_500_ms += const_it->second;
+//			delay_smaller_500_ms_count++;
+//		}
+//		//delay smaller than 1 s
+//		if (const_it->second < Seconds (1.0))
+//		{
+//			total_delay_smaller_one_second += const_it->second;
+//			delay_smaller_one_second_count++;
+//		}
 	}
 
 	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
 	if (result_doc.is_open())
 	{
 		result_doc << " sec group - average join delay["<< this->m_map_node_id_group_address_to_time_join_sec_delay.size() <<"]: " << (total_delay.GetSeconds()/this->m_map_node_id_group_address_to_time_join_sec_delay.size()) << " seconds." << std::endl;
-		result_doc << " sec group - typical join delay["<< typical_count <<"]: " << (typical_total_delay.GetSeconds()/typical_count) << " seconds." << std::endl;
+//		//delay smaller than 500 ms
+//		result_doc << " sec group - delay<500ms["<< delay_smaller_500_ms_count <<"]: " << (total_delay_smaller_500_ms.GetSeconds()/delay_smaller_500_ms_count) << " seconds." << std::endl;
+//		//delay smaller than 1 s
+//		result_doc << " sec group - delay<1s["<< delay_smaller_one_second_count <<"]: " << (total_delay_smaller_one_second.GetSeconds()/delay_smaller_one_second_count) << " seconds." << std::endl;
 		result_doc.close();
 	}
 	else
@@ -1547,31 +1608,319 @@ void
 GsamConfig::LogNonsecGroupAverageDelay (void)
 {
 	Time total_delay = Seconds(0.0);
-	Time typical_total_delay = Seconds (0.0);
-	uint32_t typical_count = 0;
+	//Time typical_total_delay = Seconds (0.0);
+	//uint32_t typical_count = 0;
+
 	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_nonsec_delay.begin();
 			const_it != this->m_map_node_id_group_address_to_time_join_nonsec_delay.end();
 			const_it++)
 	{
 		total_delay += const_it->second;
-		if (const_it->second < Seconds (1.0))
-		{
-			typical_total_delay += const_it->second;
-			typical_count++;
-		}
+//		if (const_it->second < Seconds (1.0))
+//		{
+//			typical_total_delay += const_it->second;
+//			typical_count++;
+//		}
 	}
 
 	std::ofstream result_doc(GsamConfig::m_path_result.c_str(), std::ios::app);
 	if (result_doc.is_open())
 	{
 		result_doc << " nonsec group - average join delay["<< this->m_map_node_id_group_address_to_time_join_nonsec_delay.size() <<"]: " << (total_delay.GetSeconds()/this->m_map_node_id_group_address_to_time_join_nonsec_delay.size()) << " seconds." << std::endl;
-		result_doc << " nonsec group - typical join delay["<< typical_count <<"]: " << (typical_total_delay.GetSeconds()/typical_count) << " seconds." << std::endl;
+//		result_doc << " nonsec group - typical join delay["<< typical_count <<"]: " << (typical_total_delay.GetSeconds()/typical_count) << " seconds." << std::endl;
 		result_doc.close();
 	}
 	else
 	{
 		std::cout << "Unable to open result file" << std::endl;
 	}
+}
+
+void
+GsamConfig::PlotSecGroupDelay (void)
+{
+	// Instantiate the dataset, set its title, and make the points be
+	// plotted along with connecting lines.
+	std::stringstream ss_number_joins;
+	ss_number_joins << this->m_map_node_id_group_address_to_time_join_sec_delay.size();
+	Gnuplot2dDataset dataset;
+	dataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+
+	Time total_delay = Seconds (0.0);
+	double count = 0;
+
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_sec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_sec_delay.end();
+			const_it++)
+	{
+		total_delay += const_it->second;
+		dataset.Add (count, const_it->second.GetSeconds());
+		count++;
+	}
+
+	std::stringstream ss_average_delay;
+	ss_average_delay << (total_delay.GetSeconds() / count);
+	std::string dataTitle = ss_number_joins.str() + " joins, " + "average delay: " + ss_average_delay.str() + " seconds";
+	dataset.SetTitle (dataTitle);
+
+	//plotting
+	std::string fileNameWithNoExtension = "sec group join";
+	std::string graphicsFileName        = fileNameWithNoExtension + ".svg";
+	std::string plotFileName            = fileNameWithNoExtension + ".plt";
+	std::string plotTitle               = "sec group join 2-D Plot, all";
+
+	// Instantiate the plot and set its title.
+	Gnuplot plot (graphicsFileName);
+	plot.SetTitle (plotTitle);
+
+	// Make the graphics file, which the plot file will create when it
+	// is used with Gnuplot, be a PNG file.
+	plot.SetTerminal ("svg");
+
+	// Set the labels for each axis.
+	plot.SetLegend ("Nth GM Join (20 GMs, 2 NQs, 20% Rejection, Link: 100mbps, 10ms)", "Delay in Seconds");
+
+	//add mouse interaction
+	plot.AppendExtra ("set term svg mouse jsdir \"http://gnuplot.sourceforge.net/demo_svg/\"");
+
+	// Add the dataset to the plot.
+	plot.AddDataset (dataset);
+
+	// Open the plot file.
+	std::ofstream plotFile (plotFileName.c_str());
+
+	// Write the plot file.
+	plot.GenerateOutput (plotFile);
+
+	// Close the plot file.
+	plotFile.close ();
+}
+
+void
+GsamConfig::PlotSecGroupDelayInRange (Time max)
+{
+	std::stringstream max_ss;
+	max_ss << max.GetSeconds();
+
+	// Instantiate the dataset, set its title, and make the points be
+	// plotted along with connecting lines.
+	Gnuplot2dDataset dataset;
+	dataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+
+	Time total_delay = Seconds (0.0);
+	double count = 0;
+
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_sec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_sec_delay.end();
+			const_it++)
+	{
+		if (const_it->second < max)
+		{
+			total_delay += const_it->second;
+			dataset.Add (count, const_it->second.GetSeconds());
+			count++;
+		}
+	}
+
+	std::stringstream ss_number_joins;
+	ss_number_joins << count;
+	std::stringstream ss_average_delay;
+	ss_average_delay << (total_delay.GetSeconds() / count);
+	std::string dataTitle = ss_number_joins.str() + " joins, " + "average delay: " + ss_average_delay.str() + " seconds";
+	dataset.SetTitle (dataTitle);
+
+	//plotting
+	std::string fileNameWithNoExtension = "sec group join " + max_ss.str() + " seconds delay max ranged";
+	std::string graphicsFileName        = fileNameWithNoExtension + ".svg";
+	std::string plotFileName            = fileNameWithNoExtension + ".plt";
+	std::string plotTitle               = "sec group join 2-D Plot, joins with dealy smaller than " + max_ss.str() + " seconds";
+
+	// Instantiate the plot and set its title.
+	Gnuplot plot (graphicsFileName);
+	plot.SetTitle (plotTitle);
+
+	// Make the graphics file, which the plot file will create when it
+	// is used with Gnuplot, be a PNG file.
+	plot.SetTerminal ("svg");
+
+	// Set the labels for each axis.
+	plot.SetLegend ("Nth GM Join (20 GMs, 2 NQs, 20% Rejection, Link: 100mbps, 10ms)", "Delay in Seconds");
+
+	//ignore delay larger than 10 seconds Set the range for the y axis.
+	plot.AppendExtra ("set yrange [0:+" + max_ss.str() +"]");
+	max_ss.clear();
+
+	//add mouse interaction
+	plot.AppendExtra ("set term svg mouse jsdir \"http://gnuplot.sourceforge.net/demo_svg/\"");
+
+	// Add the dataset to the plot.
+	plot.AddDataset (dataset);
+
+	// Open the plot file.
+	std::ofstream plotFile (plotFileName.c_str());
+
+	// Write the plot file.
+	plot.GenerateOutput (plotFile);
+
+	// Close the plot file.
+	plotFile.close ();
+}
+
+void
+GsamConfig::PlotNonsecGroupDelay (void)
+{
+	// Instantiate the dataset, set its title, and make the points be
+	// plotted along with connecting lines.
+	Gnuplot2dDataset dataset;
+	dataset.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+
+	Time total_delay = Seconds (0.0);
+	double count = 0;
+
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_nonsec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_nonsec_delay.end();
+			const_it++)
+	{
+		total_delay += const_it->second;
+		dataset.Add (count, const_it->second.GetSeconds());
+		count++;
+	}
+
+	std::stringstream ss_number_joins;
+	ss_number_joins << count;
+	std::stringstream ss_average_delay;
+	ss_average_delay << (total_delay.GetSeconds() / count);
+	std::string dataTitle = ss_number_joins.str() + " joins, " + "average delay: " + ss_average_delay.str() + " seconds";
+	dataset.SetTitle (dataTitle);
+
+	//plotting
+	std::string fileNameWithNoExtension = "open group join";
+	std::string graphicsFileName        = fileNameWithNoExtension + ".svg";
+	std::string plotFileName            = fileNameWithNoExtension + ".plt";
+	std::string plotTitle               = "open group join 2-D Plot";
+
+	// Instantiate the plot and set its title.
+	Gnuplot plot (graphicsFileName);
+	plot.SetTitle (plotTitle);
+
+	// Make the graphics file, which the plot file will create when it
+	// is used with Gnuplot, be a PNG file.
+	plot.SetTerminal ("svg");
+
+	// Set the labels for each axis.
+	plot.SetLegend ("Nth GM Join (20 GMs, 2 NQs, 20% Rejection, Link: 100mbps, 10ms)", "Delay in Seconds");
+
+//	//ignore delay larger than 10 seconds Set the range for the y axis.
+//	plot.AppendExtra ("set yrange [0:+10]");
+
+	//add mouse interaction
+	plot.AppendExtra ("set term svg mouse jsdir \"http://gnuplot.sourceforge.net/demo_svg/\"");
+
+	// Add the dataset to the plot.
+	plot.AddDataset (dataset);
+
+	// Open the plot file.
+	std::ofstream plotFile (plotFileName.c_str());
+
+	// Write the plot file.
+	plot.GenerateOutput (plotFile);
+
+	// Close the plot file.
+	plotFile.close ();
+}
+
+void
+GsamConfig::LogNonSecGroupJoinWorstDelay (void)
+{
+	std::vector<double> vector_delay_second;
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_nonsec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_nonsec_delay.end();
+			const_it++)
+	{
+		vector_delay_second.push_back(const_it->second.GetSeconds());
+	}
+	std::sort (vector_delay_second.begin(), vector_delay_second.end());
+
+	std::ofstream worst_delay_dat(GsamConfig::m_path_dat_worst_delay.c_str(), std::ios::app);
+	if (worst_delay_dat.is_open())
+	{
+		worst_delay_dat << vector_delay_second.back() << " ";
+		worst_delay_dat.close();
+	}
+	else
+	{
+		std::cout << "Unable to open worst delay dat file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogSecGroupJoinWorstDelay (void)
+{
+	std::vector<double> vector_delay_second;
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_sec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_sec_delay.end();
+			const_it++)
+	{
+		vector_delay_second.push_back(const_it->second.GetSeconds());
+	}
+	std::sort (vector_delay_second.begin(), vector_delay_second.end());
+
+	std::ofstream worst_delay_dat(GsamConfig::m_path_dat_worst_delay.c_str(), std::ios::app);
+	if (worst_delay_dat.is_open())
+	{
+		//50% position
+		worst_delay_dat << vector_delay_second[vector_delay_second.size()/2] << " ";
+		//75% position
+		worst_delay_dat << vector_delay_second[(vector_delay_second.size()/2) + (vector_delay_second.size()/4)] << " ";
+		//100% position
+		worst_delay_dat << vector_delay_second.back() << std::endl;
+		worst_delay_dat.close();
+	}
+	else
+	{
+		std::cout << "Unable to open worst delay dat file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogClusterWorstDelay (void)
+{
+	std::ofstream worst_delay_dat(GsamConfig::m_path_dat_worst_delay.c_str(), std::ios::app);
+	if (worst_delay_dat.is_open())
+	{
+		//label
+		worst_delay_dat << "Number_of_GMs ";
+		//open group
+		worst_delay_dat << "Open Group ";
+		//50% position
+		worst_delay_dat << "50% Worst ";
+		//75% position
+		worst_delay_dat << "75% Worst ";
+		//100% position
+		worst_delay_dat << "100% Worst" << std::endl;
+		worst_delay_dat.close();
+	}
+	else
+	{
+		std::cout << "Unable to open worst delay dat file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogALlJoinWorstDelay (uint16_t number_of_gm)
+{
+	std::ofstream worst_delay_dat(GsamConfig::m_path_dat_worst_delay.c_str(), std::ios::app);
+	if (worst_delay_dat.is_open())
+	{
+		worst_delay_dat << number_of_gm << " ";
+		worst_delay_dat.close();
+	}
+	else
+	{
+		std::cout << "Unable to open worst delay dat file" << std::endl;
+	}
+	this->LogNonSecGroupJoinWorstDelay();
+	this->LogSecGroupJoinWorstDelay();
 }
 
 /********************************************************

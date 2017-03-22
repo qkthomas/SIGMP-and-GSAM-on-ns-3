@@ -1,13 +1,13 @@
-number-of-node:83
+number-of-node:6
 number-of-nq:2
-fake-rejection-probability:20
+fake-rejection-probability:90
 nq-join-time:2
 gm-join-time:10
 number-of-retransmission:1
 retransmission-timeout:2
 session-timeout:2
 retransmission-disable:true
-gm-join-event-number:5
+gm-join-event-number:1
 sec-grp-address-range-start:230.0.0.0
 sec-grp-address-range-end:235.0.0.0
 default-group-timer-delay:60
@@ -21,5 +21,3 @@ join-secure-group-probability:50
 destination-for-igmpv3-unsecure-query:224.0.0.1
 destination-for-igmpv3-unsecure-report:224.0.0.22
 sigmp-delay-after-gsam-ms:1
-gm-join-interval-second:10
-simulation-time-second:100

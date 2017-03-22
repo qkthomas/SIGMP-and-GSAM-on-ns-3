@@ -59,7 +59,7 @@ Igmpv3Application::StartApplication(void)
 	}
 	else if (igmp->GetRole() == Igmpv3L4Protocol::NONQUERIER)
 	{
-		dt = GsamConfig::GetSingleton()->GetNqJoinTimePlusRandomIntervalInSeconds();
+		dt = GsamConfig::GetSingleton()->GetNqJoinTimeInSeconds();
 	}
 	else if (igmp->GetRole() == Igmpv3L4Protocol::GROUP_MEMBER)
 	{
@@ -166,6 +166,8 @@ Igmpv3Application::GenerateNextEvent (void)
 		{
 			this->GenerateGeneralQueryEvent();
 		}
+
+		this->m_currentEvent = Simulator::Schedule (this->m_default_query_interval, &Igmpv3Application::GenerateNextEvent, this);
 	}
 	else if (Igmpv3L4Protocol::GROUP_MEMBER == igmp->GetRole())
 	{
@@ -181,6 +183,7 @@ Igmpv3Application::GenerateNextEvent (void)
 				this->GenerateHostJoinEvent();
 			}
 		}
+		this->m_currentEvent = Simulator::Schedule (GsamConfig::GetSingleton()->GetGmJoinIntervalInSeconds(), &Igmpv3Application::GenerateNextEvent, this);
 	}
 	else if (Igmpv3L4Protocol::NONQUERIER == igmp->GetRole())
 	{
@@ -200,8 +203,6 @@ Igmpv3Application::GenerateNextEvent (void)
 	{
 		NS_ASSERT (false);
 	}
-
-	this->m_currentEvent = Simulator::Schedule (this->m_default_query_interval, &Igmpv3Application::GenerateNextEvent, this);
 }
 
 void
