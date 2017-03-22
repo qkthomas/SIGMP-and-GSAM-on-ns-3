@@ -2,6 +2,7 @@ set terminal svg
 set output "worst_delay.svg"
 set title "Worst Delay Histogram"
 set ylabel "Delay in Seconds"
+set xlabel "Number of GMs"
 set term svg mouse jsdir "http://gnuplot.sourceforge.net/demo_svg/"
 set style data histogram
 set style histogram clustered gap 1
