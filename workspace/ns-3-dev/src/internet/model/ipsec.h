@@ -108,6 +108,9 @@ public:	//
 	void LogSecGroupJoinWorstDelay (void);
 	void LogClusterWorstDelay (void);
 	void LogALlJoinWorstDelay (uint16_t number_of_gm);
+	void LogNonSecGroupJoinAverageAndWorstDelay (void);
+	void LogSecGroupJoinAverageAndWorstDelay (void);
+	void LogALlJoinAverageAndWorstDelay (uint16_t percentage_rejection);
 public:	//const
 	//Gsam Configs
 	uint16_t GetSpiRejectPropability (void) const;
@@ -146,6 +149,7 @@ public:	//const
 	Time GetSigmpReportDelayAfterGsamInMilliSeconds (void) const;
 	Time GetGmJoinIntervalInSeconds (void) const;
 	Time GetSimulationTimeInSeconds (void) const;
+	bool IsInstallBeforeNqAck (void) const;
 private://private methods
 	void SetQAddress (Ipv4Address address);
 private:	//static member
@@ -153,6 +157,7 @@ private:	//static member
 	const static std::string m_path_config;
 	const static std::string m_path_result;
 	const static std::string m_path_dat_worst_delay;
+	const static std::string m_path_dat_average_worst_delay;
 private:
 	std::map<std::string, std::string> m_map_settings;
 	Ipv4Address m_q_unicast_address;

@@ -280,6 +280,7 @@ Ptr<GsamConfig> GsamConfig::m_ptr_config_instance = 0;
 const std::string GsamConfig::m_path_config = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/Config.txt";
 const std::string GsamConfig::m_path_result = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/Result.txt";
 const std::string GsamConfig::m_path_dat_worst_delay = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/worst_delay.dat";
+const std::string GsamConfig::m_path_dat_average_worst_delay = "/home/lim/Dropbox/Codes Hub/C++/IGMPApp/Configs/average_worst_delay.dat";
 
 TypeId
 GsamConfig::GetTypeId (void)
@@ -1334,6 +1335,38 @@ GsamConfig::GetSimulationTimeInSeconds (void) const
 	return retval;
 }
 
+bool
+GsamConfig::IsInstallBeforeNqAck (void) const
+{
+	NS_LOG_FUNCTION (this);
+	bool retval = false;
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("install-before-nq-ack");
+	if (const_it != this->m_map_settings.end())
+	{
+		std::string value_text = const_it->second;
+		if ("true" == value_text)
+		{
+			retval = true;
+		}
+		else if ("false" == value_text)
+		{
+			retval = false;
+		}
+		else
+		{
+			//option found but set to invaild value. Neither 0 nor 1
+			NS_ASSERT (false);
+		}
+
+	}
+	else
+	{
+		//do nothing
+		//retval = false;
+	}
+	return retval;
+}
+
 void
 GsamConfig::SetupIgmpAndGsam (const Ipv4InterfaceContainerMulticast& interfaces, uint16_t num_nqs)
 {
@@ -1921,6 +1954,101 @@ GsamConfig::LogALlJoinWorstDelay (uint16_t number_of_gm)
 	}
 	this->LogNonSecGroupJoinWorstDelay();
 	this->LogSecGroupJoinWorstDelay();
+}
+
+void
+GsamConfig::LogNonSecGroupJoinAverageAndWorstDelay (void)
+{
+	std::vector<double> vector_delay_second;
+	Time total_delay = Seconds (0.0);
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_nonsec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_nonsec_delay.end();
+			const_it++)
+	{
+		total_delay += const_it->second;
+		vector_delay_second.push_back(const_it->second.GetSeconds());
+	}
+	std::sort (vector_delay_second.begin(), vector_delay_second.end());
+
+	std::ofstream average_worst_delay_dat(GsamConfig::m_path_dat_average_worst_delay.c_str(), std::ios::app);
+	if (average_worst_delay_dat.is_open())
+	{
+		average_worst_delay_dat << (total_delay.GetSeconds()/this->m_map_node_id_group_address_to_time_join_nonsec_delay.size()) << " ";
+		average_worst_delay_dat << vector_delay_second.back() << " ";
+		average_worst_delay_dat.close();
+	}
+	else
+	{
+		std::cout << "Unable to open worst delay dat file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogSecGroupJoinAverageAndWorstDelay (void)
+{
+	std::vector<double> vector_delay_second;
+	Time total_delay = Seconds (0.0);
+	for (std::map<std::pair<uint32_t, uint32_t>, Time>::const_iterator const_it = this->m_map_node_id_group_address_to_time_join_sec_delay.begin();
+			const_it != this->m_map_node_id_group_address_to_time_join_sec_delay.end();
+			const_it++)
+	{
+		total_delay += const_it->second;
+		vector_delay_second.push_back(const_it->second.GetSeconds());
+	}
+	std::sort (vector_delay_second.begin(), vector_delay_second.end());
+
+	std::ofstream average_worst_delay_dat(GsamConfig::m_path_dat_average_worst_delay.c_str(), std::ios::app);
+	if (average_worst_delay_dat.is_open())
+	{
+		//50% position average
+		double total_50_delay = 0.0;
+		uint16_t size_50 = vector_delay_second.size()/2;
+		for (uint8_t it = 0; it != size_50; it++)
+		{
+			total_50_delay += vector_delay_second[it];
+		}
+		average_worst_delay_dat << (total_50_delay/size_50) << " ";
+		//50% position worst
+		average_worst_delay_dat << vector_delay_second[size_50] << " ";
+
+		//75% position average
+		double total_75_delay = 0.0;
+		uint16_t size_75 = (vector_delay_second.size()/2) + (vector_delay_second.size()/4);
+		for (uint8_t it = 0; it != size_75; it++)
+		{
+			total_75_delay += vector_delay_second[it];
+		}
+		average_worst_delay_dat << (total_75_delay/size_75) << " ";
+		//75% position worst
+		average_worst_delay_dat << vector_delay_second[(vector_delay_second.size()/2) + (vector_delay_second.size()/4)] << " ";
+
+		//100% position average
+		average_worst_delay_dat << (total_delay.GetSeconds()/this->m_map_node_id_group_address_to_time_join_sec_delay.size()) << " ";
+		//100% position worst
+		average_worst_delay_dat << vector_delay_second.back() << std::endl;
+		average_worst_delay_dat.close();
+	}
+	else
+	{
+		std::cout << "Unable to open worst delay dat file" << std::endl;
+	}
+}
+
+void
+GsamConfig::LogALlJoinAverageAndWorstDelay (uint16_t percentage_rejection)
+{
+	std::ofstream average_worst_delay_dat(GsamConfig::m_path_dat_average_worst_delay.c_str(), std::ios::app);
+	if (average_worst_delay_dat.is_open())
+	{
+		average_worst_delay_dat << percentage_rejection << " ";
+		average_worst_delay_dat.close();
+	}
+	else
+	{
+		std::cout << "Unable to open worst delay dat file" << std::endl;
+	}
+	this->LogNonSecGroupJoinAverageAndWorstDelay();
+	this->LogSecGroupJoinAverageAndWorstDelay();
 }
 
 /********************************************************

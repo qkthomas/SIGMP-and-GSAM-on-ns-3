@@ -513,7 +513,7 @@ Igmpv3L4Protocol::SendSecureGroupSpecificQuery (Ipv4Address group_address)
 	Ipv4Header ipv4header;
 	ipv4header.SetSource("0.0.0.0");
 	ipv4header.SetProtocol(this->PROT_NUMBER);
-	ipv4header.SetDestination(this->m_GenQueAddress);
+	ipv4header.SetDestination(group_address);
 
 	this->SendMessage (packet, ipv4header, 0);
 

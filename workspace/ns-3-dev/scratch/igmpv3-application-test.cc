@@ -110,7 +110,8 @@ main (int argc, char *argv[])
 	GsamConfig::GetSingleton()->PlotSecGroupDelayInRange (Seconds (10.0));
 	GsamConfig::GetSingleton()->PlotSecGroupDelayInRange (Seconds (1.0));
 	GsamConfig::GetSingleton()->PlotNonsecGroupDelay();
-	GsamConfig::GetSingleton()->LogALlJoinWorstDelay(GsamConfig::GetSingleton()->GetNumberOfNodes() - GsamConfig::GetSingleton()->GetNumberOfNqs() - 1);
+//	GsamConfig::GetSingleton()->LogALlJoinWorstDelay(GsamConfig::GetSingleton()->GetNumberOfNodes() - GsamConfig::GetSingleton()->GetNumberOfNqs() - 1);
+	GsamConfig::GetSingleton()->LogALlJoinAverageAndWorstDelay(GsamConfig::GetSingleton()->GetSpiRejectPropability());
 	return 0;
 }
 
