@@ -3366,7 +3366,7 @@ GsamL4Protocol::HandleGsaSpiNotificationFromGM (Ptr<Packet> packet, const IkePay
 		NS_ASSERT (false);
 	}
 
-	const std::set<uint32_t> first_payload_spis = first_payload_sub->GetSpis();
+	const std::set<uint32_t>& first_payload_spis = first_payload_sub->GetSpis();
 
 	Ptr<GsaPushSession> gsa_push_session = 0;
 	uint32_t payload_gsa_push_id = first_payload_sub->GetGsaPushId();
