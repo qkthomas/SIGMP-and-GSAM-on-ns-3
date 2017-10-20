@@ -9,5 +9,5 @@ set style histogram clustered gap 1
 set style fill solid 0.2 border
 #plot "average_worst_delay.dat" using 2:xticlabels(1):2 with labels title columnheader(2), '' using 3:xticlabels(1):3 with labels title columnheader(3)
 STARTCOL = 2
-ENDCOL = 3
-plot for [COL=STARTCOL:ENDCOL] 'average_worst_delay.dat' using COL:xticlabels(1) title columnheader(COL), for [xw=STARTCOL:COL] '' using 0:xw:(stringcolumn(xw)) with labels font "arial,8" notitle
+ENDCOL = 9
+plot for [COL=STARTCOL:ENDCOL] 'average_worst_delay.dat' using COL:xticlabels(1) title columnheader(COL)

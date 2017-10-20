@@ -127,7 +127,7 @@ public:	//const
 	Time GetNqJoinTimePlusRandomIntervalInSeconds (void) const;
 	Time GetGmJoinTimePlusRandomIntervalInSeconds (void) const;
 	uint16_t GetNumberOfRetransmission (void) const;
-	bool IsRetransmissionDisable (void) const;
+	bool IsGsamRetransmissionDisable (void) const;
 	uint16_t GetGmJoinEventNumber (void) const;
 	Ipv4Address GetSecureGroupAddressRangeStart (void) const;
 	Ipv4Address GetSecureGroupAddressRangeEnd (void) const;

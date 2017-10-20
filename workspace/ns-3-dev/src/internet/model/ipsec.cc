@@ -846,11 +846,11 @@ GsamConfig::GetNumberOfRetransmission (void) const
 }
 
 bool
-GsamConfig::IsRetransmissionDisable (void) const
+GsamConfig::IsGsamRetransmissionDisable (void) const
 {
 	NS_LOG_FUNCTION (this);
 	bool retval = false;
-	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("retransmission-disable");
+	std::map<std::string, std::string>::const_iterator const_it = this->m_map_settings.find("gsam-retransmission-disable");
 	if (const_it != this->m_map_settings.end())
 	{
 		std::string value_text = const_it->second;
@@ -3873,7 +3873,7 @@ GsamInitSession::IsRetransmit (void) const
 
 	bool retval = false;
 
-	if (false == GsamConfig::GetSingleton()->IsRetransmissionDisable())
+	if (false == GsamConfig::GetSingleton()->IsGsamRetransmissionDisable())
 	{
 		if (this->m_number_retranmission > 0)
 		{
